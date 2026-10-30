@@ -1,0 +1,19 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio local state
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ReSharper / Rider
+.idea/
+*.DotSettings.user
+
+# Test / coverage output
+TestResults/
+*.trx
+*.coverage

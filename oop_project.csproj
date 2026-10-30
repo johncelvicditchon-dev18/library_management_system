@@ -1,0 +1,81 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySql.Data" Version="26.10.0" />
+    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+    <EmbeddedResource Include="assets\logos\lrc_logo.png" LogicalName="oop_project.logos.lrc_logo.png" />
+    <EmbeddedResource Include="assets\logos\tcgc_logo.png" LogicalName="oop_project.logos.tcgc_logo.png" />
+    <EmbeddedResource Include="assets\background_green.png" LogicalName="oop_project.background_green.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- lowercase resources folder (kept as the generated designer expects) -->
+    <Compile Update="properties\resources.designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>resources.resx</DependentUpon>
+    </Compile>
+    <EmbeddedResource Update="properties\resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>resources.designer.cs</LastGenOutput>
+      <LogicalName>oop_project.Properties.Resources</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- keep the winforms designer files nested under their lowercase form -->
+    <Compile Update="forms\admin_dashboard.designer.cs">
+      <DependentUpon>admin_dashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\login.designer.cs">
+      <DependentUpon>login.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\signup.designer.cs">
+      <DependentUpon>signup.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\welcome.designer.cs">
+      <DependentUpon>welcome.cs</DependentUpon>
+    </Compile>
+
+    <EmbeddedResource Update="forms\admin_dashboard.resx">
+      <DependentUpon>admin_dashboard.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\login.resx">
+      <DependentUpon>login.cs</DependentUpon>
+      <LogicalName>oop_project.login.resources</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\signup.resx">
+      <DependentUpon>signup.cs</DependentUpon>
+      <LogicalName>oop_project.signup.resources</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\welcome.resx">
+      <DependentUpon>welcome.cs</DependentUpon>
+      <LogicalName>oop_project.welcome.resources</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\authentication.resx">
+      <DependentUpon>authentication.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\add_book_dialog.resx">
+      <DependentUpon>add_book_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\borrow_book_dialog.resx">
+      <DependentUpon>borrow_book_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\library_dialog.resx">
+      <DependentUpon>library_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\library_report_dialog.resx">
+      <DependentUpon>library_report_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
