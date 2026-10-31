@@ -11,6 +11,7 @@
   <ItemGroup>
     <PackageReference Include="MySql.Data" Version="26.10.0" />
     <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
     <EmbeddedResource Include="assets\logos\lrc_logo.png" LogicalName="oop_project.logos.lrc_logo.png" />
     <EmbeddedResource Include="assets\logos\tcgc_logo.png" LogicalName="oop_project.logos.tcgc_logo.png" />

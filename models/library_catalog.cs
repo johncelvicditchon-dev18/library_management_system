@@ -201,6 +201,36 @@ namespace oop_project.Models
             return null;
         }
 
+        /// <summary>
+        /// Number of copies of one title that are still out. The AVAILABLE COPY
+        /// column is books_table.copy minus this number.
+        /// </summary>
+        public int OpenLoanCount(int bookId)
+        {
+            int count = 0;
+
+            foreach (BorrowRecord record in _borrowRecords)
+            {
+                if (!record.DateReturned.HasValue && record.BookId == bookId && bookId > 0)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        public int AvailableCopyCount(Book book)
+        {
+            if (book == null)
+            {
+                throw new ArgumentNullException(nameof(book));
+            }
+
+            int available = book.Quantity - OpenLoanCount(book.BookId);
+            return available < 0 ? 0 : available;
+        }
+
         public bool HasBorrowerWithIdNumber(string idNumber)
         {
             foreach (BorrowRecord record in _borrowRecords)
@@ -229,8 +259,8 @@ namespace oop_project.Models
                     {
                         connection.Open();
 
-                        const string sql = "INSERT INTO `books_table` (`book_title`, `author`, `year_published`, `copy`, `date_added`) " +
-                                           "VALUES (@title, @author, @year, @quantity, @dateAdded);";
+                        const string sql = "INSERT INTO `books_table` (`book_title`, `author`, `year_published`, `copy`, `date_added`, `book_image`) " +
+                                           "VALUES (@title, @author, @year, @quantity, @dateAdded, @image);";
 
                         using (MySqlCommand command = new MySqlCommand(sql, connection))
                         {
@@ -239,6 +269,7 @@ namespace oop_project.Models
                             command.Parameters.AddWithValue("@year", book.Year);
                             command.Parameters.AddWithValue("@quantity", book.QuantityText);
                             command.Parameters.AddWithValue("@dateAdded", book.DateAdded);
+                            command.Parameters.AddWithValue("@image", (object?)book.CoverImage ?? DBNull.Value);
                             command.ExecuteNonQuery();
                             book.AssignBookId((int)command.LastInsertedId);
                         }
@@ -258,7 +289,7 @@ namespace oop_project.Models
         /// validated by the Book model before the SQL runs and the in-memory row is
         /// only rewritten after the statement succeeds.
         /// </summary>
-        public void UpdateBook(Book book, string title, string author, int year, int quantity)
+        public void UpdateBook(Book book, string title, string author, int year, int quantity, byte[]? coverImage = null)
         {
             if (book == null)
             {
@@ -266,7 +297,7 @@ namespace oop_project.Models
             }
 
             // A throw away copy validates the edited values with the same rules.
-            Book validated = new Book(title, author, year, quantity);
+            Book validated = new Book(title, author, year, quantity, coverImage);
 
             if (IsConnected && book.BookId > 0)
             {
@@ -275,7 +306,8 @@ namespace oop_project.Models
                     connection.Open();
 
                     const string sql = "UPDATE `books_table` SET `book_title` = @title, `author` = @author, " +
-                                       "`year_published` = @year, `copy` = @quantity WHERE `book_id` = @bookId;";
+                                       "`year_published` = @year, `copy` = @quantity, `book_image` = @image " +
+                                       "WHERE `book_id` = @bookId;";
 
                     using (MySqlCommand command = new MySqlCommand(sql, connection))
                     {
@@ -283,13 +315,14 @@ namespace oop_project.Models
                         command.Parameters.AddWithValue("@author", validated.Author);
                         command.Parameters.AddWithValue("@year", validated.Year);
                         command.Parameters.AddWithValue("@quantity", validated.QuantityText);
+                        command.Parameters.AddWithValue("@image", (object?)validated.CoverImage ?? DBNull.Value);
                         command.Parameters.AddWithValue("@bookId", book.BookId);
                         command.ExecuteNonQuery();
                     }
                 }
             }
 
-            book.ApplyChanges(validated.Title, validated.Author, validated.Year, validated.Quantity);
+            book.ApplyChanges(validated.Title, validated.Author, validated.Year, validated.Quantity, validated.CoverImage);
         }
 
         /// <summary>
@@ -343,9 +376,9 @@ namespace oop_project.Models
                 throw new ArgumentNullException(nameof(borrower));
             }
 
-            if (!book.IsAvailable)
+            if (book.Quantity <= 0 || OpenLoanCount(book.BookId) >= book.Quantity)
             {
-                throw new InvalidOperationException("That book is already borrowed.");
+                throw new InvalidOperationException("Every copy of that book is already borrowed.");
             }
 
             int borrowerId = borrower.BorrowerId;
@@ -387,8 +420,8 @@ namespace oop_project.Models
                         }
 
                         borrower.AssignBorrowerId(borrowerId);
-                        book.MarkBorrowed();
                         _borrowRecords.Insert(0, stored);
+                        RefreshAvailability();
                         return stored;
                     }
                 }
@@ -406,8 +439,8 @@ namespace oop_project.Models
                 borrower,
                 dateBorrowed);
 
-            book.MarkBorrowed();
             _borrowRecords.Insert(0, record);
+            RefreshAvailability();
             return record;
         }
 
@@ -695,7 +728,7 @@ namespace oop_project.Models
         /// </summary>
         private void LoadBooks(MySqlConnection connection)
         {
-            const string sql = "SELECT `book_id`, `book_title`, `author`, `year_published`, `copy`, `date_added` " +
+            const string sql = "SELECT `book_id`, `book_title`, `author`, `year_published`, `copy`, `date_added`, `book_image` " +
                                "FROM `books_table` ORDER BY `book_title`;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
@@ -712,7 +745,8 @@ namespace oop_project.Models
                             reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
                             reader.IsDBNull(4) ? 0 : ParseQuantity(Convert.ToString(reader.GetValue(4), CultureInfo.InvariantCulture)),
                             reader.IsDBNull(5) ? string.Empty : Convert.ToString(reader.GetValue(5), CultureInfo.InvariantCulture) ?? string.Empty,
-                            true));
+                            true,
+                            reader.IsDBNull(6) ? null : (byte[])reader.GetValue(6)));
                     }
                     catch (ArgumentException)
                     {
@@ -781,17 +815,17 @@ namespace oop_project.Models
 
         private void MarkUnavailableBooks()
         {
-            foreach (BorrowRecord record in _borrowRecords)
+            // A title with several copies stays AVAILABLE while at least one copy
+            // is still on the shelf. Only the last open loan marks it borrowed.
+            foreach (Book book in _books)
             {
-                if (record.DateReturned.HasValue)
-                {
-                    continue;
-                }
-
-                Book? book = FindBookById(record.BookId);
-                if (book != null)
+                if (OpenLoanCount(book.BookId) >= book.Quantity)
                 {
                     book.MarkBorrowed();
+                }
+                else
+                {
+                    book.MarkAvailable();
                 }
             }
         }

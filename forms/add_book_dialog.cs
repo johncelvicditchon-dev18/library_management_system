@@ -15,12 +15,13 @@ namespace oop_project.forms
         private readonly DialogField _authorField;
         private readonly DialogField _yearField;
         private readonly DialogField _quantityField;
+        private readonly BookCoverPicker _coverPicker;
 
         /// <summary>The validated book, available after the dialog returns OK.</summary>
         public Book? CreatedBook { get; private set; }
 
         public AddBookDialog()
-            : base("ADD NEW BOOK", "Register a new title in the library catalog.", 640, 600)
+            : base("ADD NEW BOOK", "Register a new title and attach its picture.", 640, 780)
         {
             int width = ContentWidth;
 
@@ -45,16 +46,22 @@ namespace oop_project.forms
             _quantityField.Input.KeyPress += DigitsOnly_KeyPress;
             _quantityField.Value = "1";
 
+            _coverPicker = new BookCoverPicker();
+            _coverPicker.Location = new Point(32, 372);
+            _coverPicker.Width = width;
+            _coverPicker.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+
             Label hint = new Label();
             hint.AutoSize = false;
             hint.BackColor = Color.Transparent;
             hint.Font = new Font("Segoe UI", 8.25F);
             hint.ForeColor = Color.FromArgb(148, 163, 184);
-            hint.Location = new Point(34, 372);
+            hint.Location = new Point(34, 552);
             hint.Size = new Size(width, 40);
             hint.Text = "DATE ADDED: " + Book.TodayText() + "\r\nNEW TITLES ARE SAVED AS AVAILABLE ON THE SHELF.";
 
             ContentPanel.Controls.Add(hint);
+            ContentPanel.Controls.Add(_coverPicker);
             ContentPanel.Controls.Add(_titleField);
             ContentPanel.Controls.Add(_authorField);
             ContentPanel.Controls.Add(_yearField);
@@ -153,7 +160,7 @@ namespace oop_project.forms
 
             try
             {
-                CreatedBook = new Book(title, author, year, quantity);
+                CreatedBook = new Book(title, author, year, quantity, _coverPicker.ImageBytes);
             }
             catch (ArgumentException ex)
             {

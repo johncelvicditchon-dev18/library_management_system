@@ -23,6 +23,9 @@ namespace oop_project.forms
         private const string EditColumnName = "editActionColumn";
         private const string DeleteColumnName = "deleteActionColumn";
         private const string AccessColumnName = "accessActionColumn";
+        private const string BookCoverColumnName = "bookCoverColumn";
+        private const string RequestApproveColumnName = "requestApproveColumn";
+        private const string RequestRejectColumnName = "requestRejectColumn";
         private const string EditGlyph = "\uE70F";
         private const string DeleteGlyph = "\uE74D";
         private const string AccessGlyph = "\uE7E8";
@@ -30,9 +33,25 @@ namespace oop_project.forms
 
         private readonly LibraryCatalog _catalog = new LibraryCatalog();
         private readonly AccountDirectory _accountDirectory = new AccountDirectory();
+        private readonly BorrowRequestDirectory _requestDirectory = new BorrowRequestDirectory();
         private List<AccountRow> _accounts = new List<AccountRow>();
         private bool _accountsLoaded;
         private bool _canManageAccounts;
+
+        private DataGridViewImageColumn bookCoverColumn = null!;
+
+        // BORROW REQUESTS tab, built in code so the large designer file stays as it is.
+        private TabPage requestsTab = null!;
+        private DataGridView requestsGrid = null!;
+        private DataGridViewTextBoxColumn requestIdColumn = null!;
+        private DataGridViewTextBoxColumn requestBookColumn = null!;
+        private DataGridViewTextBoxColumn requestStudentColumn = null!;
+        private DataGridViewTextBoxColumn requestStudentIdColumn = null!;
+        private DataGridViewTextBoxColumn requestProgramColumn = null!;
+        private DataGridViewTextBoxColumn requestDateColumn = null!;
+        private DataGridViewTextBoxColumn requestStatusColumn = null!;
+        private Label requestsStatusLabel = null!;
+        private RoundedButton requestsRefreshButton = null!;
 
         // STAFF ACCOUNTS tab, built in code so the large designer file stays as it is.
         private TabPage staffTab = null!;
@@ -74,6 +93,7 @@ namespace oop_project.forms
             ScreenMode.Apply(this);
 
             ApplyAccountDetails();
+            CreateBorrowRequestsTab();
             CreateStaffAccountsTab();
             ConfigureGrids();
 
@@ -94,6 +114,7 @@ namespace oop_project.forms
             LoadCatalog();
             LoadAccounts();
             LoadProfileRecord();
+            LoadBorrowRequests();
         }
 
         // ENCAPSULATION: one place that pushes the signed in person's details into
@@ -164,6 +185,134 @@ namespace oop_project.forms
             borrowBookButton.Enabled = _canManageAccounts;
             recordBorrowButton.Enabled = _canManageAccounts;
             markReturnedButton.Enabled = _canManageAccounts;
+        }
+
+        /// <summary>
+        /// The pending student request queue. A student can only request a book;
+        /// this tab is where a librarian turns a request into a real loan or
+        /// rejects it. It is built in code next to the fixed designer tabs.
+        /// </summary>
+        private void CreateBorrowRequestsTab()
+        {
+            if (requestsTab != null)
+            {
+                return;
+            }
+
+            requestsTab = new TabPage();
+            requestsTab.BackColor = Color.White;
+            requestsTab.Location = new Point(4, 29);
+            requestsTab.Name = "requestsTab";
+            requestsTab.Padding = new Padding(3);
+            requestsTab.Size = new Size(1344, 655);
+            requestsTab.Text = "BORROW REQUESTS";
+
+            Label heading = new Label();
+            heading.AutoSize = true;
+            heading.BackColor = Color.Transparent;
+            heading.Font = new Font("Segoe UI", 14.5F, FontStyle.Bold);
+            heading.ForeColor = Color.FromArgb(15, 23, 42);
+            heading.Location = new Point(30, 22);
+            heading.Name = "requestsHeading";
+            heading.TabIndex = 0;
+            heading.Text = "BORROW REQUESTS";
+
+            Label subtitle = new Label();
+            subtitle.AutoSize = true;
+            subtitle.BackColor = Color.Transparent;
+            subtitle.Font = new Font("Segoe UI", 9F);
+            subtitle.ForeColor = Color.FromArgb(148, 163, 184);
+            subtitle.Location = new Point(32, 56);
+            subtitle.Name = "requestsSubtitle";
+            subtitle.TabIndex = 1;
+            subtitle.Text = "Student requests waiting for approval.";
+
+            requestsRefreshButton = CreateTabButton(
+                "requestsRefreshButton", "REFRESH REQUESTS", new Point(30, 92), new Size(188, 44),
+                Color.FromArgb(22, 163, 74), Color.FromArgb(21, 128, 61), Color.FromArgb(20, 83, 45));
+            requestsRefreshButton.Click += delegate { LoadBorrowRequests(); };
+
+            requestsStatusLabel = new Label();
+            requestsStatusLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            requestsStatusLabel.BackColor = Color.Transparent;
+            requestsStatusLabel.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            requestsStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
+            requestsStatusLabel.Location = new Point(630, 104);
+            requestsStatusLabel.Name = "requestsStatusLabel";
+            requestsStatusLabel.Size = new Size(684, 20);
+            requestsStatusLabel.TabIndex = 3;
+            requestsStatusLabel.Text = "REQUESTS HAVE NOT BEEN LOADED YET.";
+            requestsStatusLabel.TextAlign = ContentAlignment.MiddleRight;
+
+            requestsGrid = new DataGridView();
+            ((System.ComponentModel.ISupportInitialize)requestsGrid).BeginInit();
+            requestsGrid.AllowUserToAddRows = false;
+            requestsGrid.AllowUserToDeleteRows = false;
+            requestsGrid.AllowUserToResizeRows = false;
+            requestsGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            requestsGrid.BackgroundColor = Color.White;
+            requestsGrid.BorderStyle = BorderStyle.None;
+            requestsGrid.ColumnHeadersHeight = 44;
+            requestsGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            requestsGrid.Location = new Point(30, 156);
+            requestsGrid.MultiSelect = false;
+            requestsGrid.Name = "requestsGrid";
+            requestsGrid.ReadOnly = true;
+            requestsGrid.RowHeadersVisible = false;
+            requestsGrid.RowHeadersWidth = 51;
+            requestsGrid.RowTemplate.Height = 38;
+            requestsGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            requestsGrid.Size = new Size(1284, 469);
+            requestsGrid.TabIndex = 4;
+
+            requestIdColumn = CreateAccountColumn("requestIdColumn", "ID", 60, 0F, 50);
+            requestBookColumn = CreateAccountColumn("requestBookColumn", "BOOK TITLE", 0, 22F, 150);
+            requestStudentColumn = CreateAccountColumn("requestStudentColumn", "STUDENT", 0, 20F, 150);
+            requestStudentIdColumn = CreateAccountColumn("requestStudentIdColumn", "ID NO.", 112, 0F, 90);
+            requestProgramColumn = CreateAccountColumn("requestProgramColumn", "PROGRAM", 0, 12F, 95);
+            requestDateColumn = CreateAccountColumn("requestDateColumn", "REQUESTED", 148, 0F, 135);
+            requestStatusColumn = CreateAccountColumn("requestStatusColumn", "STATUS", 104, 0F, 90);
+
+            DataGridViewTextBoxColumn approveColumn = CreateRequestActionColumn(
+                RequestApproveColumnName, "APPROVE", 108, Color.FromArgb(4, 120, 87));
+            DataGridViewTextBoxColumn rejectColumn = CreateRequestActionColumn(
+                RequestRejectColumnName, "REJECT", 92, Color.FromArgb(185, 28, 28));
+
+            requestsGrid.Columns.AddRange(new DataGridViewColumn[]
+            {
+                requestIdColumn, requestBookColumn, requestStudentColumn, requestStudentIdColumn,
+                requestProgramColumn, requestDateColumn, requestStatusColumn, approveColumn, rejectColumn
+            });
+
+            requestsGrid.CellClick += RequestsGrid_CellClick;
+
+            requestsTab.Controls.Add(requestsGrid);
+            requestsTab.Controls.Add(requestsStatusLabel);
+            requestsTab.Controls.Add(requestsRefreshButton);
+            requestsTab.Controls.Add(subtitle);
+            requestsTab.Controls.Add(heading);
+
+            tabControl1.TabPages.Insert(3, requestsTab);
+            ((System.ComponentModel.ISupportInitialize)requestsGrid).EndInit();
+        }
+
+        private static DataGridViewTextBoxColumn CreateRequestActionColumn(
+            string name, string text, int width, Color color)
+        {
+            DataGridViewTextBoxColumn column = new DataGridViewTextBoxColumn();
+            column.Name = name;
+            column.HeaderText = text;
+            column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            column.Width = width;
+            column.MinimumWidth = width - 10;
+            column.ReadOnly = true;
+            column.SortMode = DataGridViewColumnSortMode.NotSortable;
+            column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            column.DefaultCellStyle.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+            column.DefaultCellStyle.ForeColor = color;
+            column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            column.HeaderCell.Style.WrapMode = DataGridViewTriState.False;
+            return column;
         }
 
         /// <summary>
@@ -346,10 +495,13 @@ namespace oop_project.forms
         {
             StyleGrid(accountsGrid);
             StyleGrid(staffGrid);
+            StyleGrid(requestsGrid);
             StyleGrid(booksGrid);
             StyleGrid(attendanceGrid);
             StyleGrid(facultyGrid);
             StyleGrid(studentGrid);
+
+            EnsureBookCoverColumn();
 
             CenterColumn(accountsGrid, accountIdColumn);
             CenterColumn(accountsGrid, accountStatusColumn);
@@ -358,6 +510,11 @@ namespace oop_project.forms
             CenterColumn(staffGrid, staffIdColumn);
             CenterColumn(staffGrid, staffStatusColumn);
             CenterColumn(staffGrid, staffRoleColumn);
+
+            CenterColumn(requestsGrid, requestIdColumn);
+            CenterColumn(requestsGrid, requestStudentIdColumn);
+            CenterColumn(requestsGrid, requestDateColumn);
+            CenterColumn(requestsGrid, requestStatusColumn);
 
             CenterColumn(facultyGrid, facultyIdColumn);
             CenterColumn(facultyGrid, facultyStatusColumn);
@@ -433,6 +590,15 @@ namespace oop_project.forms
             BalanceColumn(loanReturnedColumn, 9F, 90);
             BalanceColumn(loanStatusColumn, 8F, 80);
 
+            requestsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            BalanceColumn(requestIdColumn, 5F, 50);
+            BalanceColumn(requestBookColumn, 22F, 150);
+            BalanceColumn(requestStudentColumn, 20F, 150);
+            BalanceColumn(requestStudentIdColumn, 10F, 90);
+            BalanceColumn(requestProgramColumn, 12F, 95);
+            BalanceColumn(requestDateColumn, 14F, 135);
+            BalanceColumn(requestStatusColumn, 9F, 90);
+
             accountsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BalanceColumn(accountIdColumn, 6F, 60);
             BalanceColumn(accountNameColumn, 28F, 150);
@@ -470,6 +636,7 @@ namespace oop_project.forms
 
             EnsureHeaderFits(accountsGrid);
             EnsureHeaderFits(staffGrid);
+            EnsureHeaderFits(requestsGrid);
             EnsureHeaderFits(booksGrid);
             EnsureHeaderFits(attendanceGrid);
             EnsureHeaderFits(facultyGrid);
@@ -534,6 +701,57 @@ namespace oop_project.forms
                 Color.FromArgb(4, 120, 87), "Click the pencil to edit this row."));
             grid.Columns.Add(CreateIconColumn(DeleteColumnName, "DELETE", DeleteGlyph,
                 Color.FromArgb(185, 28, 28), "Click the trash can to delete this row."));
+        }
+
+        /// <summary>
+        /// Adds the cover picture column to BOOKS once. The rest of the table keeps
+        /// its designer columns; the image is inserted after the ID.
+        /// </summary>
+        private void EnsureBookCoverColumn()
+        {
+            if (booksGrid.Columns.Contains(BookCoverColumnName))
+            {
+                bookCoverColumn = (DataGridViewImageColumn)booksGrid.Columns[BookCoverColumnName]!;
+                return;
+            }
+
+            bookCoverColumn = new DataGridViewImageColumn();
+            bookCoverColumn.Name = BookCoverColumnName;
+            bookCoverColumn.HeaderText = "COVER";
+            bookCoverColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            bookCoverColumn.Width = 78;
+            bookCoverColumn.MinimumWidth = 72;
+            bookCoverColumn.ReadOnly = true;
+            bookCoverColumn.SortMode = DataGridViewColumnSortMode.NotSortable;
+            bookCoverColumn.ImageLayout = DataGridViewImageCellLayout.Zoom;
+            bookCoverColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            bookCoverColumn.DefaultCellStyle.Padding = new Padding(4);
+            bookCoverColumn.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            bookCoverColumn.HeaderCell.Style.WrapMode = DataGridViewTriState.False;
+
+            booksGrid.Columns.Insert(1, bookCoverColumn);
+            booksGrid.RowTemplate.Height = 64;
+        }
+
+        private static Image CreateBookThumbnail(Book book)
+        {
+            return BookImage.CreateThumbnail(book.CoverImage, 70, 58, true);
+        }
+
+        private void DisposeBookCoverImages()
+        {
+            if (bookCoverColumn == null || !booksGrid.Columns.Contains(BookCoverColumnName))
+            {
+                return;
+            }
+
+            foreach (DataGridViewRow row in booksGrid.Rows)
+            {
+                if (row.Cells[BookCoverColumnName].Value is Image image)
+                {
+                    image.Dispose();
+                }
+            }
         }
 
         // Only the account tables have an approval status, so only they get the
@@ -631,29 +849,16 @@ namespace oop_project.forms
 
         private void RefreshCatalogViews()
         {
+            DisposeBookCoverImages();
             booksGrid.Rows.Clear();
 
             foreach (Book book in _catalog.Books)
             {
-                int openLoans = 0;
-
-                foreach (BorrowRecord record in _catalog.BorrowRecords)
-                {
-                    if (!record.DateReturned.HasValue && record.BookId == book.BookId)
-                    {
-                        openLoans++;
-                    }
-                }
-
-                int availableCopies = book.Quantity - openLoans;
-
-                if (availableCopies < 0)
-                {
-                    availableCopies = 0;
-                }
+                int availableCopies = _catalog.AvailableCopyCount(book);
 
                 int index = booksGrid.Rows.Add(
                     book.BookId,
+                    CreateBookThumbnail(book),
                     book.Title,
                     book.Author,
                     book.YearText,
@@ -828,6 +1033,173 @@ namespace oop_project.forms
             MessageBox.Show(warning, "DATABASE NOTICE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
+        // ---------------------------------------------------- BORROW REQUESTS
+
+        private void LoadBorrowRequests()
+        {
+            if (requestsGrid == null)
+            {
+                return;
+            }
+
+            try
+            {
+                List<BorrowRequestRow> pending = _requestDirectory.LoadPending();
+                requestsGrid.Rows.Clear();
+
+                foreach (BorrowRequestRow request in pending)
+                {
+                    int index = requestsGrid.Rows.Add(
+                        request.RequestId,
+                        request.BookTitle,
+                        request.StudentName,
+                        request.StudentIdText,
+                        request.ProgramText,
+                        request.RequestDateText,
+                        request.Status,
+                        "APPROVE",
+                        "REJECT");
+
+                    DataGridViewRow row = requestsGrid.Rows[index];
+                    row.Tag = request;
+                    row.Cells[requestStatusColumn.Index].Style.ForeColor = Color.FromArgb(180, 83, 9);
+                    row.Cells[requestStatusColumn.Index].Style.Font = StatusCellFont;
+                    row.Cells[RequestApproveColumnName].ToolTipText =
+                        "Approve this request and create the borrow record.";
+                    row.Cells[RequestRejectColumnName].ToolTipText =
+                        "Reject this request without creating a loan.";
+                }
+
+                requestsStatusLabel.ForeColor = MutedText;
+                requestsStatusLabel.Text = pending.Count == 0
+                    ? "NO PENDING REQUESTS. STUDENT REQUESTS WILL APPEAR HERE."
+                    : pending.Count.ToString(CultureInfo.InvariantCulture) +
+                      " PENDING REQUEST(S). CLICK APPROVE OR REJECT ON A ROW.";
+
+                ClearGridSelection(requestsGrid);
+            }
+            catch (MySqlException)
+            {
+                requestsGrid.Rows.Clear();
+                requestsStatusLabel.Text = "MYSQL OFFLINE • REQUESTS CANNOT BE LOADED";
+                requestsStatusLabel.ForeColor = WarningText;
+            }
+        }
+
+        private void RequestsGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0)
+            {
+                return;
+            }
+
+            string columnName = requestsGrid.Columns[e.ColumnIndex].Name;
+            bool approve = string.Equals(columnName, RequestApproveColumnName, StringComparison.Ordinal);
+            bool reject = string.Equals(columnName, RequestRejectColumnName, StringComparison.Ordinal);
+
+            if (!approve && !reject)
+            {
+                return;
+            }
+
+            if (!_canManageAccounts)
+            {
+                MessageBox.Show(
+                    "ONLY LIBRARY STAFF ACCOUNTS CAN APPROVE OR REJECT BORROW REQUESTS.",
+                    "READ ONLY",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            BorrowRequestRow? request = requestsGrid.Rows[e.RowIndex].Tag as BorrowRequestRow;
+
+            if (request == null)
+            {
+                return;
+            }
+
+            if (approve)
+            {
+                ApproveBorrowRequest(request);
+            }
+            else
+            {
+                RejectBorrowRequest(request);
+            }
+        }
+
+        private void ApproveBorrowRequest(BorrowRequestRow request)
+        {
+            DialogResult answer = MessageBox.Show(
+                "APPROVE REQUEST #" + request.RequestId + "?\n\n" +
+                request.StudentName.ToUpperInvariant() + " WILL BORROW \"" +
+                request.BookTitle.ToUpperInvariant() + "\".",
+                "APPROVE BORROW REQUEST",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (answer != DialogResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                BorrowRecord record = _requestDirectory.Approve(
+                    request, LoggedInAccountId, _catalog, _accountDirectory);
+
+                _catalog.SyncDaysBorrowed();
+                RefreshCatalogViews();
+                ApplyCatalogStatus();
+                LoadBorrowRequests();
+
+                requestsStatusLabel.Text = "REQUEST #" + request.RequestId +
+                                           " APPROVED. LOAN #" + record.BorrowId + " WAS CREATED.";
+                requestsStatusLabel.ForeColor = SuccessText;
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+            {
+                ShowError(ex.Message);
+            }
+            catch (MySqlException ex)
+            {
+                ShowError("THE REQUEST COULD NOT BE APPROVED.\n" + ex.Message);
+            }
+        }
+
+        private void RejectBorrowRequest(BorrowRequestRow request)
+        {
+            DialogResult answer = MessageBox.Show(
+                "REJECT REQUEST #" + request.RequestId + " FROM " +
+                request.StudentName.ToUpperInvariant() + "?\nNO LOAN WILL BE CREATED.",
+                "REJECT BORROW REQUEST",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (answer != DialogResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                _requestDirectory.Reject(request, LoggedInAccountId, "Rejected by the librarian.");
+                LoadBorrowRequests();
+
+                requestsStatusLabel.Text = "REQUEST #" + request.RequestId + " WAS REJECTED.";
+                requestsStatusLabel.ForeColor = DangerText;
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+            {
+                ShowError(ex.Message);
+            }
+            catch (MySqlException ex)
+            {
+                ShowError("THE REQUEST COULD NOT BE REJECTED.\n" + ex.Message);
+            }
+        }
+
         // ------------------------------------------------------- EDIT / DELETE
 
         /// <summary>
@@ -973,7 +1345,7 @@ namespace oop_project.forms
 
                 try
                 {
-                    _catalog.UpdateBook(book, dialog.BookTitle, dialog.Author, dialog.Year, dialog.Quantity);
+                    _catalog.UpdateBook(book, dialog.BookTitle, dialog.Author, dialog.Year, dialog.Quantity, dialog.CoverImage);
                     RefreshCatalogViews();
                     ApplyCatalogStatus();
                     ShowCatalogWarning();
@@ -1720,6 +2092,11 @@ namespace oop_project.forms
             {
                 RefreshCatalogViews();
                 ApplyCatalogStatus();
+            }
+
+            if (page == requestsTab)
+            {
+                LoadBorrowRequests();
             }
 
             UpdateEmptyStates();

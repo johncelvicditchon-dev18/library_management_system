@@ -199,9 +199,22 @@ namespace oop_project
                             person.FullName = reader.IsDBNull(reader.GetOrdinal("name")) ? username : reader.GetString("name");
                             int accountID = reader.GetInt32(reader.GetOrdinal("account_id"));
                             ShowMessage(person.GetWelcomeMessage(), "SIGNED IN", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            
-                            admin_dashboard dashboardForm = new admin_dashboard(accountID, person.FullName, role, accountUsername, status);
-                            dashboardForm.Show();
+
+                            // A student gets the student portal (catalog + requests + QR).
+                            // The librarian, staff and faculty keep the management dashboard.
+                            if (string.Equals(role, "STUDENT", StringComparison.OrdinalIgnoreCase))
+                            {
+                                student_dashboard studentForm = new student_dashboard(
+                                    accountID, person.FullName, role, accountUsername, status);
+                                studentForm.Show();
+                            }
+                            else
+                            {
+                                admin_dashboard dashboardForm = new admin_dashboard(
+                                    accountID, person.FullName, role, accountUsername, status);
+                                dashboardForm.Show();
+                            }
+
                             this.Hide();
                         }
                     }

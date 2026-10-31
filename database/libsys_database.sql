@@ -261,23 +261,30 @@ CREATE TABLE IF NOT EXISTS `librarian_info_table` (
 -- ============================================================
 --  LIBRARY TABLES USED BY THE ADMIN DASHBOARD
 --    books_table               (book_id, book_title, author, year_published,
---                               copy, date_added)
+--                               copy, date_added, book_image)
 --    borrowers_table           (borrower_id, borrower_name, program,
 --                               year_level, institute, id_number,
 --                               day_before_borrow)
 --    borrow_transactions_table (borrow_id, borrower_id, book_id,
 --                               date_borrow, date_return)
+--    borrow_requests_table     (request_id, account_id, book_id, request_date,
+--                               status, note, processed_by, processed_date,
+--                               borrow_id)
 --
---  The dashboard reads and writes these three tables directly:
---    ADD BOOK      -> INSERT INTO books_table
---    BORROW BOOK   -> INSERT INTO borrowers_table (new borrower)
---                     INSERT INTO borrow_transactions_table (the loan)
---    MARK RETURNED -> UPDATE borrow_transactions_table.date_return
---    EDIT icon     -> UPDATE books_table / borrowers_table + borrow_transactions_table
---    DELETE icon   -> DELETE FROM books_table / borrow_transactions_table
+--  The dashboard reads and writes these tables directly:
+--    ADD BOOK       -> INSERT INTO books_table
+--    BORROW BOOK    -> INSERT INTO borrowers_table (new borrower)
+--                      INSERT INTO borrow_transactions_table (the loan)
+--    MARK RETURNED  -> UPDATE borrow_transactions_table.date_return
+--    EDIT icon      -> UPDATE books_table / borrowers_table + borrow_transactions_table
+--    DELETE icon    -> DELETE FROM books_table / borrow_transactions_table
+--    STUDENT REQUEST -> INSERT INTO borrow_requests_table (PENDING)
+--    APPROVE REQUEST -> normal BORROW BOOK flow + borrow_id on the request
+--    REJECT / CANCEL -> UPDATE borrow_requests_table.status
 --
---  A book counts as BORROWED while it has a borrow_transactions_table
---  row whose date_return is NULL; nothing is stored twice.
+--  A title stays AVAILABLE while at least one copy is not in an open
+--  borrow_transactions_table row (date_return IS NULL). AVAILABLE COPY is
+--  books_table.copy minus the number of open loans for that title.
 --
 --  No due date is stored or computed. A loan is measured by DAYS BORROWED,
 --  and the day is only added after 24 full hours: a book borrowed on
@@ -286,12 +293,13 @@ CREATE TABLE IF NOT EXISTS `librarian_info_table` (
 --  the dashboard rewrites it from date_borrow on every load, so the stored
 --  column can never drift away from the clock.
 --
---  ACCOUNT MANAGEMENT (the three account tabs)
+--  ACCOUNT MANAGEMENT (the four account tabs)
 --    PROFILE            -> the signed in row, joined to student_info_table /
 --                          faculty_info_table / staff_info_table /
 --                          librarian_info_table for program, institute, year
 --                          level, school id, contact number and office
---    LIBRARIAN ACCOUNTS -> every account whose role is not STUDENT / FACULTY
+--    LIBRARIAN ACCOUNTS -> LIBRARIAN (plus the legacy ADMIN role)
+--    STAFF ACCOUNTS     -> STAFF (plus the legacy OFFICER role)
 --    FACULTY ACCOUNTS   -> account_role_table.role = 'FACULTY'
 --    STUDENT ACCOUNT    -> account_role_table.role = 'STUDENT'
 --    status = 'PENDING'  -> waiting for approval, cannot sign in
@@ -307,6 +315,7 @@ CREATE TABLE IF NOT EXISTS `books_table` (
     `year_published` SMALLINT(6)  DEFAULT NULL,
     `copy`           VARCHAR(250) NOT NULL,
     `date_added`     VARCHAR(250) NOT NULL,
+    `book_image`     MEDIUMBLOB   DEFAULT NULL,
     PRIMARY KEY (`book_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
@@ -335,9 +344,45 @@ CREATE TABLE IF NOT EXISTS `borrow_transactions_table` (
     CONSTRAINT `fk_borrower` FOREIGN KEY (`borrower_id`) REFERENCES `borrowers_table` (`borrower_id`) ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
+-- STUDENT REQUEST QUEUE
+-- A student submits a PENDING row from the student dashboard. The librarian
+-- approves it in BORROW REQUESTS, which writes the normal borrow transaction
+-- and links the request to that borrow_id. Rejected and cancelled requests
+-- stay on file for the audit trail.
+CREATE TABLE IF NOT EXISTS `borrow_requests_table` (
+    `request_id`     INT(11)      NOT NULL AUTO_INCREMENT,
+    `account_id`     INT(11)      NOT NULL,
+    `book_id`        INT(11)      NOT NULL,
+    `request_date`   DATETIME     NOT NULL,
+    `status`         VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    `note`           VARCHAR(255) DEFAULT NULL,
+    `processed_by`   INT(11)      DEFAULT NULL,
+    `processed_date` DATETIME     DEFAULT NULL,
+    `borrow_id`      INT(11)      DEFAULT NULL,
+    PRIMARY KEY (`request_id`),
+    KEY `idx_request_account` (`account_id`),
+    KEY `idx_request_status` (`status`),
+    KEY `idx_request_book` (`book_id`),
+    CONSTRAINT `fk_request_account`
+        FOREIGN KEY (`account_id`) REFERENCES `account_table` (`account_id`)
+        ON DELETE CASCADE,
+    CONSTRAINT `fk_request_book`
+        FOREIGN KEY (`book_id`) REFERENCES `books_table` (`book_id`)
+        ON DELETE CASCADE,
+    CONSTRAINT `fk_request_processor`
+        FOREIGN KEY (`processed_by`) REFERENCES `account_table` (`account_id`)
+        ON DELETE SET NULL,
+    CONSTRAINT `fk_request_borrow`
+        FOREIGN KEY (`borrow_id`) REFERENCES `borrow_transactions_table` (`borrow_id`)
+        ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
 -- Older copies of books_table declared year_published as YEAR(4), which cannot
 -- hold titles such as Noli Me Tangere (1887). Run this once if that is your copy:
 -- ALTER TABLE `books_table` MODIFY `year_published` SMALLINT NULL;
+
+-- Run this once on an older database to store book covers:
+-- ALTER TABLE `books_table` ADD COLUMN `book_image` MEDIUMBLOB NULL AFTER `date_added`;
 
 -- The copies column is called `copy` since the EDIT BOOK pop up was added. Run
 -- this once on an older database so books_table matches the app queries:

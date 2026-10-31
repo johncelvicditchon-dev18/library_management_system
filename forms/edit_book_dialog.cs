@@ -15,14 +15,16 @@ namespace oop_project.forms
         private readonly DialogField _authorField;
         private readonly DialogField _yearField;
         private readonly DialogField _quantityField;
+        private readonly BookCoverPicker _coverPicker;
 
         public string BookTitle { get; private set; } = string.Empty;
         public string Author { get; private set; } = string.Empty;
         public int Year { get; private set; }
         public int Quantity { get; private set; }
+        public byte[]? CoverImage { get; private set; }
 
         public EditBookDialog(Book book)
-            : base("EDIT BOOK", "Change the row in books_table, then press UPDATE BOOK.", 640, 600)
+            : base("EDIT BOOK", "Change the row and its picture, then press UPDATE BOOK.", 640, 780)
         {
             if (book == null)
             {
@@ -55,17 +57,24 @@ namespace oop_project.forms
             _quantityField.Input.KeyPress += DigitsOnly_KeyPress;
             _quantityField.Value = (book.Quantity > 0 ? book.Quantity : 1).ToString();
 
+            _coverPicker = new BookCoverPicker();
+            _coverPicker.Location = new Point(32, 372);
+            _coverPicker.Width = width;
+            _coverPicker.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+            _coverPicker.LoadImage(book.CoverImage);
+
             Label hint = new Label();
             hint.AutoSize = false;
             hint.BackColor = Color.Transparent;
             hint.Font = new Font("Segoe UI", 8.25F);
             hint.ForeColor = Color.FromArgb(148, 163, 184);
-            hint.Location = new Point(34, 372);
+            hint.Location = new Point(34, 552);
             hint.Size = new Size(width, 40);
             hint.Text = "BOOK ID #" + book.BookId + "     •     DATE ADDED: " + book.DateAdded +
                         "\r\nTHE ID AND THE DATE ADDED NEVER CHANGE.";
 
             ContentPanel.Controls.Add(hint);
+            ContentPanel.Controls.Add(_coverPicker);
             ContentPanel.Controls.Add(_titleField);
             ContentPanel.Controls.Add(_authorField);
             ContentPanel.Controls.Add(_yearField);
@@ -166,12 +175,13 @@ namespace oop_project.forms
             // values are checked here before books_table is touched.
             try
             {
-                Book check = new Book(title, author, year, quantity);
+                Book check = new Book(title, author, year, quantity, _coverPicker.ImageBytes);
 
                 BookTitle = check.Title;
                 Author = check.Author;
                 Year = check.Year;
                 Quantity = check.Quantity;
+                CoverImage = check.CoverImage;
             }
             catch (ArgumentException ex)
             {
