@@ -85,6 +85,10 @@ namespace oop_project
             usernameError = new Label();
             passwordError = new Label();
             confirmError = new Label();
+            officeLabel = new Label();
+            officeField = new FieldPanel();
+            office_input = new TextBox();
+            officeError = new Label();
             create_button = new RoundedButton();
             footerPrompt = new Label();
             signup_label = new Label();
@@ -111,6 +115,7 @@ namespace oop_project
             usernameField.SuspendLayout();
             passwordField.SuspendLayout();
             confirmField.SuspendLayout();
+            officeField.SuspendLayout();
             gradientPanel1.SuspendLayout();
             roundedCard1.SuspendLayout();
             SuspendLayout();
@@ -817,6 +822,57 @@ namespace oop_project
             confirmError.TextAlign = ContentAlignment.MiddleLeft;
             confirmError.Visible = false;
             // 
+            // officeLabel
+            // 
+            officeLabel.AutoSize = true;
+            officeLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            officeLabel.ForeColor = Color.FromArgb(55, 65, 81);
+            officeLabel.Location = new Point(50, 292);
+            officeLabel.Name = "officeLabel";
+            officeLabel.Size = new Size(60, 20);
+            officeLabel.TabIndex = 24;
+            officeLabel.Text = "OFFICE";
+            officeLabel.Visible = false;
+            // 
+            // officeField
+            // 
+            officeField.BackColor = Color.White;
+            officeField.BorderColor = Color.FromArgb(229, 231, 235);
+            officeField.Controls.Add(office_input);
+            officeField.CornerRadius = 10;
+            officeField.FillColor = Color.FromArgb(243, 244, 246);
+            officeField.FocusColor = Color.FromArgb(22, 163, 74);
+            officeField.IsFocused = false;
+            officeField.Location = new Point(50, 314);
+            officeField.Name = "officeField";
+            officeField.Size = new Size(600, 44);
+            officeField.TabIndex = 25;
+            officeField.Visible = false;
+            // 
+            // office_input
+            // 
+            office_input.BackColor = Color.FromArgb(243, 244, 246);
+            office_input.BorderStyle = BorderStyle.None;
+            office_input.Font = new Font("Segoe UI", 11.5F);
+            office_input.Location = new Point(22, 9);
+            office_input.MaxLength = 120;
+            office_input.Name = "office_input";
+            office_input.Size = new Size(556, 26);
+            office_input.TabIndex = 0;
+            // 
+            // officeError
+            // 
+            officeError.AutoSize = true;
+            officeError.BackColor = Color.Transparent;
+            officeError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            officeError.ForeColor = Color.FromArgb(220, 38, 38);
+            officeError.Location = new Point(50, 360);
+            officeError.Name = "officeError";
+            officeError.Size = new Size(120, 19);
+            officeError.TabIndex = 45;
+            officeError.TextAlign = ContentAlignment.MiddleLeft;
+            officeError.Visible = false;
+            // 
             // create_button
             // 
             create_button.BackColor = Color.Transparent;
@@ -873,6 +929,9 @@ namespace oop_project
             roundedCard1.BackColor = Color.White;
             roundedCard1.BorderColor = Color.FromArgb(241, 245, 249);
             roundedCard1.Controls.Add(create_button);
+            roundedCard1.Controls.Add(officeError);
+            roundedCard1.Controls.Add(officeField);
+            roundedCard1.Controls.Add(officeLabel);
             roundedCard1.Controls.Add(confirmError);
             roundedCard1.Controls.Add(passwordError);
             roundedCard1.Controls.Add(usernameError);
@@ -1039,6 +1098,8 @@ namespace oop_project
             passwordField.PerformLayout();
             confirmField.ResumeLayout(false);
             confirmField.PerformLayout();
+            officeField.ResumeLayout(false);
+            officeField.PerformLayout();
             gradientPanel1.ResumeLayout(false);
             roundedCard1.ResumeLayout(false);
             roundedCard1.PerformLayout();
@@ -1104,6 +1165,10 @@ namespace oop_project
         private Label usernameError;
         private Label passwordError;
         private Label confirmError;
+        private Label officeLabel;
+        private FieldPanel officeField;
+        private TextBox office_input;
+        private Label officeError;
         private RoundedButton create_button;
         private Label footerPrompt;
         private Label signup_label;

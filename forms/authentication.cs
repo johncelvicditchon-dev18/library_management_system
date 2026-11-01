@@ -10,7 +10,7 @@ namespace oop_project
     // NOTE: this class is intentionally NOT abstract. The Windows Forms designer creates an
     // instance of the base type while rendering Login / Signup, so an abstract base would
     // raise "the designer must create an instance of type ... it is declared as abstract".
-    public class authentication : Form
+    public partial class authentication : Form
     {
         private readonly IDatabaseConnection _database = new MySqlDatabaseConnection();
         // WARNING STYLE: every invalid input uses the same red text and red border.
@@ -18,6 +18,17 @@ namespace oop_project
         // SUCCESS STYLE: a satisfied input uses the same green as the focused border.
         protected static readonly Color SuccessColor = Color.FromArgb(22, 163, 74);
         private static readonly Color IdleBorderColor = Color.FromArgb(229, 231, 235);
+
+        /// <summary>
+        /// Design time constructor. The Windows Forms designer creates an instance of
+        /// the base type while rendering Login / Signup, so this class must be
+        /// instantiable (not abstract) and must call InitializeComponent.
+        /// </summary>
+        public authentication()
+        {
+            InitializeComponent();
+        }
+
         // POLYMORPHISM: each form supplies its own caption (Login and Signup override this).
         protected virtual string FormName
         {

@@ -33,18 +33,161 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- keep the winforms designer files nested under their lowercase form -->
-    <Compile Update="forms\admin_dashboard.designer.cs">
-      <DependentUpon>admin_dashboard.cs</DependentUpon>
+    <!-- Every Windows Form is partial and keeps its generated code in a
+         lowercase *.designer.cs file. The SubType / DependentUpon metadata is
+         what lets Visual Studio open each one in the WinForms designer. -->
+    <Compile Update="forms\authentication.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\authentication.designer.cs">
+      <DependentUpon>authentication.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\login.cs">
+      <SubType>Form</SubType>
     </Compile>
     <Compile Update="forms\login.designer.cs">
       <DependentUpon>login.cs</DependentUpon>
     </Compile>
+    <Compile Update="forms\signup.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="forms\signup.designer.cs">
       <DependentUpon>signup.cs</DependentUpon>
     </Compile>
+    <Compile Update="forms\welcome.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="forms\welcome.designer.cs">
       <DependentUpon>welcome.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\admin_dashboard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\admin_dashboard.designer.cs">
+      <DependentUpon>admin_dashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\patron_dashboard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\patron_dashboard.designer.cs">
+      <DependentUpon>patron_dashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\student_dashboard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\student_dashboard.designer.cs">
+      <DependentUpon>student_dashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\faculty_dashboard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\faculty_dashboard.designer.cs">
+      <DependentUpon>faculty_dashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\staff_dashboard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\staff_dashboard.designer.cs">
+      <DependentUpon>staff_dashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\library_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\library_dialog.designer.cs">
+      <DependentUpon>library_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\add_book_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\add_book_dialog.designer.cs">
+      <DependentUpon>add_book_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\borrow_book_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\borrow_book_dialog.designer.cs">
+      <DependentUpon>borrow_book_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\edit_account_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\edit_account_dialog.designer.cs">
+      <DependentUpon>edit_account_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\edit_book_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\edit_book_dialog.designer.cs">
+      <DependentUpon>edit_book_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\edit_borrow_record_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\edit_borrow_record_dialog.designer.cs">
+      <DependentUpon>edit_borrow_record_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\library_report_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\library_report_dialog.designer.cs">
+      <DependentUpon>library_report_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\book_description_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\book_description_dialog.designer.cs">
+      <DependentUpon>book_description_dialog.cs</DependentUpon>
+    </Compile>
+
+    <!-- The shared base classes carry the serialized dialog layout. Marking them
+         as forms too keeps their designer files grouped under the base file. -->
+    <Compile Update="forms\add_book_dialog_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\add_book_dialog_base.designer.cs">
+      <DependentUpon>add_book_dialog_base.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\borrow_book_dialog_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\borrow_book_dialog_base.designer.cs">
+      <DependentUpon>borrow_book_dialog_base.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\edit_account_dialog_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\edit_account_dialog_base.designer.cs">
+      <DependentUpon>edit_account_dialog_base.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\edit_book_dialog_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\edit_book_dialog_base.designer.cs">
+      <DependentUpon>edit_book_dialog_base.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\edit_borrow_record_dialog_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\edit_borrow_record_dialog_base.designer.cs">
+      <DependentUpon>edit_borrow_record_dialog_base.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\library_report_dialog_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\library_report_dialog_base.designer.cs">
+      <DependentUpon>library_report_dialog_base.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\book_description_dialog_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\book_description_dialog_base.designer.cs">
+      <DependentUpon>book_description_dialog_base.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\patron_dashboard_base.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\patron_dashboard_base.designer.cs">
+      <DependentUpon>patron_dashboard_base.cs</DependentUpon>
     </Compile>
 
     <EmbeddedResource Update="forms\admin_dashboard.resx">
@@ -62,6 +205,18 @@
       <DependentUpon>welcome.cs</DependentUpon>
       <LogicalName>oop_project.welcome.resources</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Update="forms\patron_dashboard.resx">
+      <DependentUpon>patron_dashboard.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\staff_dashboard.resx">
+      <DependentUpon>staff_dashboard.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\faculty_dashboard.resx">
+      <DependentUpon>faculty_dashboard.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\book_description_dialog.resx">
+      <DependentUpon>book_description_dialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Update="forms\authentication.resx">
       <DependentUpon>authentication.cs</DependentUpon>
     </EmbeddedResource>
@@ -71,11 +226,41 @@
     <EmbeddedResource Update="forms\borrow_book_dialog.resx">
       <DependentUpon>borrow_book_dialog.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Update="forms\edit_account_dialog.resx">
+      <DependentUpon>edit_account_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\edit_book_dialog.resx">
+      <DependentUpon>edit_book_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\edit_borrow_record_dialog.resx">
+      <DependentUpon>edit_borrow_record_dialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Update="forms\library_dialog.resx">
       <DependentUpon>library_dialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Update="forms\library_report_dialog.resx">
       <DependentUpon>library_report_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\add_book_dialog_base.resx">
+      <DependentUpon>add_book_dialog_base.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\borrow_book_dialog_base.resx">
+      <DependentUpon>borrow_book_dialog_base.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\edit_book_dialog_base.resx">
+      <DependentUpon>edit_book_dialog_base.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\edit_borrow_record_dialog_base.resx">
+      <DependentUpon>edit_borrow_record_dialog_base.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\library_report_dialog_base.resx">
+      <DependentUpon>library_report_dialog_base.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\book_description_dialog_base.resx">
+      <DependentUpon>book_description_dialog_base.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\patron_dashboard_base.resx">
+      <DependentUpon>patron_dashboard_base.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
 

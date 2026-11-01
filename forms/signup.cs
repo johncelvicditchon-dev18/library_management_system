@@ -24,13 +24,9 @@ namespace oop_project
         private readonly List<ProgramRow> _programs = new List<ProgramRow>();
 
         // LIBRARY STAFF PROFILE: the LIBRARIAN (system admin) and STAFF roles also
-        // record the office the person works in. The field is built in code so the
-        // role driven layout can move it like the designer fields, without editing
-        // the 50 KB designer file.
-        private readonly Label officeLabel = new Label();
-        private readonly FieldPanel officeField = new FieldPanel();
-        private readonly TextBox office_input = new TextBox();
-        private readonly Label officeError = new Label();
+        // record the office the person works in. The OFFICE row is serialized in
+        // signup.designer.cs so it shows on the design surface; the role driven
+        // layout below still moves and hides it like the other designer fields.
 
         // A dropdown that has not been answered yet shows a hint instead of an empty box.
         private const string RolePlaceholder = "SELECT ROLE";
@@ -68,7 +64,6 @@ namespace oop_project
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = true;
             signup_label.BringToFront();
-            CreateOfficeField();
 
             // The role list comes from the factory, so a role added there shows up here.
             role_option.Items.Clear();
@@ -117,56 +112,6 @@ namespace oop_project
 
             // FULL SCREEN: the sign up page opens maximised and F11 toggles a borderless view.
             ScreenMode.Apply(this);
-        }
-
-        // LIBRARY STAFF PROFILE: builds the OFFICE row with the same look as the
-        // designer fields (label, rounded panel, hidden warning line) and hides it
-        // until the LIBRARIAN or STAFF role is picked.
-        private void CreateOfficeField()
-        {
-            officeLabel.AutoSize = true;
-            officeLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            officeLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            officeLabel.Name = "officeLabel";
-            officeLabel.Size = new Size(60, 20);
-            officeLabel.TabIndex = 24;
-            officeLabel.Text = "OFFICE";
-            officeLabel.Visible = false;
-
-            office_input.BackColor = Color.FromArgb(243, 244, 246);
-            office_input.BorderStyle = BorderStyle.None;
-            office_input.Font = new Font("Segoe UI", 11.5F);
-            office_input.Location = new Point(22, 9);
-            office_input.MaxLength = 120;
-            office_input.Name = "office_input";
-            office_input.Size = new Size(556, 26);
-            office_input.TabIndex = 0;
-
-            officeField.BackColor = Color.White;
-            officeField.BorderColor = Color.FromArgb(229, 231, 235);
-            officeField.Controls.Add(office_input);
-            officeField.CornerRadius = 10;
-            officeField.FillColor = Color.FromArgb(243, 244, 246);
-            officeField.FocusColor = Color.FromArgb(22, 163, 74);
-            officeField.IsFocused = false;
-            officeField.Name = "officeField";
-            officeField.Size = new Size(600, 44);
-            officeField.TabIndex = 25;
-            officeField.Visible = false;
-
-            officeError.AutoSize = true;
-            officeError.BackColor = Color.Transparent;
-            officeError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
-            officeError.ForeColor = Color.FromArgb(220, 38, 38);
-            officeError.Name = "officeError";
-            officeError.Size = new Size(120, 19);
-            officeError.TabIndex = 45;
-            officeError.TextAlign = ContentAlignment.MiddleLeft;
-            officeError.Visible = false;
-
-            roundedCard1.Controls.Add(officeError);
-            roundedCard1.Controls.Add(officeField);
-            roundedCard1.Controls.Add(officeLabel);
         }
 
         // Looks the institutes up in the database so signup, dashboard and reports

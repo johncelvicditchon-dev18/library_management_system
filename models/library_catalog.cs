@@ -54,6 +54,25 @@ namespace oop_project.Models
             }
         }
 
+        /// <summary>
+        /// Total number of copies that are still on the shelf. Unlike
+        /// <see cref="AvailableBooks"/> (which counts titles) this adds up every
+        /// available copy of every title.
+        /// </summary>
+        public int AvailableCopies
+        {
+            get
+            {
+                int count = 0;
+                foreach (Book book in _books)
+                {
+                    count += AvailableCopyCount(book);
+                }
+
+                return count;
+            }
+        }
+
         public int BorrowedBooks
         {
             get { return _books.Count - AvailableBooks; }

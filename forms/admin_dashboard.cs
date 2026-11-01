@@ -40,7 +40,9 @@ namespace oop_project.forms
 
         private DataGridViewImageColumn bookCoverColumn = null!;
 
-        // BORROW REQUESTS tab, built in code so the large designer file stays as it is.
+        // BORROW REQUESTS tab. The controls are built by CreateBorrowRequestsTab,
+        // which admin_dashboard.designer.cs calls so the tab also appears on the
+        // design surface.
         private TabPage requestsTab = null!;
         private DataGridView requestsGrid = null!;
         private DataGridViewTextBoxColumn requestIdColumn = null!;
@@ -53,7 +55,8 @@ namespace oop_project.forms
         private Label requestsStatusLabel = null!;
         private RoundedButton requestsRefreshButton = null!;
 
-        // STAFF ACCOUNTS tab, built in code so the large designer file stays as it is.
+        // STAFF ACCOUNTS tab. Created by CreateStaffAccountsTab, called from
+        // admin_dashboard.designer.cs so the tab renders in the designer too.
         private TabPage staffTab = null!;
         private DataGridView staffGrid = null!;
         private DataGridViewTextBoxColumn staffIdColumn = null!;
@@ -190,7 +193,8 @@ namespace oop_project.forms
         /// <summary>
         /// The pending student request queue. A student can only request a book;
         /// this tab is where a librarian turns a request into a real loan or
-        /// rejects it. It is built in code next to the fixed designer tabs.
+        /// rejects it. It is created from the designer file (which calls this
+        /// method) so it shows next to the fixed tabs on the design surface.
         /// </summary>
         private void CreateBorrowRequestsTab()
         {

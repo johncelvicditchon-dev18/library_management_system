@@ -2098,6 +2098,12 @@ namespace oop_project.forms
             tabPage6.ResumeLayout(false);
             tabPage6.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)studentGrid).EndInit();
+
+            // The two extra management tabs are created as part of the designer
+            // pass so they appear on the design surface with the rest of the form.
+            CreateBorrowRequestsTab();
+            CreateStaffAccountsTab();
+
             ResumeLayout(false);
         }
 
