@@ -1,3 +1,4 @@
+using library_management_system.forms;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -181,12 +182,20 @@ namespace oop_project
             lrcCaption.Bounds = new Rectangle(lrcLogoBadge.Left, S(202), logoSize, S(16));
 
             // Accent rule, headline and supporting copy.
-          ///  accentDivider.Bounds = new Rectangle(center - S(28), S(238), S(56), Math.Max(2, S(4)));
+            ///  accentDivider.Bounds = new Rectangle(center - S(28), S(238), S(56), Math.Max(2, S(4)));
             headingLabel.Bounds = new Rectangle(margin, S(256), contentWidth, S(44));
             subtitleLabel.Bounds = new Rectangle(margin, S(310), contentWidth, S(24));
 
             start_button.CornerRadius = S(15);
             start_button.Bounds = new Rectangle(center - S(160), S(366), S(320), S(56));
+
+            // Keep the scanner button exactly centred under PROCEED TO SIGN IN,
+            // including when the window is maximised or the DPI changes.
+            int qrWidth = S(260);
+            int qrHeight = S(35);
+            int qrTop = S(366) + S(56) + S(10);
+            qr_scanner_button.CornerRadius = S(1);
+            qr_scanner_button.Bounds = new Rectangle(center - qrWidth / 2, qrTop, qrWidth, qrHeight);
 
             footerDivider.Bounds = new Rectangle(center - S(170), S(470), S(340), 1);
             footerLabel.Bounds = new Rectangle(margin, S(482), contentWidth, S(18));
@@ -221,6 +230,16 @@ namespace oop_project
 
             loginForm.Show();
             this.Hide();
+        }
+
+        private void roundedButton1_Click(object sender, EventArgs e)
+        {
+            // The scanner stays on top of this page, so closing it returns to the
+            // welcome screen instead of leaving the application with no window.
+            using (qr_code_scanner qr_form = new qr_code_scanner())
+            {
+                qr_form.ShowDialog(this);
+            }
         }
     }
 }

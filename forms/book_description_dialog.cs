@@ -1,24 +1,50 @@
+using System.Drawing;
+using System.Globalization;
+using System.Windows.Forms;
 using oop_project.Models;
 
 namespace oop_project
 {
     /// <summary>
-    /// The BOOK DESCRIPTION pop up. The complete content is built by
-    /// <see cref="BookDescriptionDialogBase"/> because the Windows Forms designer
-    /// creates an instance of a form's base class while rendering it.
+    /// Read-only pop up behind the BOOK DESCRIPTION button. The catalog stores
+    /// the cover, the author, the year and the number of copies, so this sheet
+    /// presents those facts in a readable card instead of a single tooltip.
     /// </summary>
-    public sealed partial class BookDescriptionDialog : BookDescriptionDialogBase
+    public sealed partial class BookDescriptionDialog : Form
     {
+        /// <summary>Design time constructor with a sample book.</summary>
         public BookDescriptionDialog()
-            : base()
+            : this(new Book("SAMPLE BOOK TITLE", "SAMPLE AUTHOR", 2024, 3), 2, "STUDENT")
         {
-            InitializeComponent();
         }
 
         public BookDescriptionDialog(Book book, int available, string portalName)
-            : base(book, available, portalName)
         {
             InitializeComponent();
+
+            _heading.Text = portalName + " PORTAL  •  BOOK DESCRIPTION";
+            _cover.Image = BookImage.CreateThumbnail(book.CoverImage, 190, 280, true);
+            _titleLabel.Text = book.Title.ToUpperInvariant();
+            _authorLabel.Text = "BY " + book.Author.ToUpperInvariant();
+            _publishedValue.Text = book.YearText;
+            _copiesValue.Text = book.QuantityText;
+            _availableValue.Text = available.ToString(CultureInfo.InvariantCulture) + " OF " + book.QuantityText;
+            _dateValue.Text = book.DateAdded;
+            _statusValue.Text = available > 0 ? "ON THE SHELF" : "ALL COPIES BORROWED";
+            _descriptionLabel.Text =
+                "THIS TITLE IS PART OF THE TCGC LEARNING RESOURCE CENTER COLLECTION. " +
+                "THE LIBRARY HOLDS " + book.QuantityText + " COPY(IES); " +
+                available.ToString(CultureInfo.InvariantCulture) + " ARE CURRENTLY ON THE SHELF. " +
+                "REQUEST IT FROM THE CATALOG AND THE LIBRARIAN WILL PREPARE THE COPY FOR PICK UP.";
+
+            _coverFrame.Paint += CoverFrame_Paint;
+            _closeButton.Click += delegate { Close(); };
+        }
+
+        private void CoverFrame_Paint(object? sender, PaintEventArgs e)
+        {
+            using Pen pen = new Pen(Color.FromArgb(226, 232, 240), 1.2f);
+            e.Graphics.DrawRectangle(pen, 0, 0, _coverFrame.Width - 1, _coverFrame.Height - 1);
         }
     }
 }

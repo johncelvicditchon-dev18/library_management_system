@@ -43,7 +43,9 @@ namespace oop_project
             signup_label = new Label();
             gradientPanel1 = new GradientPanel();
             roundedCard1 = new RoundedCard();
+            headerLine = new Panel();
             label2 = new Label();
+            closeButton = new RoundedButton();
             lrcLogoBadge1 = new LrcLogoBadge();
             brandLabel = new Label();
             taglineLabel = new Label();
@@ -56,9 +58,9 @@ namespace oop_project
             // logoBadge
             // 
             logoBadge.BackColor = Color.Transparent;
-            logoBadge.Location = new Point(0, 20);
+            logoBadge.Location = new Point(53, 22);
             logoBadge.Name = "logoBadge";
-            logoBadge.Size = new Size(528, 71);
+            logoBadge.Size = new Size(48, 48);
             logoBadge.TabIndex = 2;
             // 
             // headingLabel
@@ -187,7 +189,7 @@ namespace oop_project
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 10F);
             label1.ForeColor = Color.FromArgb(55, 65, 81);
-            label1.Location = new Point(130, 492);
+            label1.Location = new Point(130, 430);
             label1.Name = "label1";
             label1.Size = new Size(191, 23);
             label1.TabIndex = 8;
@@ -199,7 +201,7 @@ namespace oop_project
             signup_label.Cursor = Cursors.Hand;
             signup_label.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             signup_label.ForeColor = Color.FromArgb(194, 65, 12);
-            signup_label.Location = new Point(327, 492);
+            signup_label.Location = new Point(327, 430);
             signup_label.Name = "signup_label";
             signup_label.Size = new Size(74, 23);
             signup_label.TabIndex = 9;
@@ -224,32 +226,61 @@ namespace oop_project
             // 
             roundedCard1.BackColor = Color.White;
             roundedCard1.BorderColor = Color.FromArgb(241, 245, 249);
+            roundedCard1.Controls.Add(headerLine);
             roundedCard1.Controls.Add(label2);
             roundedCard1.Controls.Add(label1);
             roundedCard1.Controls.Add(signup_label);
             roundedCard1.Controls.Add(logoBadge);
             roundedCard1.Controls.Add(headingLabel);
-            roundedCard1.Location = new Point(860, 159);
+            roundedCard1.Controls.Add(closeButton);
+            roundedCard1.Location = new Point(867, 221);
             roundedCard1.Name = "roundedCard1";
-            roundedCard1.Size = new Size(530, 535);
+            roundedCard1.Size = new Size(530, 473);
             roundedCard1.TabIndex = 3;
+            // 
+            // headerLine
+            // 
+            headerLine.BackColor = Color.FromArgb(229, 231, 235);
+            headerLine.Location = new Point(53, 80);
+            headerLine.Name = "headerLine";
+            headerLine.Size = new Size(425, 1);
+            headerLine.TabIndex = 49;
             // 
             // label2
             // 
             label2.BackColor = Color.Transparent;
             label2.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
             label2.ForeColor = Color.FromArgb(22, 163, 74);
-            label2.Location = new Point(0, 100);
+            label2.Location = new Point(106, 22);
             label2.Name = "label2";
-            label2.Size = new Size(530, 78);
+            label2.Size = new Size(174, 48);
             label2.TabIndex = 4;
             label2.Text = "SIGN IN";
             label2.TextAlign = ContentAlignment.MiddleCenter;
             // 
+            // closeButton
+            // 
+            closeButton.BackColor = Color.Transparent;
+            closeButton.CornerRadius = 12;
+            closeButton.FlatAppearance.BorderSize = 0;
+            closeButton.FlatStyle = FlatStyle.Flat;
+            closeButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            closeButton.ForeColor = Color.FromArgb(71, 85, 105);
+            closeButton.HoverColor = Color.FromArgb(226, 232, 240);
+            closeButton.Location = new Point(469, 18);
+            closeButton.Name = "closeButton";
+            closeButton.NormalColor = Color.FromArgb(241, 245, 249);
+            closeButton.PressedColor = Color.FromArgb(203, 213, 225);
+            closeButton.Size = new Size(36, 36);
+            closeButton.TabIndex = 25;
+            closeButton.Text = "✕";
+            closeButton.UseVisualStyleBackColor = false;
+            closeButton.Click += closeButton_Click;
+            // 
             // lrcLogoBadge1
             // 
             lrcLogoBadge1.BackColor = Color.Transparent;
-            lrcLogoBadge1.Location = new Point(0, 221);
+            lrcLogoBadge1.Location = new Point(0, 272);
             lrcLogoBadge1.LogoKind = LogoKind.Lrc;
             lrcLogoBadge1.Name = "lrcLogoBadge1";
             lrcLogoBadge1.Size = new Size(861, 410);
@@ -261,7 +292,7 @@ namespace oop_project
             brandLabel.BackColor = Color.Transparent;
             brandLabel.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold);
             brandLabel.ForeColor = Color.White;
-            brandLabel.Location = new Point(3, 172);
+            brandLabel.Location = new Point(3, 199);
             brandLabel.Name = "brandLabel";
             brandLabel.Size = new Size(858, 24);
             brandLabel.TabIndex = 0;
@@ -273,7 +304,7 @@ namespace oop_project
             taglineLabel.BackColor = Color.Transparent;
             taglineLabel.Font = new Font("Segoe UI", 9F);
             taglineLabel.ForeColor = Color.FromArgb(206, 240, 222);
-            taglineLabel.Location = new Point(3, 196);
+            taglineLabel.Location = new Point(3, 225);
             taglineLabel.Name = "taglineLabel";
             taglineLabel.Size = new Size(858, 22);
             taglineLabel.TabIndex = 1;
@@ -297,7 +328,6 @@ namespace oop_project
             Controls.Add(gradientPanel1);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Name = "Login";
-            StartPosition = FormStartPosition.CenterScreen;
             Text = "TCGC LIBRARY MANAGEMENT SYSTEM - SIGN IN";
             usernameField.ResumeLayout(false);
             usernameField.PerformLayout();
@@ -329,6 +359,8 @@ namespace oop_project
         private Label brandLabel;
         private Label taglineLabel;
         private RoundedCard roundedCard1;
+        private RoundedButton closeButton;
         private Label label2;
+        private Panel headerLine;
     }
 }

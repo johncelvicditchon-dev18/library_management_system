@@ -4,17 +4,18 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
+using static oop_project.Authentication;
 namespace oop_project
 {
-    public partial class Login : authentication
+    public partial class Login : Form
     {
-        protected override string FormName
-        {
-            get { return "SIGN IN"; }
-        }
+        private readonly Authentication.WindowLayout _layout = new Authentication.WindowLayout();
+
         public Login()
         {
             InitializeComponent();
+            closeButton.Height = closeButton.Width;
+            closeButton.BringToFront();
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = true;
             signup_label.BringToFront();
@@ -59,14 +60,14 @@ namespace oop_project
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            CaptureDesignLayout(new Size(1482, 853), LayoutControls());
-            ApplyCenteredLayout(gradientPanel1, LayoutControls());
+            _layout.Capture(new Size(1482, 853), LayoutControls());
+            _layout.Apply(this, gradientPanel1, LayoutControls());
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-            ApplyCenteredLayout(gradientPanel1, LayoutControls());
+            _layout.Apply(this, gradientPanel1, LayoutControls());
         }
 
         private void username_input_TextChanged(object? sender, EventArgs e)
@@ -108,10 +109,12 @@ namespace oop_project
                 {
                     conn.Open();
                     EnsureTextDateFormat(conn);
+                    EnsureContactNumberColumns(conn);
+                    EnsureProfileColumnsRemoved(conn);
                 }
                 catch (MySqlException ex)
                 {
-                    ShowError("COULD NOT CONNECT TO MYSQL.\n" + ex.Message);
+                    ShowError("SIGN IN", "COULD NOT CONNECT TO MYSQL.\n" + ex.Message);
                 }
             }
         }
@@ -200,13 +203,16 @@ namespace oop_project
                             int accountID = reader.GetInt32(reader.GetOrdinal("account_id"));
                             ShowMessage(person.GetWelcomeMessage(), "SIGNED IN", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                            // A student gets the student portal (catalog + requests + QR).
-                            // The librarian, staff and faculty keep the management dashboard.
-                            if (string.Equals(role, "STUDENT", StringComparison.OrdinalIgnoreCase))
+                            // Students, faculty and staff all use the single patron
+                            // portal to browse the catalog and request books. Only the
+                            // librarian (system admin) opens the management dashboard.
+                            if (string.Equals(role, "STUDENT", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(role, "FACULTY", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(role, "STAFF", StringComparison.OrdinalIgnoreCase))
                             {
-                                student_dashboard studentForm = new student_dashboard(
+                                student_faculty_staff_dashboard patronForm = new student_faculty_staff_dashboard(
                                     accountID, person.FullName, role, accountUsername, status);
-                                studentForm.Show();
+                                patronForm.Show();
                             }
                             else
                             {
@@ -221,11 +227,11 @@ namespace oop_project
                 }
                 catch (MySqlException ex)
                 {
-                    ShowError("COULD NOT SIGN IN BECAUSE OF A DATABASE ERROR.\n" + ex.Message);
+                    ShowError("SIGN IN", "COULD NOT SIGN IN BECAUSE OF A DATABASE ERROR.\n" + ex.Message);
                 }
                 catch (ArgumentException ex)
                 {
-                    ShowError(ex.Message);
+                    ShowError("SIGN IN", ex.Message);
                 }
             }
         }
@@ -238,7 +244,19 @@ namespace oop_project
         private void signup_label_Click(object sender, EventArgs e)
         {
             Signup signupForm = new Signup();
+
+            // Closing the sign-up form returns to the welcome page instead of
+            // leaving this hidden sign-in form in the background.
+            signupForm.FormClosed += (s, args) => Close();
+
             signupForm.Show();
+            this.Hide();
+        }
+
+        private void closeButton_Click(object? sender, EventArgs e)
+        {
+            Welcome welcomeForm = new Welcome();
+            welcomeForm.Show();
             this.Hide();
         }
     }

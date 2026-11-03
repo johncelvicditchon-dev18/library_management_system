@@ -19,7 +19,8 @@ namespace oop_project.Models
 
         // Profile values, read through the foreign keys of student_info_table,
         // faculty_info_table and staff_info_table. They stay empty for roles that
-        // do not own the matching profile row.
+        // do not own the matching value (a FACULTY member has no program and a
+        // LIBRARIAN has no office).
         public string SchoolId { get; private set; }
         public string Program { get; private set; }
         public string YearLevel { get; private set; }
@@ -106,21 +107,19 @@ namespace oop_project.Models
             "SELECT a.`account_id`, a.`name`, a.`username`, " +
             "IFNULL(r.`role`, 'STUDENT'), IFNULL(r.`status`, 'PENDING'), IFNULL(r.`date_created`, ''), " +
             "IFNULL(s.`school_id`, ''), " +
-            "IFNULL(COALESCE(p.`program_name`, fp.`program_name`), ''), " +
+            "IFNULL(p.`program_name`, ''), " +
             "IFNULL(s.`year_level`, ''), " +
             "IFNULL(COALESCE(i.`institute_code`, fi.`institute_code`), ''), " +
-            "IFNULL(s.`contact_number`, ''), IFNULL(s.`address`, ''), " +
-            "IFNULL(COALESCE(li.`office`, st.`office`), '') " +
+            "IFNULL(COALESCE(s.`contact_number`, f.`contact_number`, st.`contact_number`), ''), IFNULL(s.`address`, ''), " +
+            "IFNULL(st.`office`, '') " +
             "FROM `account_table` a " +
             "LEFT JOIN `account_role_table` r ON r.`account_id` = a.`account_id` " +
             "LEFT JOIN `student_info_table` s ON s.`account_id` = a.`account_id` " +
             "LEFT JOIN `program_table` p ON p.`program_id` = s.`program_id` " +
             "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` " +
             "LEFT JOIN `faculty_info_table` f ON f.`account_id` = a.`account_id` " +
-            "LEFT JOIN `program_table` fp ON fp.`program_id` = f.`program_id` " +
             "LEFT JOIN `institute_table` fi ON fi.`institute_id` = f.`institute_id` " +
-            "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` " +
-            "LEFT JOIN `librarian_info_table` li ON li.`account_id` = a.`account_id` ";
+            "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` ";
 
         private readonly IDatabaseConnection _database = new MySqlDatabaseConnection();
 
@@ -320,9 +319,9 @@ namespace oop_project.Models
                 }
             }
 
-            if ((updateStaffProfile || updateLibrarianProfile) && string.IsNullOrWhiteSpace(office))
+            if (updateStaffProfile && string.IsNullOrWhiteSpace(office))
             {
-                throw new ArgumentException("Office is required for a library staff account.", nameof(office));
+                throw new ArgumentException("Office is required for a staff account.", nameof(office));
             }
 
             try
@@ -371,17 +370,13 @@ namespace oop_project.Models
                         if (updateFacultyProfile)
                         {
                             long instituteId = ResolveInstituteId(connection, transaction, institute);
-                            object programId = string.IsNullOrWhiteSpace(program)
-                                ? (object)DBNull.Value
-                                : ResolveProgramId(connection, transaction, program, instituteId);
 
                             const string facultySql =
-                                "UPDATE `faculty_info_table` SET `program_id` = @programId, `institute_id` = @instituteId " +
+                                "UPDATE `faculty_info_table` SET `institute_id` = @instituteId " +
                                 "WHERE `account_id` = @accountId;";
 
                             using (MySqlCommand facultyCommand = new MySqlCommand(facultySql, connection, transaction))
                             {
-                                facultyCommand.Parameters.AddWithValue("@programId", programId);
                                 facultyCommand.Parameters.AddWithValue("@instituteId", instituteId);
                                 facultyCommand.Parameters.AddWithValue("@accountId", row.AccountId);
                                 facultyCommand.ExecuteNonQuery();
@@ -395,7 +390,7 @@ namespace oop_project.Models
 
                         if (updateLibrarianProfile)
                         {
-                            SaveOfficeProfile(connection, transaction, "librarian_info_table", row.AccountId, office);
+                            EnsureLibrarianProfile(connection, transaction, row.AccountId);
                         }
 
                         transaction.Commit();
@@ -482,6 +477,28 @@ namespace oop_project.Models
                 update.Parameters.AddWithValue("@status", normalizedStatus);
                 update.Parameters.AddWithValue("@accountId", accountId);
                 update.ExecuteNonQuery();
+            }
+        }
+
+        // NORMALISATION: the librarian profile only links the account to its role
+        // row. No office is stored for the librarian, so the upsert keeps the links
+        // and does not touch an office column.
+        private static void EnsureLibrarianProfile(
+            MySqlConnection connection,
+            MySqlTransaction transaction,
+            int accountId)
+        {
+            long roleId = ResolveRoleId(connection, transaction, accountId);
+
+            const string sql = "INSERT INTO `librarian_info_table` (`account_id`, `role_id`) " +
+                               "VALUES (@accountId, @roleId) " +
+                               "ON DUPLICATE KEY UPDATE `role_id` = @roleId;";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@accountId", accountId);
+                command.Parameters.AddWithValue("@roleId", roleId);
+                command.ExecuteNonQuery();
             }
         }
 

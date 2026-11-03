@@ -27,8 +27,37 @@ namespace oop_project
         private readonly TextBox _text = new TextBox();
         private readonly ComboBox _choice = new ComboBox();
         private readonly DateTimePicker _date = new DateTimePicker();
+        private DialogFieldKind _kind;
 
-        public DialogFieldKind Kind { get; private set; }
+        /// <summary>
+        /// Parameterless constructor used by the Windows Forms designer. The
+        /// designer can only create a control with a public parameterless
+        /// constructor, so the caption and the kind are applied through the
+        /// public properties afterwards.
+        /// </summary>
+        public DialogField()
+            : this(string.Empty, DialogFieldKind.Text)
+        {
+        }
+
+        /// <summary>
+        /// Field kind (text, read only text, choice list or date). Exposed with a
+        /// setter so the designer can serialize it as a normal property.
+        /// </summary>
+        public DialogFieldKind Kind
+        {
+            get { return _kind; }
+            set
+            {
+                if (_kind == value)
+                {
+                    return;
+                }
+
+                _kind = value;
+                RebuildInput();
+            }
+        }
 
         public TextBox Input
         {
@@ -54,7 +83,7 @@ namespace oop_project
 
         private DialogField(string caption, DialogFieldKind kind)
         {
-            Kind = kind;
+            _kind = kind;
 
             BackColor = Color.White;
             Height = 88;
@@ -115,29 +144,39 @@ namespace oop_project
             _date.Enter += Box_Enter;
             _date.Leave += Box_Leave;
 
-            switch (kind)
-            {
-                case DialogFieldKind.Choice:
-                    _box.Controls.Add(_choice);
-                    _choice.TabIndex = 0;
-                    break;
-
-                case DialogFieldKind.Date:
-                    _box.Controls.Add(_date);
-                    _date.TabIndex = 0;
-                    break;
-
-                default:
-                    _text.ReadOnly = kind == DialogFieldKind.ReadOnly;
-                    _text.TabStop = kind != DialogFieldKind.ReadOnly;
-                    _box.Controls.Add(_text);
-                    _text.TabIndex = 0;
-                    break;
-            }
-
             Controls.Add(_box);
             Controls.Add(_caption);
             Controls.Add(_error);
+
+            RebuildInput();
+        }
+
+        /// <summary>
+        /// Puts the input that matches <see cref="Kind"/> inside the rounded box.
+        /// Called from the constructor and whenever the designer changes Kind.
+        /// </summary>
+        private void RebuildInput()
+        {
+            _box.Controls.Clear();
+
+            _text.ReadOnly = _kind == DialogFieldKind.ReadOnly;
+            _text.TabStop = _kind != DialogFieldKind.ReadOnly;
+
+            if (_kind == DialogFieldKind.Choice)
+            {
+                _box.Controls.Add(_choice);
+                _choice.TabIndex = 0;
+            }
+            else if (_kind == DialogFieldKind.Date)
+            {
+                _box.Controls.Add(_date);
+                _date.TabIndex = 0;
+            }
+            else
+            {
+                _box.Controls.Add(_text);
+                _text.TabIndex = 0;
+            }
         }
 
         public static DialogField ForText(string caption)

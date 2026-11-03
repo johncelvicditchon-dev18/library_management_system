@@ -5,39 +5,54 @@ using System.Globalization;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 using oop_project.Models;
+using static oop_project.Authentication;
 namespace oop_project
 {
-    public partial class Signup : authentication
+    public partial class Signup : Form
     {
-        protected override string FormName
-        {
-            get { return "SIGNUP"; }
-        }
+        private readonly Authentication.WindowLayout _layout = new Authentication.WindowLayout();
 
         // The institute dropdown is filled from `institute_table`; this list is only used
         // when MySQL is unreachable so the form can still be seen.
         private static readonly string[] FallbackInstitutes = { "ICS", "IAS", "ICJE", "IBFS", "IHS", "ITE" };
+
+        // PROGRAM LIST: the programs of the school, grouped by the institute that
+        // offers them. They are shown even before program_table has a row for them
+        // (and when MySQL is unreachable), so the common programs are always one
+        // click away. Picking one registers it in program_table on submit.
+        private static readonly Dictionary<string, string[]> FallbackPrograms =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "ICS", new[] { "BSCS" } },
+                { "IAS", new[] { "AB-COM", "AB-ENGLISH" } },
+                { "ICJE", new[] { "BS-CRIMINOLOGY", "BS-ISM" } },
+                { "IBFS", new[] { "BSBA-HRMA", "BSBA-FM", "BSOA" } },
+                { "IHS", new[] { "BS-MIDWIFERY" } },
+                { "ITE", new[] { "BSED-MATH", "BSED-FILIPINO", "BSED-ENGLISH", "BSED-SOCTUD" } }
+            };
+
         private static readonly string[] YearLevels = { "1ST YEAR", "2ND YEAR", "3RD YEAR", "4TH YEAR" };
 
         // institute code -> institute_id, learned from institute_table at start up.
         private readonly Dictionary<string, int> _instituteIds = new Dictionary<string, int>();
         private readonly List<ProgramRow> _programs = new List<ProgramRow>();
 
-        // LIBRARY STAFF PROFILE: the LIBRARIAN (system admin) and STAFF roles also
-        // record the office the person works in. The OFFICE row is serialized in
-        // signup.designer.cs so it shows on the design surface; the role driven
-        // layout below still moves and hides it like the other designer fields.
+        // LIBRARY STAFF PROFILE: only the STAFF role records the office the person
+        // works in. The LIBRARIAN account is the system admin and no longer asks
+        // for an office. The OFFICE row is serialized in signup.designer.cs so it
+        // shows on the design surface; the role driven layout hides it when needed.
 
         // A dropdown that has not been answered yet shows a hint instead of an empty box.
         private const string RolePlaceholder = "SELECT ROLE";
         private const string YearPlaceholder = "SELECT YEAR";
         private const string InstitutePlaceholder = "SELECT INSTITUTE";
 
-        // LAYOUT: the card uses a 600px content grid.
-        //   THIRD = 185px (three per row), HALF = 290px (two per row), WIDE = 600px.
+        // LAYOUT: the card uses a 600px content grid. Every field is the normal
+        // 290px wide, so two fields share a row, and the card height follows the
+        // number of rows (a small role form gets a shorter white card).
         private const int CardLeftPadding = 50;
-        private const int ThirdWidth = 185;
-        private const int HalfWidth = 290;
+        private const int ColumnWidth = 290;
+        private const int ColumnsPerRow = 2;
         private const int WideWidth = 600;
         private const int Gutter = 20;
         private const int RowStep = 96;
@@ -48,19 +63,16 @@ namespace oop_project
         private const int ButtonGap = 14;
         private const int ButtonHeight = 52;
         private const int BlockTop = 100;
-        private const int BlockBottom = 731;
-
-        // How much room a field takes in a row of the grid.
-        private enum FieldSpan
-        {
-            Third,
-            Half,
-            Wide
-        }
+        // Space kept below the button for the footer ("Already have an account?").
+        private const int CardFooterHeight = 91;
+        private const int CardFooterInset = 54;
+        private const int CardTopMargin = 16;
 
         public Signup()
         {
             InitializeComponent();
+            closeButton.Height = closeButton.Width;
+            closeButton.BringToFront();
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = true;
             signup_label.BringToFront();
@@ -194,10 +206,14 @@ namespace oop_project
 
         // Shows the programs of the chosen institute. The box stays editable, so a
         // program that is not listed yet can be typed and is registered on submit.
+        // The built-in list is appended after the database rows, without repeating
+        // a program that program_table already returned.
         private void RefreshProgramOptions()
         {
             string current = program_option.Text;
             int instituteId = SelectedInstituteId;
+            string instituteCode = SelectedInstituteCode;
+            HashSet<string> listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             program_option.BeginUpdate();
             program_option.Items.Clear();
@@ -206,10 +222,39 @@ namespace oop_project
                 if (instituteId == 0 || row.InstituteId == instituteId)
                 {
                     program_option.Items.Add(row);
+                    listed.Add(row.Name);
+                }
+            }
+
+            foreach (KeyValuePair<string, string[]> group in FallbackPrograms)
+            {
+                if (instituteId != 0 && !string.Equals(group.Key, instituteCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                foreach (string name in group.Value)
+                {
+                    if (listed.Add(name))
+                    {
+                        program_option.Items.Add(new ProgramRow { Id = 0, Name = name, InstituteId = instituteId });
+                    }
                 }
             }
             program_option.EndUpdate();
             program_option.Text = current;
+        }
+
+        // The institute code as typed in the dropdown, e.g. ICS. It is used to pick
+        // the built-in programs that belong to that institute.
+        private string SelectedInstituteCode
+        {
+            get
+            {
+                return institute_option.SelectedIndex <= 0
+                    ? string.Empty
+                    : (institute_option.Text ?? string.Empty).Trim().ToUpperInvariant();
+            }
         }
 
         private int SelectedInstituteId
@@ -239,6 +284,7 @@ namespace oop_project
         // Keeps the card, the hero and the fields in the same composition when maximised.
         // The inputs are children of the card now, so moving the card moves the whole form.
         private Control[]? _layoutControls;
+        private bool _cardLayoutReady;
 
         private Control[] LayoutControls()
         {
@@ -254,32 +300,40 @@ namespace oop_project
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            CaptureDesignLayout(new Size(1482, 853), LayoutControls());
-            ApplyCenteredLayout(gradientPanel1, LayoutControls());
+            _layout.Capture(new Size(1482, 853), LayoutControls());
+            _layout.Apply(this, gradientPanel1, LayoutControls());
+
+            // The white card can now be sized and centred for its content.
+            _cardLayoutReady = true;
+            ApplyFieldLayout();
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-            ApplyCenteredLayout(gradientPanel1, LayoutControls());
+            _layout.Apply(this, gradientPanel1, LayoutControls());
+
+            // RESPONSIVE CARD: keep the card centred when the window changes size.
+            if (_cardLayoutReady && roundedCard1 != null)
+            {
+                ApplyFieldLayout();
+            }
         }
 
         // ENCAPSULATION: one input + its label + its own warning line are treated
         // as a single row item, so the layout code never repeats the same coordinates.
         private sealed class SignupField
         {
-            public SignupField(Label label, FieldPanel field, Label error, FieldSpan span)
+            public SignupField(Label label, FieldPanel field, Label error)
             {
                 Label = label;
                 Field = field;
                 Error = error;
-                Span = span;
             }
 
             public Label Label { get; }
             public FieldPanel Field { get; }
             public Label Error { get; }
-            public FieldSpan Span { get; }
         }
 
         private string SelectedRole
@@ -312,28 +366,35 @@ namespace oop_project
             get { return SelectedRole == "LIBRARIAN"; }
         }
 
-        // Both library roles keep an office, so they share the same input.
+        // Only the STAFF role keeps an office. The LIBRARIAN account is the system
+        // admin, so signup no longer asks it for an office.
         private bool HasOfficeProfile
         {
-            get { return IsStaff || IsLibrarian; }
+            get { return IsStaff; }
+        }
+
+        // STUDENT, FACULTY and STAFF are asked for a contact number.
+        private bool NeedsContact
+        {
+            get { return IsStudent || IsFaculty || IsStaff; }
         }
 
         // Shows the fields that belong to the selected role and hides the rest.
-        // STUDENT gets the full profile, every other role gets one FULL NAME.
+        // STUDENT gets the full profile; FACULTY gives an institute and a contact
+        // number; STAFF also gives an office; LIBRARIAN only needs the name.
         private void ApplyRoleFields()
         {
             bool student = IsStudent;
-            bool faculty = IsFaculty;
 
             ShowField(lastNameLabel, lastNameField, lastNameError, student);
             ShowField(firstNameLabel, firstNameField, firstNameError, student);
             ShowField(middleInitialLabel, middleInitialField, middleInitialError, student);
             ShowField(schoolIdLabel, schoolIdField, schoolIdError, student);
             ShowField(yearLevelLabel, yearLevelField, yearLevelError, student);
-            ShowField(contactLabel, contactField, contactError, student);
+            ShowField(contactLabel, contactField, contactError, NeedsContact);
             ShowField(addressLabel, addressField, addressError, student);
-            ShowField(programLabel, programField, programError, student || faculty);
-            ShowField(instituteLabel, instituteField, instituteError, student || faculty);
+            ShowField(programLabel, programField, programError, student);
+            ShowField(instituteLabel, instituteField, instituteError, student || IsFaculty);
             ShowField(fullNameLabel, fullNameField, fullNameError, !student);
             ShowField(officeLabel, officeField, officeError, HasOfficeProfile);
 
@@ -380,81 +441,55 @@ namespace oop_project
             }
         }
 
-        // LAYOUT: packs the visible fields into rows of the 600px grid and centres
-        // the block vertically inside the card, so a 6-row student form and a 3-row
-        // staff form both look deliberate instead of leaving a hole in the middle.
+        // LAYOUT: every visible field is the same width, so the block is a clean
+        // two-column grid. The white card is resized to fit the rows that are
+        // actually shown, then centred vertically in the window.
         private void ApplyFieldLayout()
         {
             List<SignupField> items = VisibleFields();
-            List<List<SignupField>> rows = new List<List<SignupField>>();
-            List<SignupField> currentRow = new List<SignupField>();
-            int used = 0;
+            int rows = Math.Max(1, (items.Count + ColumnsPerRow - 1) / ColumnsPerRow);
 
-            foreach (SignupField item in items)
+            for (int index = 0; index < items.Count; index++)
             {
-                int width = SpanWidth(item.Span);
+                int row = index / ColumnsPerRow;
+                int column = index % ColumnsPerRow;
+                int x = CardLeftPadding + column * (ColumnWidth + Gutter);
+                int y = BlockTop + row * RowStep;
+                SignupField item = items[index];
 
-                if (currentRow.Count > 0 && used + Gutter + width > WideWidth)
-                {
-                    rows.Add(currentRow);
-                    currentRow = new List<SignupField>();
-                    used = 0;
-                }
-
-                used += (currentRow.Count == 0 ? width : Gutter + width);
-                currentRow.Add(item);
+                item.Label.Location = new Point(x, y);
+                item.Field.Location = new Point(x, y + FieldOffset);
+                item.Field.Size = new Size(ColumnWidth, FieldHeight);
+                item.Error.Location = new Point(x, y + ErrorOffset);
+                item.Error.Size = new Size(ColumnWidth, ErrorHeight);
+                FitInput(item.Field, ColumnWidth);
             }
 
-            if (currentRow.Count > 0)
-            {
-                rows.Add(currentRow);
-            }
-
-            int blockHeight = (rows.Count - 1) * RowStep + ErrorOffset + ErrorHeight + ButtonGap + ButtonHeight;
-            int available = BlockBottom - BlockTop;
-            int startY = BlockTop + Math.Max(0, (available - blockHeight) / 2);
-
-            for (int r = 0; r < rows.Count; r++)
-            {
-                int y = startY + r * RowStep;
-                int x = CardLeftPadding;
-
-                foreach (SignupField item in rows[r])
-                {
-                    int width = SpanWidth(item.Span);
-
-                    item.Label.Location = new Point(x, y);
-                    item.Field.Location = new Point(x, y + FieldOffset);
-                    item.Field.Size = new Size(width, FieldHeight);
-                    item.Error.Location = new Point(x, y + ErrorOffset);
-                    item.Error.Size = new Size(width, ErrorHeight);
-                    FitInput(item.Field, item.Span == FieldSpan.Wide, width);
-
-                    x += width + Gutter;
-                }
-            }
-
-            int lastRowY = startY + (rows.Count - 1) * RowStep;
-            create_button.Location = new Point(CardLeftPadding, lastRowY + ErrorOffset + ErrorHeight + ButtonGap);
+            int buttonTop = BlockTop + (rows - 1) * RowStep + ErrorOffset + ErrorHeight + ButtonGap;
+            create_button.Location = new Point(CardLeftPadding, buttonTop);
             create_button.Size = new Size(WideWidth, ButtonHeight);
-        }
 
-        private static int SpanWidth(FieldSpan span)
-        {
-            switch (span)
+            // RESPONSIVE CARD: fewer rows make the card shorter, more rows make it
+            // taller, and the footer stays pinned to the bottom of the card.
+            int cardHeight = buttonTop + ButtonHeight + CardFooterHeight;
+            roundedCard1.Height = cardHeight;
+
+            int footerTop = cardHeight - CardFooterInset;
+            footerPrompt.Top = footerTop;
+            signin_label.Top = footerTop;
+
+            // The window layout owns the card's X. Centre its Y only once the
+            // design position has been captured, so the capture stays accurate.
+            if (_cardLayoutReady)
             {
-                case FieldSpan.Wide:
-                    return WideWidth;
-                case FieldSpan.Half:
-                    return HalfWidth;
-                default:
-                    return ThirdWidth;
+                int available = gradientPanel1.ClientSize.Height;
+                int top = Math.Max(CardTopMargin, (available - cardHeight) / 2);
+                roundedCard1.Top = top;
             }
         }
 
-        // Keeps the text box / dropdown inside its rounded panel. The inner width is
-        // derived from the panel so a wider column never leaves a gap or clips the input.
-        private static void FitInput(FieldPanel field, bool wide, int width)
+        // Keeps the text box / dropdown evenly inside its rounded panel.
+        private static void FitInput(FieldPanel field, int width)
         {
             if (field.Controls.Count == 0)
             {
@@ -464,55 +499,61 @@ namespace oop_project
             Control input = field.Controls[0];
             if (input is ComboBox comboBox)
             {
-                comboBox.Location = new Point(wide ? 18 : 12, 5);
-                comboBox.Size = new Size(width - (wide ? 36 : 24), 33);
+                comboBox.Location = new Point(12, 5);
+                comboBox.Size = new Size(width - 24, 33);
             }
             else
             {
-                input.Location = new Point(wide ? 22 : 16, 9);
-                input.Size = new Size(width - (wide ? 44 : 32), 26);
+                input.Location = new Point(16, 9);
+                input.Size = new Size(width - 32, 26);
             }
         }
 
         // The fields that are shown for the selected role, in reading order.
+        // INSTITUTE comes before PROGRAM because a program belongs to an institute.
         private List<SignupField> VisibleFields()
         {
             List<SignupField> items = new List<SignupField>
             {
-                new SignupField(roleLabel, roleField, roleError, FieldSpan.Wide)
+                new SignupField(roleLabel, roleField, roleError)
             };
 
             if (IsStudent)
             {
-                items.Add(new SignupField(lastNameLabel, lastNameField, lastNameError, FieldSpan.Third));
-                items.Add(new SignupField(firstNameLabel, firstNameField, firstNameError, FieldSpan.Third));
-                items.Add(new SignupField(middleInitialLabel, middleInitialField, middleInitialError, FieldSpan.Third));
-                items.Add(new SignupField(schoolIdLabel, schoolIdField, schoolIdError, FieldSpan.Third));
-                items.Add(new SignupField(yearLevelLabel, yearLevelField, yearLevelError, FieldSpan.Third));
-                items.Add(new SignupField(contactLabel, contactField, contactError, FieldSpan.Third));
-                items.Add(new SignupField(programLabel, programField, programError, FieldSpan.Half));
-                items.Add(new SignupField(instituteLabel, instituteField, instituteError, FieldSpan.Half));
-                items.Add(new SignupField(addressLabel, addressField, addressError, FieldSpan.Wide));
+                items.Add(new SignupField(lastNameLabel, lastNameField, lastNameError));
+                items.Add(new SignupField(firstNameLabel, firstNameField, firstNameError));
+                items.Add(new SignupField(middleInitialLabel, middleInitialField, middleInitialError));
+                items.Add(new SignupField(schoolIdLabel, schoolIdField, schoolIdError));
+                items.Add(new SignupField(yearLevelLabel, yearLevelField, yearLevelError));
+                items.Add(new SignupField(contactLabel, contactField, contactError));
+                items.Add(new SignupField(instituteLabel, instituteField, instituteError));
+                items.Add(new SignupField(programLabel, programField, programError));
+                items.Add(new SignupField(addressLabel, addressField, addressError));
             }
             else
             {
-                items.Add(new SignupField(fullNameLabel, fullNameField, fullNameError, FieldSpan.Wide));
+                items.Add(new SignupField(fullNameLabel, fullNameField, fullNameError));
 
                 if (HasOfficeProfile)
                 {
-                    items.Add(new SignupField(officeLabel, officeField, officeError, FieldSpan.Wide));
+                    items.Add(new SignupField(officeLabel, officeField, officeError));
                 }
 
                 if (IsFaculty)
                 {
-                    items.Add(new SignupField(programLabel, programField, programError, FieldSpan.Half));
-                    items.Add(new SignupField(instituteLabel, instituteField, instituteError, FieldSpan.Half));
+                    // FACULTY only has an institute; it is not asked for a program.
+                    items.Add(new SignupField(instituteLabel, instituteField, instituteError));
+                }
+
+                if (IsFaculty || IsStaff)
+                {
+                    items.Add(new SignupField(contactLabel, contactField, contactError));
                 }
             }
 
-            items.Add(new SignupField(usernameLabel, usernameField, usernameError, FieldSpan.Third));
-            items.Add(new SignupField(passwordLabel, passwordField, passwordError, FieldSpan.Third));
-            items.Add(new SignupField(confirmLabel, confirmField, confirmError, FieldSpan.Third));
+            items.Add(new SignupField(usernameLabel, usernameField, usernameError));
+            items.Add(new SignupField(passwordLabel, passwordField, passwordError));
+            items.Add(new SignupField(confirmLabel, confirmField, confirmError));
             return items;
         }
 
@@ -594,8 +635,8 @@ namespace oop_project
             return true;
         }
 
-        // OFFICE belongs to the LIBRARIAN / STAFF profile, so only those signups
-        // require it.
+        // OFFICE belongs to the STAFF profile only, so only a staff signup
+        // requires it.
         private bool ValidateOffice()
         {
             if (!HasOfficeProfile)
@@ -656,15 +697,15 @@ namespace oop_project
             SetFieldError(schoolIdError, schoolIdField, null);
             return true;
         }
-        // PROGRAM is required for a student and optional for a faculty member.
+        // PROGRAM belongs to the STUDENT profile only; FACULTY no longer has one.
         private bool ValidateProgram()
         {
-            if (!IsStudent && !IsFaculty)
+            if (!IsStudent)
             {
                 SetFieldError(programError, programField, null);
                 return true;
             }
-            if (IsStudent && program_option.Text.Trim().Length == 0)
+            if (program_option.Text.Trim().Length == 0)
             {
                 SetFieldError(programError, programField, "Program is required");
                 return false;
@@ -704,7 +745,7 @@ namespace oop_project
         }
         private bool ValidateContact()
         {
-            if (!IsStudent)
+            if (!NeedsContact)
             {
                 SetFieldError(contactError, contactField, null);
                 return true;
@@ -894,6 +935,7 @@ namespace oop_project
             string username = username_input.Text.Trim();
             string password = password_input.Text;
             string office = HasOfficeProfile ? office_input.Text.Trim() : string.Empty;
+            string contact = NeedsContact ? contact_input.Text.Trim() : string.Empty;
 
             Person person;
             try
@@ -917,16 +959,16 @@ namespace oop_project
                 student.Program = program_option.Text;
                 student.YearLevel = yearLevel_option.Text;
                 student.Institute = institute_option.Text;
-                student.ContactNumber = contact_input.Text;
+                student.ContactNumber = contact;
                 student.Address = address_input.Text;
                 person.FullName = student.ComposeDisplayName();
             }
             else
             {
                 person.FullName = fullname_input.Text;
+                person.ContactNumber = contact;
                 if (IsFaculty)
                 {
-                    person.Program = program_option.Text;
                     person.Institute = institute_option.Text;
                 }
             }
@@ -937,6 +979,12 @@ namespace oop_project
                 try
                 {
                     conn.Open();
+
+                    // CONTACT NUMBER: keep the older database in step with the
+                    // profile tables before the rows are written.
+                    EnsureContactNumberColumns(conn);
+                    EnsureProfileColumnsRemoved(conn);
+
                     using (MySqlTransaction transaction = conn.BeginTransaction())
                     {
                         try
@@ -968,15 +1016,15 @@ namespace oop_project
                             }
                             else if (IsFaculty)
                             {
-                                InsertFacultyProfile(conn, transaction, accountId, person.Program, person.Institute);
+                                InsertFacultyProfile(conn, transaction, accountId, person.Institute, contact);
                             }
                             else if (IsStaff)
                             {
-                                InsertStaffProfile(conn, transaction, accountId, roleId, office);
+                                InsertStaffProfile(conn, transaction, accountId, roleId, office, contact);
                             }
                             else if (IsLibrarian)
                             {
-                                InsertLibrarianProfile(conn, transaction, accountId, roleId, office);
+                                InsertLibrarianProfile(conn, transaction, accountId, roleId);
                             }
 
                             transaction.Commit();
@@ -1010,7 +1058,7 @@ namespace oop_project
                 }
                 catch (MySqlException ex)
                 {
-                    ShowError("COULD NOT CONNECT TO MYSQL.\n" + ex.Message);
+                    ShowError("SIGNUP", "COULD NOT CONNECT TO MYSQL.\n" + ex.Message);
                 }
             }
         }
@@ -1042,58 +1090,55 @@ namespace oop_project
             }
         }
 
-        // NORMALISATION: a faculty member gets one profile row, so the program and
-        // institute they picked are not lost (the program stays optional for them).
-        private static void InsertFacultyProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, string program, string institute)
+        // NORMALISATION: a faculty member gets one profile row with the institute
+        // they picked and their contact number. FACULTY has no program, so the row
+        // no longer stores a program_id.
+        private static void InsertFacultyProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, string institute, string contact)
         {
             long instituteId = ResolveInstituteId(conn, transaction, institute);
-            object programId = string.IsNullOrEmpty(program)
-                ? (object)DBNull.Value
-                : ResolveProgramId(conn, transaction, program, instituteId);
 
-            const string sql = "INSERT INTO `faculty_info_table` (`account_id`, `program_id`, `institute_id`) " +
-                               "VALUES (@accountId, @programId, @instituteId);";
+            const string sql = "INSERT INTO `faculty_info_table` (`account_id`, `institute_id`, `contact_number`) " +
+                               "VALUES (@accountId, @instituteId, @contactNumber);";
 
             using (MySqlCommand cmd = new MySqlCommand(sql, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@accountId", accountId);
-                cmd.Parameters.AddWithValue("@programId", programId);
                 cmd.Parameters.AddWithValue("@instituteId", instituteId);
+                cmd.Parameters.AddWithValue("@contactNumber", contact);
                 cmd.ExecuteNonQuery();
             }
         }
 
         // NORMALISATION: a staff member gets one profile row that keeps the office
-        // they were assigned to. The row links to account_table (account_id) and to
-        // the STAFF row in account_role_table (role_id), so the role and status are
-        // never copied into this table.
-        private static void InsertStaffProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, long roleId, string office)
+        // they were assigned to and the contact number they gave. The row links to
+        // account_table (account_id) and to the STAFF row in account_role_table
+        // (role_id), so the role and status are never copied into this table.
+        private static void InsertStaffProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, long roleId, string office, string contact)
         {
-            const string sql = "INSERT INTO `staff_info_table` (`account_id`, `role_id`, `office`) " +
-                               "VALUES (@accountId, @roleId, @office);";
+            const string sql = "INSERT INTO `staff_info_table` (`account_id`, `role_id`, `office`, `contact_number`) " +
+                               "VALUES (@accountId, @roleId, @office, @contactNumber);";
 
             using (MySqlCommand cmd = new MySqlCommand(sql, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@accountId", accountId);
                 cmd.Parameters.AddWithValue("@roleId", roleId);
                 cmd.Parameters.AddWithValue("@office", office.Trim());
+                cmd.Parameters.AddWithValue("@contactNumber", contact);
                 cmd.ExecuteNonQuery();
             }
         }
 
-        // NORMALISATION: the librarian (system admin) gets the same profile shape.
-        // librarian_info_table links to account_table and account_role_table, so the
-        // office is stored once and the LIBRARIAN role stays only in the role table.
-        private static void InsertLibrarianProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, long roleId, string office)
+        // NORMALISATION: the librarian (system admin) gets a profile row that only
+        // links the account to its role row. No office is recorded any more.
+        private static void InsertLibrarianProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, long roleId)
         {
-            const string sql = "INSERT INTO `librarian_info_table` (`account_id`, `role_id`, `office`) " +
-                               "VALUES (@accountId, @roleId, @office);";
+            const string sql = "INSERT INTO `librarian_info_table` (`account_id`, `role_id`) " +
+                               "VALUES (@accountId, @roleId);";
 
             using (MySqlCommand cmd = new MySqlCommand(sql, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@accountId", accountId);
                 cmd.Parameters.AddWithValue("@roleId", roleId);
-                cmd.Parameters.AddWithValue("@office", office.Trim());
                 cmd.ExecuteNonQuery();
             }
         }
@@ -1133,13 +1178,22 @@ namespace oop_project
         private void signup_label_Click(object sender, EventArgs e)
         {
             Login loginForm = new Login();
+            loginForm.FormClosed += (s, args) => Close();
             loginForm.Show();
             this.Hide();
         }
         private void label1_Click(object sender, EventArgs e)
         {
             Login loginForm = new Login();
+            loginForm.FormClosed += (s, args) => Close();
             loginForm.Show();
+            this.Hide();
+        }
+
+        private void closeButton_Click(object? sender, EventArgs e)
+        {
+            Welcome welcomeForm = new Welcome();
+            welcomeForm.Show();
             this.Hide();
         }
     }

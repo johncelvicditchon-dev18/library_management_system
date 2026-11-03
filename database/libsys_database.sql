@@ -9,9 +9,10 @@
 --    student_info_table  (student_info_id, account_id, school_id,
 --                         last_name, first_name, middle_initial, program_id,
 --                         year_level, institute_id, contact_number, address)
---    faculty_info_table  (faculty_info_id, account_id, program_id, institute_id)
---    staff_info_table    (staff_info_id, account_id, role_id, office)
---    librarian_info_table (librarian_info_id, account_id, role_id, office)
+--    faculty_info_table  (faculty_info_id, account_id, institute_id,
+--                         contact_number)
+--    staff_info_table    (staff_info_id, account_id, role_id, office, contact_number)
+--    librarian_info_table (librarian_info_id, account_id, role_id)
 --
 --  Every table has its own surrogate primary key, and every link between
 --  the tables is a foreign key (no institute name or program name is
@@ -109,20 +110,19 @@ CREATE TABLE IF NOT EXISTS `student_info_table` (
         FOREIGN KEY (`program_id`) REFERENCES `program_table` (`program_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- FACULTY profile: the program is optional, the institute is required.
+-- FACULTY profile: the institute is required. A faculty member is not asked for
+-- a program, so no program_id is stored on this row.
 CREATE TABLE IF NOT EXISTS `faculty_info_table` (
     `faculty_info_id` INT AUTO_INCREMENT PRIMARY KEY,
     `account_id`   INT NOT NULL,
-    `program_id`   INT NULL,
     `institute_id` INT NOT NULL,
+    `contact_number` VARCHAR(20) NOT NULL DEFAULT '',
     UNIQUE KEY `ux_faculty_account` (`account_id`),
     CONSTRAINT `fk_faculty_account`
         FOREIGN KEY (`account_id`) REFERENCES `account_table` (`account_id`)
         ON DELETE CASCADE,
     CONSTRAINT `fk_faculty_institute`
-        FOREIGN KEY (`institute_id`) REFERENCES `institute_table` (`institute_id`),
-    CONSTRAINT `fk_faculty_program`
-        FOREIGN KEY (`program_id`) REFERENCES `program_table` (`program_id`)
+        FOREIGN KEY (`institute_id`) REFERENCES `institute_table` (`institute_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- STAFF profile: one row per staff account. It links straight to the account
@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS `staff_info_table` (
     `account_id`    INT          NOT NULL,
     `role_id`       INT          NOT NULL,
     `office`        VARCHAR(120) NOT NULL,
+    `contact_number` VARCHAR(20) NOT NULL DEFAULT '',
     UNIQUE KEY `ux_staff_account` (`account_id`),
     UNIQUE KEY `ux_staff_role` (`role_id`),
     CONSTRAINT `fk_staff_account`
@@ -150,13 +151,12 @@ CREATE TABLE IF NOT EXISTS `staff_info_table` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- LIBRARIAN profile: the librarian is the system admin, so the role gets its
--- own table with the same normalised shape as staff_info_table.
--- account_id -> account_table, role_id -> account_role_table, office once.
+-- own table with the same normalised shape as staff_info_table, but without an
+-- office. account_id -> account_table, role_id -> account_role_table.
 CREATE TABLE IF NOT EXISTS `librarian_info_table` (
     `librarian_info_id` INT AUTO_INCREMENT PRIMARY KEY,
     `account_id`        INT          NOT NULL,
     `role_id`           INT          NOT NULL,
-    `office`            VARCHAR(120) NOT NULL,
     UNIQUE KEY `ux_librarian_account` (`account_id`),
     UNIQUE KEY `ux_librarian_role` (`role_id`),
     CONSTRAINT `fk_librarian_account`
@@ -166,6 +166,18 @@ CREATE TABLE IF NOT EXISTS `librarian_info_table` (
         FOREIGN KEY (`role_id`) REFERENCES `account_role_table` (`role_id`)
         ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+-- Older copies stored a program for faculty and an office for the librarian.
+-- The app removes both automatically on the next sign in, or run this once:
+-- ALTER TABLE `faculty_info_table` DROP FOREIGN KEY `fk_faculty_program`;
+-- ALTER TABLE `faculty_info_table` DROP COLUMN `program_id`;
+-- ALTER TABLE `librarian_info_table` DROP COLUMN `office`;
+
+-- Run this once if the profile tables were created before signup started
+-- collecting a contact number for faculty and staff (the app also adds the
+-- columns automatically through Authentication.EnsureContactNumberColumns):
+-- ALTER TABLE `faculty_info_table` ADD COLUMN `contact_number` VARCHAR(20) NOT NULL DEFAULT '';
+-- ALTER TABLE `staff_info_table`   ADD COLUMN `contact_number` VARCHAR(20) NOT NULL DEFAULT '';
 
 -- Run this once if staff_info_table was created before the role link existed:
 -- ALTER TABLE `staff_info_table` ADD COLUMN `role_id` INT NULL AFTER `account_id`;
@@ -203,18 +215,19 @@ CREATE TABLE IF NOT EXISTS `librarian_info_table` (
 -- VALUES (LAST_INSERT_ID(), '2026-00123', 'DITCHON', 'JOHNCEL VIC', 'D',
 --         1, '1ST YEAR', 1, '0917 123 4567', 'PUROK 1, TANGUB CITY');
 
--- FACULTY version of the profile insert (program_id may be NULL)
--- INSERT INTO `faculty_info_table` (`account_id`, `program_id`, `institute_id`)
--- VALUES (LAST_INSERT_ID(), 1, 1);
+-- FACULTY version of the profile insert (no program for faculty)
+-- INSERT INTO `faculty_info_table` (`account_id`, `institute_id`,
+--                                   `contact_number`)
+-- VALUES (LAST_INSERT_ID(), 1, '0917 123 4567');
 
 -- STAFF version of the profile insert (written when the STAFF role is picked).
 -- role_id is the id returned by the account_role_table insert above.
--- INSERT INTO `staff_info_table` (`account_id`, `role_id`, `office`)
--- VALUES (LAST_INSERT_ID(), 1, 'REGISTRAR OFFICE');
+-- INSERT INTO `staff_info_table` (`account_id`, `role_id`, `office`, `contact_number`)
+-- VALUES (LAST_INSERT_ID(), 1, 'REGISTRAR OFFICE', '0917 123 4567');
 
--- LIBRARIAN version of the profile insert (the system admin role)
--- INSERT INTO `librarian_info_table` (`account_id`, `role_id`, `office`)
--- VALUES (LAST_INSERT_ID(), 1, 'MAIN LIBRARY OFFICE');
+-- LIBRARIAN version of the profile insert (the system admin role, no office)
+-- INSERT INTO `librarian_info_table` (`account_id`, `role_id`)
+-- VALUES (LAST_INSERT_ID(), 1);
 
 -- ------------------------------------------------------------
 -- SELECT used by login.cs (login_button_Click)
@@ -295,9 +308,9 @@ CREATE TABLE IF NOT EXISTS `librarian_info_table` (
 --
 --  ACCOUNT MANAGEMENT (the four account tabs)
 --    PROFILE            -> the signed in row, joined to student_info_table /
---                          faculty_info_table / staff_info_table /
---                          librarian_info_table for program, institute, year
---                          level, school id, contact number and office
+--                          faculty_info_table / staff_info_table for program
+--                          (student only), institute, year level, school id,
+--                          contact number and office (staff only)
 --    LIBRARIAN ACCOUNTS -> LIBRARIAN (plus the legacy ADMIN role)
 --    STAFF ACCOUNTS     -> STAFF (plus the legacy OFFICER role)
 --    FACULTY ACCOUNTS   -> account_role_table.role = 'FACULTY'
@@ -375,6 +388,25 @@ CREATE TABLE IF NOT EXISTS `borrow_requests_table` (
     CONSTRAINT `fk_request_borrow`
         FOREIGN KEY (`borrow_id`) REFERENCES `borrow_transactions_table` (`borrow_id`)
         ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+-- LIBRARY OFFICE ATTENDANCE
+-- One row per accepted QR scan. The scanner reads the ACCOUNT line of the pass,
+-- checks that the account exists and is ACTIVE, then writes the visit with the
+-- gate name. The account details shown in MY ATTENDANCE / LIBRARY ATTENDANCE are
+-- read back through the account foreign key, so they never go out of date.
+CREATE TABLE IF NOT EXISTS `attendance_table` (
+    `attendance_id` INT(11)     NOT NULL AUTO_INCREMENT,
+    `account_id`    INT(11)     NOT NULL,
+    `scan_time`     DATETIME    NOT NULL,
+    `role`          VARCHAR(20) NOT NULL,
+    `gate`          VARCHAR(60) NOT NULL DEFAULT 'LIBRARY OFFICE',
+    PRIMARY KEY (`attendance_id`),
+    KEY `idx_attendance_account` (`account_id`),
+    KEY `idx_attendance_time` (`scan_time`),
+    CONSTRAINT `fk_attendance_account`
+        FOREIGN KEY (`account_id`) REFERENCES `account_table` (`account_id`)
+        ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- Older copies of books_table declared year_published as YEAR(4), which cannot
@@ -470,8 +502,8 @@ CREATE TABLE IF NOT EXISTS `borrow_requests_table` (
 --     `institute_id` = 1, `contact_number` = '0917 123 4567'
 -- WHERE `account_id` = 2;
 
--- EDIT FACULTY PROFILE (faculty_info_table)
--- UPDATE `faculty_info_table` SET `program_id` = 1, `institute_id` = 1
+-- EDIT FACULTY PROFILE (faculty_info_table; no program for faculty)
+-- UPDATE `faculty_info_table` SET `institute_id` = 1
 -- WHERE `account_id` = 3;
 
 -- EDIT STAFF PROFILE (staff_info_table; role_id is the account's role row)
@@ -479,10 +511,10 @@ CREATE TABLE IF NOT EXISTS `borrow_requests_table` (
 -- VALUES (4, 4, 'REGISTRAR OFFICE')
 -- ON DUPLICATE KEY UPDATE `role_id` = 4, `office` = 'REGISTRAR OFFICE';
 
--- EDIT LIBRARIAN PROFILE (librarian_info_table)
--- INSERT INTO `librarian_info_table` (`account_id`, `role_id`, `office`)
--- VALUES (5, 5, 'MAIN LIBRARY OFFICE')
--- ON DUPLICATE KEY UPDATE `role_id` = 5, `office` = 'MAIN LIBRARY OFFICE';
+-- EDIT LIBRARIAN PROFILE (librarian_info_table; no office for the librarian)
+-- INSERT INTO `librarian_info_table` (`account_id`, `role_id`)
+-- VALUES (5, 5)
+-- ON DUPLICATE KEY UPDATE `role_id` = 5;
 
 -- DELETE ACCOUNT (role and profile rows cascade with it)
 -- DELETE FROM `account_table` WHERE `account_id` = 2;

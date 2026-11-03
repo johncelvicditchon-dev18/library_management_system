@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
+using library_management_system.forms;
 using MySql.Data.MySqlClient;
 using oop_project.Models;
 
@@ -34,42 +35,24 @@ namespace oop_project.forms
         private readonly LibraryCatalog _catalog = new LibraryCatalog();
         private readonly AccountDirectory _accountDirectory = new AccountDirectory();
         private readonly BorrowRequestDirectory _requestDirectory = new BorrowRequestDirectory();
+        private readonly AttendanceDirectory _attendanceDirectory = new AttendanceDirectory();
         private List<AccountRow> _accounts = new List<AccountRow>();
         private bool _accountsLoaded;
         private bool _canManageAccounts;
 
+        // LIBRARY ATTENDANCE tab, built in code because the designer tab is empty.
+        private DataGridView libraryAttendanceGrid = null!;
+        private Label libraryAttendanceHeading = null!;
+        private Label libraryAttendanceSubtitle = null!;
+        private Label libraryAttendanceStatus = null!;
+        private Label libraryAttendanceEmpty = null!;
+        private SearchBox libraryAttendanceSearch = null!;
+        private RoundedButton libraryAttendanceRefreshButton = null!;
+        private RoundedButton libraryAttendanceScanButton = null!;
+        private List<AttendanceRow> _attendanceRows = new List<AttendanceRow>();
+        private bool _attendanceLogOnline = true;
+
         private DataGridViewImageColumn bookCoverColumn = null!;
-
-        // BORROW REQUESTS tab. The controls are built by CreateBorrowRequestsTab,
-        // which admin_dashboard.designer.cs calls so the tab also appears on the
-        // design surface.
-        private TabPage requestsTab = null!;
-        private DataGridView requestsGrid = null!;
-        private DataGridViewTextBoxColumn requestIdColumn = null!;
-        private DataGridViewTextBoxColumn requestBookColumn = null!;
-        private DataGridViewTextBoxColumn requestStudentColumn = null!;
-        private DataGridViewTextBoxColumn requestStudentIdColumn = null!;
-        private DataGridViewTextBoxColumn requestProgramColumn = null!;
-        private DataGridViewTextBoxColumn requestDateColumn = null!;
-        private DataGridViewTextBoxColumn requestStatusColumn = null!;
-        private Label requestsStatusLabel = null!;
-        private RoundedButton requestsRefreshButton = null!;
-
-        // STAFF ACCOUNTS tab. Created by CreateStaffAccountsTab, called from
-        // admin_dashboard.designer.cs so the tab renders in the designer too.
-        private TabPage staffTab = null!;
-        private DataGridView staffGrid = null!;
-        private DataGridViewTextBoxColumn staffIdColumn = null!;
-        private DataGridViewTextBoxColumn staffNameColumn = null!;
-        private DataGridViewTextBoxColumn staffUsernameColumn = null!;
-        private DataGridViewTextBoxColumn staffPasswordColumn = null!;
-        private DataGridViewTextBoxColumn staffStatusColumn = null!;
-        private DataGridViewTextBoxColumn staffRoleColumn = null!;
-        private Label staffStatusLabel = null!;
-        private Label staffEmptyLabel = null!;
-        private RoundedButton staffActivateButton = null!;
-        private RoundedButton staffDeactivateButton = null!;
-        private RoundedButton staffRefreshButton = null!;
 
         public int LoggedInAccountId { get; private set; }
         public string LoggedInRole { get; private set; } = string.Empty;
@@ -96,11 +79,20 @@ namespace oop_project.forms
             ScreenMode.Apply(this);
 
             ApplyAccountDetails();
-            CreateBorrowRequestsTab();
-            CreateStaffAccountsTab();
             ConfigureGrids();
+            BuildAttendanceTab();
 
             tabControl1.SelectedIndexChanged += tabControl1_SelectedIndexChanged;
+
+            // Bring the attendance table up to date when the window is re-opened
+            // from the scanner or from another application window.
+            Activated += (s, e) =>
+            {
+                if (tabControl1.SelectedTab == tabPage7)
+                {
+                    LoadAttendanceLog();
+                }
+            };
         }
 
         public admin_dashboard()
@@ -118,6 +110,7 @@ namespace oop_project.forms
             LoadAccounts();
             LoadProfileRecord();
             LoadBorrowRequests();
+            LoadAttendanceLog();
         }
 
         // ENCAPSULATION: one place that pushes the signed in person's details into
@@ -131,14 +124,12 @@ namespace oop_project.forms
             profileName.Text = LoggedInFullName;
             avatarBadge.Initials = BuildInitials(LoggedInFullName);
 
-            profileMeta.Text = "ACCOUNT ID  #" + LoggedInAccountId +
-                (LoggedInUsername.Length > 0 ? "     •     @" + LoggedInUsername : string.Empty);
+
 
             valueFullName.Text = LoggedInFullName;
-            valueUsername.Text = LoggedInUsername.Length > 0 ? LoggedInUsername : "—";
+            valueUsername.Text = LoggedInUsername.Length > 0 ? LoggedInUsername : "—”";
             valueRole.Text = ToDisplayCase(LoggedInRole);
-            valueAccountId.Text = "#" + LoggedInAccountId;
-            valueStatus.Text = LoggedInStatus.Length > 0 ? ToDisplayCase(LoggedInStatus) : "—";
+            valueStatus.Text = LoggedInStatus.Length > 0 ? ToDisplayCase(LoggedInStatus) : "—”";
 
             bool isActive = string.Equals(LoggedInStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase);
             valueStatus.ForeColor = isActive ? SuccessText : Color.FromArgb(180, 83, 9);
@@ -169,8 +160,7 @@ namespace oop_project.forms
         {
             RoundedButton[] buttons =
             {
-                accountsActivateButton,
-                accountsDeactivateButton,
+             
                 facultyActivateButton,
                 facultyDeactivateButton,
                 studentActivateButton,
@@ -188,307 +178,6 @@ namespace oop_project.forms
             borrowBookButton.Enabled = _canManageAccounts;
             recordBorrowButton.Enabled = _canManageAccounts;
             markReturnedButton.Enabled = _canManageAccounts;
-        }
-
-        /// <summary>
-        /// The pending student request queue. A student can only request a book;
-        /// this tab is where a librarian turns a request into a real loan or
-        /// rejects it. It is created from the designer file (which calls this
-        /// method) so it shows next to the fixed tabs on the design surface.
-        /// </summary>
-        private void CreateBorrowRequestsTab()
-        {
-            if (requestsTab != null)
-            {
-                return;
-            }
-
-            requestsTab = new TabPage();
-            requestsTab.BackColor = Color.White;
-            requestsTab.Location = new Point(4, 29);
-            requestsTab.Name = "requestsTab";
-            requestsTab.Padding = new Padding(3);
-            requestsTab.Size = new Size(1344, 655);
-            requestsTab.Text = "BORROW REQUESTS";
-
-            Label heading = new Label();
-            heading.AutoSize = true;
-            heading.BackColor = Color.Transparent;
-            heading.Font = new Font("Segoe UI", 14.5F, FontStyle.Bold);
-            heading.ForeColor = Color.FromArgb(15, 23, 42);
-            heading.Location = new Point(30, 22);
-            heading.Name = "requestsHeading";
-            heading.TabIndex = 0;
-            heading.Text = "BORROW REQUESTS";
-
-            Label subtitle = new Label();
-            subtitle.AutoSize = true;
-            subtitle.BackColor = Color.Transparent;
-            subtitle.Font = new Font("Segoe UI", 9F);
-            subtitle.ForeColor = Color.FromArgb(148, 163, 184);
-            subtitle.Location = new Point(32, 56);
-            subtitle.Name = "requestsSubtitle";
-            subtitle.TabIndex = 1;
-            subtitle.Text = "Student requests waiting for approval.";
-
-            requestsRefreshButton = CreateTabButton(
-                "requestsRefreshButton", "REFRESH REQUESTS", new Point(30, 92), new Size(188, 44),
-                Color.FromArgb(22, 163, 74), Color.FromArgb(21, 128, 61), Color.FromArgb(20, 83, 45));
-            requestsRefreshButton.Click += delegate { LoadBorrowRequests(); };
-
-            requestsStatusLabel = new Label();
-            requestsStatusLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            requestsStatusLabel.BackColor = Color.Transparent;
-            requestsStatusLabel.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            requestsStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-            requestsStatusLabel.Location = new Point(630, 104);
-            requestsStatusLabel.Name = "requestsStatusLabel";
-            requestsStatusLabel.Size = new Size(684, 20);
-            requestsStatusLabel.TabIndex = 3;
-            requestsStatusLabel.Text = "REQUESTS HAVE NOT BEEN LOADED YET.";
-            requestsStatusLabel.TextAlign = ContentAlignment.MiddleRight;
-
-            requestsGrid = new DataGridView();
-            ((System.ComponentModel.ISupportInitialize)requestsGrid).BeginInit();
-            requestsGrid.AllowUserToAddRows = false;
-            requestsGrid.AllowUserToDeleteRows = false;
-            requestsGrid.AllowUserToResizeRows = false;
-            requestsGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            requestsGrid.BackgroundColor = Color.White;
-            requestsGrid.BorderStyle = BorderStyle.None;
-            requestsGrid.ColumnHeadersHeight = 44;
-            requestsGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            requestsGrid.Location = new Point(30, 156);
-            requestsGrid.MultiSelect = false;
-            requestsGrid.Name = "requestsGrid";
-            requestsGrid.ReadOnly = true;
-            requestsGrid.RowHeadersVisible = false;
-            requestsGrid.RowHeadersWidth = 51;
-            requestsGrid.RowTemplate.Height = 38;
-            requestsGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            requestsGrid.Size = new Size(1284, 469);
-            requestsGrid.TabIndex = 4;
-
-            requestIdColumn = CreateAccountColumn("requestIdColumn", "ID", 60, 0F, 50);
-            requestBookColumn = CreateAccountColumn("requestBookColumn", "BOOK TITLE", 0, 22F, 150);
-            requestStudentColumn = CreateAccountColumn("requestStudentColumn", "STUDENT", 0, 20F, 150);
-            requestStudentIdColumn = CreateAccountColumn("requestStudentIdColumn", "ID NO.", 112, 0F, 90);
-            requestProgramColumn = CreateAccountColumn("requestProgramColumn", "PROGRAM", 0, 12F, 95);
-            requestDateColumn = CreateAccountColumn("requestDateColumn", "REQUESTED", 148, 0F, 135);
-            requestStatusColumn = CreateAccountColumn("requestStatusColumn", "STATUS", 104, 0F, 90);
-
-            DataGridViewTextBoxColumn approveColumn = CreateRequestActionColumn(
-                RequestApproveColumnName, "APPROVE", 108, Color.FromArgb(4, 120, 87));
-            DataGridViewTextBoxColumn rejectColumn = CreateRequestActionColumn(
-                RequestRejectColumnName, "REJECT", 92, Color.FromArgb(185, 28, 28));
-
-            requestsGrid.Columns.AddRange(new DataGridViewColumn[]
-            {
-                requestIdColumn, requestBookColumn, requestStudentColumn, requestStudentIdColumn,
-                requestProgramColumn, requestDateColumn, requestStatusColumn, approveColumn, rejectColumn
-            });
-
-            requestsGrid.CellClick += RequestsGrid_CellClick;
-
-            requestsTab.Controls.Add(requestsGrid);
-            requestsTab.Controls.Add(requestsStatusLabel);
-            requestsTab.Controls.Add(requestsRefreshButton);
-            requestsTab.Controls.Add(subtitle);
-            requestsTab.Controls.Add(heading);
-
-            tabControl1.TabPages.Insert(3, requestsTab);
-            ((System.ComponentModel.ISupportInitialize)requestsGrid).EndInit();
-        }
-
-        private static DataGridViewTextBoxColumn CreateRequestActionColumn(
-            string name, string text, int width, Color color)
-        {
-            DataGridViewTextBoxColumn column = new DataGridViewTextBoxColumn();
-            column.Name = name;
-            column.HeaderText = text;
-            column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-            column.Width = width;
-            column.MinimumWidth = width - 10;
-            column.ReadOnly = true;
-            column.SortMode = DataGridViewColumnSortMode.NotSortable;
-            column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            column.DefaultCellStyle.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
-            column.DefaultCellStyle.ForeColor = color;
-            column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            column.HeaderCell.Style.WrapMode = DataGridViewTriState.False;
-            return column;
-        }
-
-        /// <summary>
-        /// STAFF ACCOUNTS gets its own table next to LIBRARIAN ACCOUNTS, so the two
-        /// library roles are no longer mixed in one grid. The tab mirrors the
-        /// designer layout of the librarian tab but is created here, which keeps the
-        /// large designer file untouched.
-        /// </summary>
-        private void CreateStaffAccountsTab()
-        {
-            if (staffTab != null)
-            {
-                return;
-            }
-
-            staffTab = new TabPage();
-            staffTab.BackColor = Color.White;
-            staffTab.Location = new Point(4, 29);
-            staffTab.Name = "staffTab";
-            staffTab.Padding = new Padding(3);
-            staffTab.Size = new Size(1344, 655);
-            staffTab.Text = "STAFF ACCOUNTS";
-
-            Label heading = new Label();
-            heading.AutoSize = true;
-            heading.BackColor = Color.Transparent;
-            heading.Font = new Font("Segoe UI", 14.5F, FontStyle.Bold);
-            heading.ForeColor = Color.FromArgb(15, 23, 42);
-            heading.Location = new Point(30, 22);
-            heading.Name = "staffHeading";
-            heading.TabIndex = 0;
-            heading.Text = "STAFF ACCOUNTS";
-
-            Label subtitle = new Label();
-            subtitle.AutoSize = true;
-            subtitle.BackColor = Color.Transparent;
-            subtitle.Font = new Font("Segoe UI", 9F);
-            subtitle.ForeColor = Color.FromArgb(148, 163, 184);
-            subtitle.Location = new Point(32, 56);
-            subtitle.Name = "staffSubtitle";
-            subtitle.TabIndex = 1;
-            subtitle.Text = "Staff accounts that support the library.";
-
-            staffActivateButton = CreateTabButton(
-                "staffActivateButton", "ACTIVATE ACCOUNT", new Point(30, 92), new Size(176, 44),
-                Color.FromArgb(22, 163, 74), Color.FromArgb(21, 128, 61), Color.FromArgb(20, 83, 45));
-            staffActivateButton.Click += staffActivateButton_Click;
-
-            staffDeactivateButton = CreateTabButton(
-                "staffDeactivateButton", "DEACTIVATE ACCOUNT", new Point(218, 92), new Size(186, 44),
-                Color.FromArgb(185, 28, 28), Color.FromArgb(153, 27, 27), Color.FromArgb(127, 29, 29));
-            staffDeactivateButton.Click += staffDeactivateButton_Click;
-
-            staffRefreshButton = CreateTabButton(
-                "staffRefreshButton", "REFRESH", new Point(416, 92), new Size(126, 44),
-                Color.FromArgb(22, 163, 74), Color.FromArgb(21, 128, 61), Color.FromArgb(20, 83, 45));
-            staffRefreshButton.Click += staffRefreshButton_Click;
-
-            staffStatusLabel = new Label();
-            staffStatusLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            staffStatusLabel.BackColor = Color.Transparent;
-            staffStatusLabel.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            staffStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-            staffStatusLabel.Location = new Point(566, 104);
-            staffStatusLabel.Name = "staffStatusLabel";
-            staffStatusLabel.Size = new Size(748, 20);
-            staffStatusLabel.TabIndex = 3;
-            staffStatusLabel.Text = "STAFF ACCOUNTS HAVE NOT BEEN LOADED YET.";
-            staffStatusLabel.TextAlign = ContentAlignment.MiddleRight;
-
-            staffEmptyLabel = new Label();
-            staffEmptyLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            staffEmptyLabel.BackColor = Color.White;
-            staffEmptyLabel.Font = new Font("Segoe UI", 10F);
-            staffEmptyLabel.ForeColor = Color.FromArgb(148, 163, 184);
-            staffEmptyLabel.Location = new Point(30, 396);
-            staffEmptyLabel.Name = "staffEmptyLabel";
-            staffEmptyLabel.Size = new Size(1284, 60);
-            staffEmptyLabel.TabIndex = 5;
-            staffEmptyLabel.Text = "NO STAFF ACCOUNTS HAVE BEEN REGISTERED YET.";
-            staffEmptyLabel.TextAlign = ContentAlignment.MiddleCenter;
-            staffEmptyLabel.Visible = false;
-
-            staffGrid = new DataGridView();
-            ((System.ComponentModel.ISupportInitialize)staffGrid).BeginInit();
-            staffGrid.AllowUserToAddRows = false;
-            staffGrid.AllowUserToDeleteRows = false;
-            staffGrid.AllowUserToResizeRows = false;
-            staffGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            staffGrid.BackgroundColor = Color.White;
-            staffGrid.BorderStyle = BorderStyle.None;
-            staffGrid.ColumnHeadersHeight = 44;
-            staffGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            staffGrid.Location = new Point(30, 156);
-            staffGrid.MultiSelect = false;
-            staffGrid.Name = "staffGrid";
-            staffGrid.ReadOnly = true;
-            staffGrid.RowHeadersVisible = false;
-            staffGrid.RowHeadersWidth = 51;
-            staffGrid.RowTemplate.Height = 38;
-            staffGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            staffGrid.Size = new Size(1284, 469);
-            staffGrid.TabIndex = 4;
-
-            staffIdColumn = CreateAccountColumn("staffIdColumn", "ID", 70, 0F, 6);
-            staffNameColumn = CreateAccountColumn("staffNameColumn", "NAME", 0, 28F, 120);
-            staffUsernameColumn = CreateAccountColumn("staffUsernameColumn", "USERNAME", 0, 22F, 80);
-            staffPasswordColumn = CreateAccountColumn("staffPasswordColumn", "PASSWORD", 130, 0F, 6);
-            staffStatusColumn = CreateAccountColumn("staffStatusColumn", "STATUS", 120, 0F, 6);
-            staffRoleColumn = CreateAccountColumn("staffRoleColumn", "ROLE", 120, 0F, 6);
-
-            staffGrid.Columns.AddRange(new DataGridViewColumn[]
-            {
-                staffIdColumn, staffNameColumn, staffUsernameColumn, staffPasswordColumn,
-                staffStatusColumn, staffRoleColumn
-            });
-
-            staffTab.Controls.Add(staffEmptyLabel);
-            staffTab.Controls.Add(staffGrid);
-            staffTab.Controls.Add(staffStatusLabel);
-            staffTab.Controls.Add(staffRefreshButton);
-            staffTab.Controls.Add(staffDeactivateButton);
-            staffTab.Controls.Add(staffActivateButton);
-            staffTab.Controls.Add(subtitle);
-            staffTab.Controls.Add(heading);
-
-            int librarianIndex = tabControl1.TabPages.IndexOf(tabPage2);
-            tabControl1.TabPages.Insert(librarianIndex < 0 ? 1 : librarianIndex + 1, staffTab);
-            ((System.ComponentModel.ISupportInitialize)staffGrid).EndInit();
-        }
-
-        private static DataGridViewTextBoxColumn CreateAccountColumn(
-            string name, string header, int width, float fillWeight, int minimumWidth)
-        {
-            DataGridViewTextBoxColumn column = new DataGridViewTextBoxColumn();
-            column.Name = name;
-            column.HeaderText = header;
-            column.ReadOnly = true;
-            column.MinimumWidth = minimumWidth;
-
-            if (fillWeight > 0F)
-            {
-                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                column.FillWeight = fillWeight;
-            }
-            else
-            {
-                column.Width = width;
-            }
-
-            return column;
-        }
-
-        private static RoundedButton CreateTabButton(
-            string name, string text, Point location, Size size, Color normal, Color hover, Color pressed)
-        {
-            RoundedButton button = new RoundedButton();
-            button.BackColor = Color.Transparent;
-            button.CornerRadius = 12;
-            button.FlatAppearance.BorderSize = 0;
-            button.FlatStyle = FlatStyle.Flat;
-            button.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            button.ForeColor = Color.White;
-            button.HoverColor = hover;
-            button.Location = location;
-            button.Name = name;
-            button.NormalColor = normal;
-            button.PressedColor = pressed;
-            button.Size = size;
-            button.Text = text;
-            button.UseVisualStyleBackColor = false;
-            return button;
         }
 
         /// <summary>
@@ -566,6 +255,318 @@ namespace oop_project.forms
             BalanceGridWidths();
         }
 
+        // ------------------------------------------------------- LIBRARY ATTENDANCE
+
+        /// <summary>
+        /// Builds the LIBRARY ATTENDANCE tab. The designer leaves this tab empty,
+        /// so the heading, the search field, the refresh / scanner buttons and the
+        /// table are created here and follow the same look as the other tabs.
+        /// </summary>
+        private void BuildAttendanceTab()
+        {
+            if (libraryAttendanceGrid != null)
+            {
+                return;
+            }
+
+            tabPage7.BackColor = Color.White;
+            tabPage7.Padding = new Padding(3);
+
+            libraryAttendanceHeading = new Label
+            {
+                Text = "LIBRARY ATTENDANCE",
+                AutoSize = true,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 14.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 23, 42),
+                Location = new Point(30, 22)
+            };
+
+            libraryAttendanceSubtitle = new Label
+            {
+                Text = "Every QR pass scanned at the library office entrance. Only registered and approved accounts are recorded.",
+                AutoSize = true,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = MutedText,
+                Location = new Point(32, 56)
+            };
+
+            libraryAttendanceRefreshButton = new RoundedButton
+            {
+                Text = "REFRESH",
+                Location = new Point(32, 92),
+                Size = new Size(126, 44),
+                CornerRadius = 12,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                NormalColor = Color.FromArgb(22, 163, 74),
+                HoverColor = Color.FromArgb(21, 128, 61),
+                PressedColor = Color.FromArgb(20, 83, 45),
+                ForeColor = Color.White,
+                UseVisualStyleBackColor = false
+            };
+
+            libraryAttendanceRefreshButton.Click += (s, e) => LoadAttendanceLog();
+
+            libraryAttendanceScanButton = new RoundedButton
+            {
+                Text = "OPEN QR SCANNER",
+                Location = new Point(170, 92),
+                Size = new Size(190, 44),
+                CornerRadius = 12,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                NormalColor = Color.FromArgb(13, 148, 136),
+                HoverColor = Color.FromArgb(15, 118, 110),
+                PressedColor = Color.FromArgb(17, 94, 89),
+                ForeColor = Color.White,
+                UseVisualStyleBackColor = false
+            };
+
+            libraryAttendanceScanButton.Click += (s, e) => OpenAttendanceScanner();
+
+            libraryAttendanceSearch = new SearchBox
+            {
+                PlaceholderText = "SEARCH ATTENDANCE...",
+                Height = 44,
+                Width = 360,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            libraryAttendanceSearch.SearchTextChanged += (s, e) => RebuildAttendanceLog();
+            libraryAttendanceSearch.SearchRequested += (s, e) => RebuildAttendanceLog();
+
+            libraryAttendanceStatus = new Label
+            {
+                Text = "ATTENDANCE HAS NOT BEEN LOADED YET.",
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                ForeColor = MutedText,
+                Height = 20,
+                TextAlign = ContentAlignment.MiddleRight,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+
+            libraryAttendanceGrid = new DataGridView
+            {
+                Name = "libraryAttendanceGrid",
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+            };
+
+            StyleGrid(libraryAttendanceGrid);
+            libraryAttendanceGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            AddLibraryAttendanceColumns();
+
+            libraryAttendanceEmpty = new Label
+            {
+                Text = "NO ATTENDANCE RECORDED YET.\r\nSCAN A STUDENT, FACULTY OR STAFF QR PASS WITH THE SCANNER.",
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = false,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+            };
+
+            tabPage7.Controls.Add(libraryAttendanceEmpty);
+            tabPage7.Controls.Add(libraryAttendanceGrid);
+            tabPage7.Controls.Add(libraryAttendanceStatus);
+            tabPage7.Controls.Add(libraryAttendanceSearch);
+            tabPage7.Controls.Add(libraryAttendanceScanButton);
+            tabPage7.Controls.Add(libraryAttendanceRefreshButton);
+            tabPage7.Controls.Add(libraryAttendanceSubtitle);
+            tabPage7.Controls.Add(libraryAttendanceHeading);
+
+            tabPage7.Resize += (s, e) => LayoutAttendanceTab();
+            LayoutAttendanceTab();
+        }
+
+        private void AddLibraryAttendanceColumns()
+        {
+            libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceId", "ATTENDANCE #", 9F, 90));
+            libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceStamp", "DATE & TIME", 24F, 160));
+            libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceName", "NAME", 30F, 150));
+            libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceRole", "ROLE", 12F, 90));
+            libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceProgram", "PROGRAM / OFFICE", 20F, 120));
+            libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceInstitute", "INSTITUTE", 13F, 100));
+
+            EnsureHeaderFits(libraryAttendanceGrid);
+        }
+
+        private static DataGridViewTextBoxColumn CreateAttendanceColumn(string name, string header, float weight, int minimumWidth)
+        {
+            return new DataGridViewTextBoxColumn
+            {
+                Name = name,
+                HeaderText = header,
+                FillWeight = weight,
+                MinimumWidth = minimumWidth,
+                ReadOnly = true,
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+            };
+        }
+
+        private void LayoutAttendanceTab()
+        {
+            if (libraryAttendanceGrid == null || tabPage7 == null)
+            {
+                return;
+            }
+
+            int width = tabPage7.ClientSize.Width;
+            int height = tabPage7.ClientSize.Height;
+
+            int searchWidth = Math.Max(240, Math.Min(380, width / 3));
+            libraryAttendanceSearch.SetBounds(Math.Max(0, width - 30 - searchWidth), 92, searchWidth, 44);
+
+            int statusLeft = 380;
+            libraryAttendanceStatus.SetBounds(
+                statusLeft,
+                104,
+                Math.Max(120, libraryAttendanceSearch.Left - 16 - statusLeft),
+                20);
+
+            libraryAttendanceGrid.SetBounds(30, 156, Math.Max(200, width - 60), Math.Max(120, height - 186));
+            libraryAttendanceEmpty.SetBounds(30, 156, Math.Max(200, width - 60), Math.Max(120, height - 186));
+        }
+
+        private void OpenAttendanceScanner()
+        {
+            using (qr_code_scanner scanner = new qr_code_scanner())
+            {
+                scanner.ShowDialog(this);
+            }
+
+            // A scan writes straight into attendance_table, so the table is read
+            // again as soon as the scanner closes.
+            LoadAttendanceLog();
+        }
+
+        private void LoadAttendanceLog()
+        {
+            try
+            {
+                _attendanceRows = _attendanceDirectory.LoadAll();
+                _attendanceLogOnline = true;
+            }
+            catch (MySqlException)
+            {
+                _attendanceRows = new List<AttendanceRow>();
+                _attendanceLogOnline = false;
+            }
+
+            RebuildAttendanceLog();
+        }
+
+        private void RebuildAttendanceLog()
+        {
+            if (libraryAttendanceGrid == null)
+            {
+                return;
+            }
+
+            string term = libraryAttendanceSearch.SearchText.ToUpperInvariant();
+            int shown = 0;
+            int today = 0;
+
+            libraryAttendanceGrid.Rows.Clear();
+
+            foreach (AttendanceRow visit in _attendanceRows)
+            {
+                if (term.Length > 0 && !MatchesAttendance(visit, term))
+                {
+                    continue;
+                }
+
+                int index = libraryAttendanceGrid.Rows.Add(
+                    visit.AttendanceId,
+                    visit.StampText,
+                    visit.Name,
+                    visit.Role,
+                    visit.ProgramOrOffice,
+                    visit.Institute);
+
+                DataGridViewRow row = libraryAttendanceGrid.Rows[index];
+                row.Cells["libraryAttendanceRole"].Style.Font = StatusCellFont;
+                row.Cells["libraryAttendanceRole"].Style.ForeColor = RoleColor(visit.Role);
+                row.Cells["libraryAttendanceId"].Style.ForeColor = MutedText;
+                row.Cells["libraryAttendanceStamp"].ToolTipText = visit.StampText;
+
+                if (visit.IsToday)
+                {
+                    today++;
+                }
+
+                shown++;
+            }
+
+            libraryAttendanceGrid.ClearSelection();
+            libraryAttendanceGrid.CurrentCell = null;
+
+            bool hasRows = shown > 0;
+            libraryAttendanceGrid.Visible = hasRows;
+            libraryAttendanceEmpty.Visible = !hasRows;
+
+            if (hasRows)
+            {
+                libraryAttendanceGrid.BringToFront();
+            }
+            else
+            {
+                libraryAttendanceEmpty.Text = term.Length > 0
+                    ? "NO MATCHING ATTENDANCE RECORDS.\r\nTRY ANOTHER NAME, ROLE, ID NUMBER OR DATE."
+                    : "NO ATTENDANCE RECORDED YET.\r\nSCAN A STUDENT, FACULTY OR STAFF QR PASS WITH THE SCANNER.";
+                libraryAttendanceEmpty.BringToFront();
+            }
+
+            if (!_attendanceLogOnline)
+            {
+                libraryAttendanceStatus.Text = "MYSQL OFFLINE \u2022 ATTENDANCE CANNOT BE LOADED";
+                libraryAttendanceStatus.ForeColor = WarningText;
+                return;
+            }
+
+            if (_attendanceRows.Count == 0)
+            {
+                libraryAttendanceStatus.Text = "NO SCANS YET \u2022 OPEN THE QR SCANNER TO RECORD THE FIRST VISIT.";
+            }
+            else
+            {
+                libraryAttendanceStatus.Text =
+                    _attendanceRows.Count.ToString(CultureInfo.InvariantCulture) + " SCAN(S) ON FILE  \u2022  " +
+                    today.ToString(CultureInfo.InvariantCulture) + " TODAY  \u2022  SHOWING " +
+                    shown.ToString(CultureInfo.InvariantCulture);
+            }
+
+            libraryAttendanceStatus.ForeColor = _attendanceRows.Count == 0 ? WarningText : MutedText;
+        }
+
+        private static bool MatchesAttendance(AttendanceRow visit, string term)
+        {
+            // The table shows no ID NUMBER and no GATE column, so the search only
+            // checks the columns that are visible.
+            return visit.Name.ToUpperInvariant().Contains(term) ||
+                   visit.Role.Contains(term) ||
+                   visit.ProgramOrOffice.ToUpperInvariant().Contains(term) ||
+                   visit.Institute.ToUpperInvariant().Contains(term) ||
+                   visit.DateText.Contains(term) ||
+                   visit.TimeText.Contains(term);
+        }
+
+        private static Color RoleColor(string role)
+        {
+            switch (role)
+            {
+                case "FACULTY":
+                    return Color.FromArgb(37, 99, 235);
+                case "STAFF":
+                case "OFFICER":
+                    return Color.FromArgb(194, 65, 12);
+                default:
+                    return HeaderGreen;
+            }
+        }
+
         /// <summary>
         /// BALANCED WIDTHS: every data column shares the table width with a weight that
         /// matches its content, so one long title or one short ID can no longer squeeze
@@ -621,10 +622,9 @@ namespace oop_project.forms
 
             facultyGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BalanceColumn(facultyIdColumn, 6F, 60);
-            BalanceColumn(facultyNameColumn, 24F, 140);
-            BalanceColumn(facultyUsernameColumn, 18F, 110);
-            BalanceColumn(facultyProgramColumn, 22F, 120);
-            BalanceColumn(facultyInstituteColumn, 18F, 110);
+            BalanceColumn(facultyNameColumn, 30F, 150);
+            BalanceColumn(facultyUsernameColumn, 20F, 110);
+            BalanceColumn(facultyInstituteColumn, 22F, 120);
             BalanceColumn(facultyStatusColumn, 12F, 95);
 
             studentGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
@@ -991,16 +991,16 @@ namespace oop_project.forms
         private void ApplyCatalogStatus()
         {
             bool connected = _catalog.IsConnected;
-            string readOnly = _canManageAccounts ? string.Empty : " • READ ONLY";
+            string readOnly = _canManageAccounts ? string.Empty : " â€¢ READ ONLY";
 
             booksStatusLabel.Text = connected
                 ? "CATALOG SYNCED WITH MYSQL" + readOnly
-                : "MYSQL OFFLINE • CHANGES ARE KEPT FOR THIS SESSION ONLY";
+                : "MYSQL OFFLINE â€¢ CHANGES ARE KEPT FOR THIS SESSION ONLY";
             booksStatusLabel.ForeColor = connected ? MutedText : WarningText;
 
             attendanceStatusLabel.Text = connected
-                ? "NO DUE DATE IS SET • ONE DAY IS ADDED EVERY 24 HOURS." + readOnly
-                : "MYSQL OFFLINE • CHANGES ARE KEPT FOR THIS SESSION ONLY";
+                ? "NO DUE DATE IS SET â€¢ ONE DAY IS ADDED EVERY 24 HOURS." + readOnly
+                : "MYSQL OFFLINE â€¢ CHANGES ARE KEPT FOR THIS SESSION ONLY";
             attendanceStatusLabel.ForeColor = connected ? MutedText : WarningText;
         }
 
@@ -1085,7 +1085,7 @@ namespace oop_project.forms
             catch (MySqlException)
             {
                 requestsGrid.Rows.Clear();
-                requestsStatusLabel.Text = "MYSQL OFFLINE • REQUESTS CANNOT BE LOADED";
+                requestsStatusLabel.Text = "MYSQL OFFLINE â€¢ REQUESTS CANNOT BE LOADED";
                 requestsStatusLabel.ForeColor = WarningText;
             }
         }
@@ -1586,10 +1586,10 @@ namespace oop_project.forms
                 facultyGrid.Rows.Clear();
                 studentGrid.Rows.Clear();
 
-                accountsStatusLabel.Text = "MYSQL OFFLINE • ACCOUNTS CANNOT BE LOADED";
-                staffStatusLabel.Text = "MYSQL OFFLINE • ACCOUNTS CANNOT BE LOADED";
-                facultyStatusLabel.Text = "MYSQL OFFLINE • ACCOUNTS CANNOT BE LOADED";
-                studentStatusLabel.Text = "MYSQL OFFLINE • ACCOUNTS CANNOT BE LOADED";
+                accountsStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
+                staffStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
+                facultyStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
+                studentStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
 
                 accountsStatusLabel.ForeColor = WarningText;
                 staffStatusLabel.ForeColor = WarningText;
@@ -1638,7 +1638,6 @@ namespace oop_project.forms
                         row.AccountId,
                         row.Name,
                         row.Username,
-                        row.Program,
                         row.Institute,
                         row.Status,
                         AccessGlyph,
@@ -1654,7 +1653,7 @@ namespace oop_project.forms
                         row.AccountId,
                         row.Name,
                         row.Username,
-                        "••••••",
+                        "â€¢â€¢â€¢â€¢â€¢â€¢",
                         row.Status,
                         row.Role,
                         AccessGlyph,
@@ -1670,7 +1669,7 @@ namespace oop_project.forms
                         row.AccountId,
                         row.Name,
                         row.Username,
-                        "••••••",
+                        "â€¢â€¢â€¢â€¢â€¢â€¢",
                         row.Status,
                         row.Role,
                         AccessGlyph,
@@ -1716,7 +1715,7 @@ namespace oop_project.forms
 
             return _canManageAccounts
                 ? countText + " SELECT A ROW, THEN ACTIVATE OR DEACTIVATE."
-                : countText + " READ ONLY • ONLY LIBRARY STAFF CAN MANAGE ACCOUNTS.";
+                : countText + " READ ONLY â€¢ ONLY LIBRARY STAFF CAN MANAGE ACCOUNTS.";
         }
 
         private static void ApplyAccountStatusColors(DataGridView grid, DataGridViewColumn statusColumn)
@@ -1899,6 +1898,11 @@ namespace oop_project.forms
         private void accountsRefreshButton_Click(object? sender, EventArgs e)
         {
             LoadAccounts();
+        }
+
+        private void requestsRefreshButton_Click(object? sender, EventArgs e)
+        {
+            LoadBorrowRequests();
         }
 
         private void staffRefreshButton_Click(object? sender, EventArgs e)
@@ -2103,6 +2107,11 @@ namespace oop_project.forms
                 LoadBorrowRequests();
             }
 
+            if (page == tabPage7)
+            {
+                LoadAttendanceLog();
+            }
+
             UpdateEmptyStates();
         }
 
@@ -2141,56 +2150,32 @@ namespace oop_project.forms
 
             bool showRecord = (isStudent || isFaculty) && row.HasProfile;
             recordDivider.Visible = showRecord;
-            recordHeading.Visible = showRecord;
-
-            recordHeading.Text = isStudent ? "STUDENT RECORD" : "FACULTY RECORD";
-
-            recordSchoolIdValue.Text = row.SchoolId;
-            recordProgramValue.Text = row.Program;
-            recordYearValue.Text = row.YearLevel;
-            recordInstituteValue.Text = row.Institute;
-            recordContactValue.Text = row.ContactNumber;
+           
 
             HideRecordRows();
 
             if (isStudent)
             {
-                StackRecordRows(
-                    new[] { recordSchoolIdCaption, recordProgramCaption, recordYearCaption, recordInstituteCaption, recordContactCaption },
-                    new[] { recordSchoolIdValue, recordProgramValue, recordYearValue, recordInstituteValue, recordContactValue });
+              
             }
             else if (isFaculty)
             {
-                StackRecordRows(
-                    new[] { recordProgramCaption, recordInstituteCaption },
-                    new[] { recordProgramValue, recordInstituteValue });
+               
             }
         }
 
         // Only the rows a role actually has are shown, without leaving blank gaps.
         private void StackRecordRows(Label[] captions, Label[] values)
         {
-            int top = recordHeading.Bottom + 6;
-
-            for (int i = 0; i < captions.Length; i++)
-            {
-                captions[i].Top = top;
-                values[i].Top = top;
-                captions[i].Visible = true;
-                values[i].Visible = true;
-                top += 28;
-            }
+            
         }
+      
 
         private void HideRecordRows()
         {
             Label[] labels =
             {
-                recordSchoolIdCaption, recordSchoolIdValue,
-                recordProgramCaption, recordProgramValue,
-                recordYearCaption, recordYearValue,
-                recordInstituteCaption, recordInstituteValue,
-                recordContactCaption, recordContactValue
+              
             };
 
             foreach (Label label in labels)
@@ -2275,7 +2260,7 @@ namespace oop_project.forms
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                return "—";
+                return "â€”";
             }
 
             return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.ToLowerInvariant());

@@ -505,13 +505,15 @@ namespace oop_project
     }
 
     /// <summary>
-    /// One row of MY REQUESTS: the requested title, the date, the librarian's
-    /// note and a status pill, with a cancel action while the request is pending.
+    /// One row of MY REQUESTS: the book cover, the requested title, the date, the
+    /// librarian's note and a status pill, with a cancel action while the request
+    /// is pending.
     /// </summary>
     public sealed class RequestCard : Panel
     {
         public event EventHandler? CancelClicked;
 
+        private readonly CoverView _cover = new CoverView();
         private readonly Label _title = new Label();
         private readonly Label _meta = new Label();
         private readonly Label _requested = new Label();
@@ -524,7 +526,7 @@ namespace oop_project
 
         public BorrowRequestRow Request => _request;
 
-        public RequestCard(BorrowRequestRow request)
+        public RequestCard(BorrowRequestRow request, byte[]? coverBytes = null)
         {
             _request = request;
 
@@ -533,6 +535,9 @@ namespace oop_project
             Height = 138;
             Margin = new Padding(0, 0, 0, 14);
             Padding = new Padding(24, 16, 20, 16);
+
+            _cover.BackColor = Color.White;
+            _cover.CoverBytes = coverBytes;
 
             _title.AutoEllipsis = true;
             _title.BackColor = Color.White;
@@ -613,6 +618,7 @@ namespace oop_project
             _cancel.Visible = request.IsPending;
             _cancel.Click += delegate { CancelClicked?.Invoke(this, EventArgs.Empty); };
 
+            Controls.Add(_cover);
             Controls.Add(_title);
             Controls.Add(_meta);
             Controls.Add(_requested);
@@ -631,15 +637,22 @@ namespace oop_project
         private void LayoutContent()
         {
             const int left = 24;
-            int width = Math.Max(160, Width - left - 22);
+            const int coverGap = 16;
+            const int coverWidth = 64;
+
+            int coverHeight = Math.Min(96, Math.Max(60, Height - 28));
+            _cover.SetBounds(left, 16, coverWidth, coverHeight);
+
+            int textLeft = left + coverWidth + coverGap;
+            int width = Math.Max(160, Width - textLeft - 22);
             int reserved = _cancel.Visible ? 190 : 160;
             int textWidth = Math.Max(120, width - reserved);
 
-            _title.SetBounds(left, 14, textWidth, 26);
-            _meta.SetBounds(left, 40, textWidth, 20);
-            _requested.SetBounds(left, 66, Math.Max(140, textWidth / 2), 20);
-            _processed.SetBounds(left + Math.Max(150, textWidth / 2), 66, Math.Max(140, textWidth / 2), 20);
-            _note.SetBounds(left, 88, textWidth, 20);
+            _title.SetBounds(textLeft, 14, textWidth, 26);
+            _meta.SetBounds(textLeft, 40, textWidth, 20);
+            _requested.SetBounds(textLeft, 66, Math.Max(140, textWidth / 2), 20);
+            _processed.SetBounds(textLeft + Math.Max(150, textWidth / 2), 66, Math.Max(140, textWidth / 2), 20);
+            _note.SetBounds(textLeft, 88, textWidth, 20);
 
             _status.Left = Math.Max(left, Width - 20 - _status.Width);
             _status.Top = 16;

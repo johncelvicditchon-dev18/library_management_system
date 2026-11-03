@@ -8,8 +8,9 @@ namespace oop_project.Models
         private string _middleInitial = string.Empty;
         private string _schoolId = string.Empty;
         private string _yearLevel = string.Empty;
-        private string _contactNumber = string.Empty;
         private string _address = string.Empty;
+
+
 
         // ENCAPSULATION: the student profile lives only on a Student.
         public string LastName
@@ -36,11 +37,6 @@ namespace oop_project.Models
         {
             get { return _yearLevel; }
             set { _yearLevel = (value ?? string.Empty).Trim(); }
-        }
-        public string ContactNumber
-        {
-            get { return _contactNumber; }
-            set { _contactNumber = (value ?? string.Empty).Trim(); }
         }
         public string Address
         {

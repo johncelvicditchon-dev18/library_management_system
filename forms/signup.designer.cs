@@ -94,6 +94,7 @@ namespace oop_project
             signup_label = new Label();
             gradientPanel1 = new GradientPanel();
             roundedCard1 = new RoundedCard();
+            closeButton = new RoundedButton();
             logoBadge = new TcgcLogoBadge();
             label2 = new Label();
             headerLine = new Panel();
@@ -128,12 +129,11 @@ namespace oop_project
             headingLabel.TabIndex = 21;
             // 
             // fullNameLabel
-            // (shown for LIBRARIAN / FACULTY / STAFF, hidden for STUDENT)
             // 
             fullNameLabel.AutoSize = true;
             fullNameLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             fullNameLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            fullNameLabel.Location = new Point(50, 196);
+            fullNameLabel.Location = new Point(50, 100);
             fullNameLabel.Name = "fullNameLabel";
             fullNameLabel.Size = new Size(93, 20);
             fullNameLabel.TabIndex = 3;
@@ -149,9 +149,9 @@ namespace oop_project
             fullNameField.FillColor = Color.FromArgb(243, 244, 246);
             fullNameField.FocusColor = Color.FromArgb(22, 163, 74);
             fullNameField.IsFocused = false;
-            fullNameField.Location = new Point(50, 218);
+            fullNameField.Location = new Point(50, 122);
             fullNameField.Name = "fullNameField";
-            fullNameField.Size = new Size(600, 44);
+            fullNameField.Size = new Size(290, 44);
             fullNameField.TabIndex = 4;
             fullNameField.Visible = false;
             // 
@@ -160,9 +160,9 @@ namespace oop_project
             fullname_input.BackColor = Color.FromArgb(243, 244, 246);
             fullname_input.BorderStyle = BorderStyle.None;
             fullname_input.Font = new Font("Segoe UI", 11.5F);
-            fullname_input.Location = new Point(22, 9);
+            fullname_input.Location = new Point(16, 9);
             fullname_input.Name = "fullname_input";
-            fullname_input.Size = new Size(556, 26);
+            fullname_input.Size = new Size(258, 26);
             fullname_input.TabIndex = 0;
             // 
             // roleLabel
@@ -187,7 +187,7 @@ namespace oop_project
             roleField.IsFocused = false;
             roleField.Location = new Point(50, 122);
             roleField.Name = "roleField";
-            roleField.Size = new Size(600, 44);
+            roleField.Size = new Size(290, 44);
             roleField.TabIndex = 6;
             // 
             // role_option
@@ -198,9 +198,9 @@ namespace oop_project
             role_option.Font = new Font("Segoe UI", 11F);
             role_option.ForeColor = Color.FromArgb(17, 24, 39);
             role_option.FormattingEnabled = true;
-            role_option.Location = new Point(18, 5);
+            role_option.Location = new Point(12, 5);
             role_option.Name = "role_option";
-            role_option.Size = new Size(564, 33);
+            role_option.Size = new Size(266, 33);
             role_option.TabIndex = 0;
             // 
             // lastNameLabel
@@ -208,9 +208,9 @@ namespace oop_project
             lastNameLabel.AutoSize = true;
             lastNameLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             lastNameLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            lastNameLabel.Location = new Point(50, 196);
+            lastNameLabel.Location = new Point(360, 100);
             lastNameLabel.Name = "lastNameLabel";
-            lastNameLabel.Size = new Size(85, 20);
+            lastNameLabel.Size = new Size(94, 20);
             lastNameLabel.TabIndex = 7;
             lastNameLabel.Text = "LAST NAME";
             // 
@@ -223,9 +223,9 @@ namespace oop_project
             lastNameField.FillColor = Color.FromArgb(243, 244, 246);
             lastNameField.FocusColor = Color.FromArgb(22, 163, 74);
             lastNameField.IsFocused = false;
-            lastNameField.Location = new Point(50, 218);
+            lastNameField.Location = new Point(360, 122);
             lastNameField.Name = "lastNameField";
-            lastNameField.Size = new Size(185, 44);
+            lastNameField.Size = new Size(290, 44);
             lastNameField.TabIndex = 8;
             // 
             // lastName_input
@@ -235,7 +235,7 @@ namespace oop_project
             lastName_input.Font = new Font("Segoe UI", 11.5F);
             lastName_input.Location = new Point(16, 9);
             lastName_input.Name = "lastName_input";
-            lastName_input.Size = new Size(153, 26);
+            lastName_input.Size = new Size(258, 26);
             lastName_input.TabIndex = 0;
             // 
             // firstNameLabel
@@ -243,9 +243,9 @@ namespace oop_project
             firstNameLabel.AutoSize = true;
             firstNameLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             firstNameLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            firstNameLabel.Location = new Point(255, 196);
+            firstNameLabel.Location = new Point(50, 196);
             firstNameLabel.Name = "firstNameLabel";
-            firstNameLabel.Size = new Size(90, 20);
+            firstNameLabel.Size = new Size(98, 20);
             firstNameLabel.TabIndex = 9;
             firstNameLabel.Text = "FIRST NAME";
             // 
@@ -258,9 +258,9 @@ namespace oop_project
             firstNameField.FillColor = Color.FromArgb(243, 244, 246);
             firstNameField.FocusColor = Color.FromArgb(22, 163, 74);
             firstNameField.IsFocused = false;
-            firstNameField.Location = new Point(255, 218);
+            firstNameField.Location = new Point(50, 218);
             firstNameField.Name = "firstNameField";
-            firstNameField.Size = new Size(185, 44);
+            firstNameField.Size = new Size(290, 44);
             firstNameField.TabIndex = 10;
             // 
             // firstName_input
@@ -270,7 +270,7 @@ namespace oop_project
             firstName_input.Font = new Font("Segoe UI", 11.5F);
             firstName_input.Location = new Point(16, 9);
             firstName_input.Name = "firstName_input";
-            firstName_input.Size = new Size(153, 26);
+            firstName_input.Size = new Size(258, 26);
             firstName_input.TabIndex = 0;
             // 
             // middleInitialLabel
@@ -278,9 +278,9 @@ namespace oop_project
             middleInitialLabel.AutoSize = true;
             middleInitialLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             middleInitialLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            middleInitialLabel.Location = new Point(460, 196);
+            middleInitialLabel.Location = new Point(360, 196);
             middleInitialLabel.Name = "middleInitialLabel";
-            middleInitialLabel.Size = new Size(120, 20);
+            middleInitialLabel.Size = new Size(125, 20);
             middleInitialLabel.TabIndex = 11;
             middleInitialLabel.Text = "MIDDLE INITIAL";
             // 
@@ -293,9 +293,9 @@ namespace oop_project
             middleInitialField.FillColor = Color.FromArgb(243, 244, 246);
             middleInitialField.FocusColor = Color.FromArgb(22, 163, 74);
             middleInitialField.IsFocused = false;
-            middleInitialField.Location = new Point(460, 218);
+            middleInitialField.Location = new Point(360, 218);
             middleInitialField.Name = "middleInitialField";
-            middleInitialField.Size = new Size(185, 44);
+            middleInitialField.Size = new Size(290, 44);
             middleInitialField.TabIndex = 12;
             // 
             // middleInitial_input
@@ -306,7 +306,7 @@ namespace oop_project
             middleInitial_input.Location = new Point(16, 9);
             middleInitial_input.MaxLength = 2;
             middleInitial_input.Name = "middleInitial_input";
-            middleInitial_input.Size = new Size(153, 26);
+            middleInitial_input.Size = new Size(258, 26);
             middleInitial_input.TabIndex = 0;
             // 
             // schoolIdLabel
@@ -316,7 +316,7 @@ namespace oop_project
             schoolIdLabel.ForeColor = Color.FromArgb(55, 65, 81);
             schoolIdLabel.Location = new Point(50, 292);
             schoolIdLabel.Name = "schoolIdLabel";
-            schoolIdLabel.Size = new Size(78, 20);
+            schoolIdLabel.Size = new Size(87, 20);
             schoolIdLabel.TabIndex = 13;
             schoolIdLabel.Text = "SCHOOL ID";
             // 
@@ -331,7 +331,7 @@ namespace oop_project
             schoolIdField.IsFocused = false;
             schoolIdField.Location = new Point(50, 314);
             schoolIdField.Name = "schoolIdField";
-            schoolIdField.Size = new Size(185, 44);
+            schoolIdField.Size = new Size(290, 44);
             schoolIdField.TabIndex = 14;
             // 
             // schoolId_input
@@ -342,7 +342,7 @@ namespace oop_project
             schoolId_input.Location = new Point(16, 9);
             schoolId_input.MaxLength = 30;
             schoolId_input.Name = "schoolId_input";
-            schoolId_input.Size = new Size(153, 26);
+            schoolId_input.Size = new Size(258, 26);
             schoolId_input.TabIndex = 0;
             // 
             // programLabel
@@ -350,9 +350,9 @@ namespace oop_project
             programLabel.AutoSize = true;
             programLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             programLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            programLabel.Location = new Point(50, 388);
+            programLabel.Location = new Point(50, 484);
             programLabel.Name = "programLabel";
-            programLabel.Size = new Size(75, 20);
+            programLabel.Size = new Size(85, 20);
             programLabel.TabIndex = 15;
             programLabel.Text = "PROGRAM";
             // 
@@ -365,7 +365,7 @@ namespace oop_project
             programField.FillColor = Color.FromArgb(243, 244, 246);
             programField.FocusColor = Color.FromArgb(22, 163, 74);
             programField.IsFocused = false;
-            programField.Location = new Point(50, 410);
+            programField.Location = new Point(50, 506);
             programField.Name = "programField";
             programField.Size = new Size(290, 44);
             programField.TabIndex = 16;
@@ -373,25 +373,24 @@ namespace oop_project
             // program_option
             // 
             program_option.BackColor = Color.FromArgb(243, 244, 246);
-            program_option.DropDownStyle = ComboBoxStyle.DropDown;
-            program_option.DropDownWidth = 340;
             program_option.FlatStyle = FlatStyle.Flat;
             program_option.Font = new Font("Segoe UI", 11F);
             program_option.ForeColor = Color.FromArgb(17, 24, 39);
-            program_option.FormattingEnabled = true;
+            program_option.FormattingEnabled = false;
             program_option.Location = new Point(12, 5);
             program_option.Name = "program_option";
             program_option.Size = new Size(266, 33);
             program_option.TabIndex = 0;
+            program_option.DropDownStyle = ComboBoxStyle.DropDownList;
             // 
             // yearLevelLabel
             // 
             yearLevelLabel.AutoSize = true;
             yearLevelLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             yearLevelLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            yearLevelLabel.Location = new Point(255, 292);
+            yearLevelLabel.Location = new Point(360, 292);
             yearLevelLabel.Name = "yearLevelLabel";
-            yearLevelLabel.Size = new Size(89, 20);
+            yearLevelLabel.Size = new Size(93, 20);
             yearLevelLabel.TabIndex = 17;
             yearLevelLabel.Text = "YEAR LEVEL";
             // 
@@ -404,9 +403,9 @@ namespace oop_project
             yearLevelField.FillColor = Color.FromArgb(243, 244, 246);
             yearLevelField.FocusColor = Color.FromArgb(22, 163, 74);
             yearLevelField.IsFocused = false;
-            yearLevelField.Location = new Point(255, 314);
+            yearLevelField.Location = new Point(360, 314);
             yearLevelField.Name = "yearLevelField";
-            yearLevelField.Size = new Size(185, 44);
+            yearLevelField.Size = new Size(290, 44);
             yearLevelField.TabIndex = 18;
             // 
             // yearLevel_option
@@ -420,7 +419,7 @@ namespace oop_project
             yearLevel_option.Items.AddRange(new object[] { "1ST YEAR", "2ND YEAR", "3RD YEAR", "4TH YEAR" });
             yearLevel_option.Location = new Point(12, 5);
             yearLevel_option.Name = "yearLevel_option";
-            yearLevel_option.Size = new Size(161, 33);
+            yearLevel_option.Size = new Size(266, 33);
             yearLevel_option.TabIndex = 0;
             // 
             // instituteLabel
@@ -430,7 +429,7 @@ namespace oop_project
             instituteLabel.ForeColor = Color.FromArgb(55, 65, 81);
             instituteLabel.Location = new Point(360, 388);
             instituteLabel.Name = "instituteLabel";
-            instituteLabel.Size = new Size(141, 20);
+            instituteLabel.Size = new Size(149, 20);
             instituteLabel.TabIndex = 19;
             instituteLabel.Text = "INSTITUTE / OFFICE";
             // 
@@ -466,9 +465,9 @@ namespace oop_project
             contactLabel.AutoSize = true;
             contactLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             contactLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            contactLabel.Location = new Point(460, 292);
+            contactLabel.Location = new Point(50, 388);
             contactLabel.Name = "contactLabel";
-            contactLabel.Size = new Size(141, 20);
+            contactLabel.Size = new Size(147, 20);
             contactLabel.TabIndex = 21;
             contactLabel.Text = "CONTACT NUMBER";
             // 
@@ -481,9 +480,9 @@ namespace oop_project
             contactField.FillColor = Color.FromArgb(243, 244, 246);
             contactField.FocusColor = Color.FromArgb(22, 163, 74);
             contactField.IsFocused = false;
-            contactField.Location = new Point(460, 314);
+            contactField.Location = new Point(50, 410);
             contactField.Name = "contactField";
-            contactField.Size = new Size(185, 44);
+            contactField.Size = new Size(290, 44);
             contactField.TabIndex = 22;
             // 
             // contact_input
@@ -494,7 +493,7 @@ namespace oop_project
             contact_input.Location = new Point(16, 9);
             contact_input.MaxLength = 20;
             contact_input.Name = "contact_input";
-            contact_input.Size = new Size(153, 26);
+            contact_input.Size = new Size(258, 26);
             contact_input.TabIndex = 0;
             // 
             // addressLabel
@@ -502,9 +501,9 @@ namespace oop_project
             addressLabel.AutoSize = true;
             addressLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             addressLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            addressLabel.Location = new Point(50, 484);
+            addressLabel.Location = new Point(360, 484);
             addressLabel.Name = "addressLabel";
-            addressLabel.Size = new Size(74, 20);
+            addressLabel.Size = new Size(76, 20);
             addressLabel.TabIndex = 23;
             addressLabel.Text = "ADDRESS";
             // 
@@ -517,9 +516,9 @@ namespace oop_project
             addressField.FillColor = Color.FromArgb(243, 244, 246);
             addressField.FocusColor = Color.FromArgb(22, 163, 74);
             addressField.IsFocused = false;
-            addressField.Location = new Point(50, 506);
+            addressField.Location = new Point(360, 506);
             addressField.Name = "addressField";
-            addressField.Size = new Size(600, 44);
+            addressField.Size = new Size(290, 44);
             addressField.TabIndex = 24;
             // 
             // address_input
@@ -527,10 +526,10 @@ namespace oop_project
             address_input.BackColor = Color.FromArgb(243, 244, 246);
             address_input.BorderStyle = BorderStyle.None;
             address_input.Font = new Font("Segoe UI", 11.5F);
-            address_input.Location = new Point(22, 9);
+            address_input.Location = new Point(16, 9);
             address_input.MaxLength = 255;
             address_input.Name = "address_input";
-            address_input.Size = new Size(556, 26);
+            address_input.Size = new Size(258, 26);
             address_input.TabIndex = 0;
             // 
             // usernameLabel
@@ -555,7 +554,7 @@ namespace oop_project
             usernameField.IsFocused = false;
             usernameField.Location = new Point(50, 602);
             usernameField.Name = "usernameField";
-            usernameField.Size = new Size(185, 44);
+            usernameField.Size = new Size(290, 44);
             usernameField.TabIndex = 26;
             // 
             // username_input
@@ -565,7 +564,7 @@ namespace oop_project
             username_input.Font = new Font("Segoe UI", 11.5F);
             username_input.Location = new Point(16, 9);
             username_input.Name = "username_input";
-            username_input.Size = new Size(153, 26);
+            username_input.Size = new Size(258, 26);
             username_input.TabIndex = 0;
             // 
             // passwordLabel
@@ -573,7 +572,7 @@ namespace oop_project
             passwordLabel.AutoSize = true;
             passwordLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             passwordLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            passwordLabel.Location = new Point(255, 580);
+            passwordLabel.Location = new Point(360, 580);
             passwordLabel.Name = "passwordLabel";
             passwordLabel.Size = new Size(91, 20);
             passwordLabel.TabIndex = 27;
@@ -588,9 +587,9 @@ namespace oop_project
             passwordField.FillColor = Color.FromArgb(243, 244, 246);
             passwordField.FocusColor = Color.FromArgb(22, 163, 74);
             passwordField.IsFocused = false;
-            passwordField.Location = new Point(255, 602);
+            passwordField.Location = new Point(360, 602);
             passwordField.Name = "passwordField";
-            passwordField.Size = new Size(185, 44);
+            passwordField.Size = new Size(290, 44);
             passwordField.TabIndex = 28;
             // 
             // password_input
@@ -600,7 +599,7 @@ namespace oop_project
             password_input.Font = new Font("Segoe UI", 11.5F);
             password_input.Location = new Point(16, 9);
             password_input.Name = "password_input";
-            password_input.Size = new Size(153, 26);
+            password_input.Size = new Size(258, 26);
             password_input.TabIndex = 0;
             password_input.UseSystemPasswordChar = true;
             // 
@@ -609,7 +608,7 @@ namespace oop_project
             confirmLabel.AutoSize = true;
             confirmLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             confirmLabel.ForeColor = Color.FromArgb(55, 65, 81);
-            confirmLabel.Location = new Point(460, 580);
+            confirmLabel.Location = new Point(50, 676);
             confirmLabel.Name = "confirmLabel";
             confirmLabel.Size = new Size(164, 20);
             confirmLabel.TabIndex = 29;
@@ -624,9 +623,9 @@ namespace oop_project
             confirmField.FillColor = Color.FromArgb(243, 244, 246);
             confirmField.FocusColor = Color.FromArgb(22, 163, 74);
             confirmField.IsFocused = false;
-            confirmField.Location = new Point(460, 602);
+            confirmField.Location = new Point(50, 698);
             confirmField.Name = "confirmField";
-            confirmField.Size = new Size(185, 44);
+            confirmField.Size = new Size(600, 44);
             confirmField.TabIndex = 30;
             // 
             // confirm_input
@@ -636,7 +635,7 @@ namespace oop_project
             confirm_input.Font = new Font("Segoe UI", 11.5F);
             confirm_input.Location = new Point(16, 9);
             confirm_input.Name = "confirm_input";
-            confirm_input.Size = new Size(153, 26);
+            confirm_input.Size = new Size(258, 26);
             confirm_input.TabIndex = 0;
             confirm_input.UseSystemPasswordChar = true;
             // 
@@ -646,9 +645,9 @@ namespace oop_project
             fullNameError.BackColor = Color.Transparent;
             fullNameError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             fullNameError.ForeColor = Color.FromArgb(220, 38, 38);
-            fullNameError.Location = new Point(50, 264);
+            fullNameError.Location = new Point(50, 168);
             fullNameError.Name = "fullNameError";
-            fullNameError.Size = new Size(120, 19);
+            fullNameError.Size = new Size(0, 19);
             fullNameError.TabIndex = 31;
             fullNameError.TextAlign = ContentAlignment.MiddleLeft;
             fullNameError.Visible = false;
@@ -661,7 +660,7 @@ namespace oop_project
             roleError.ForeColor = Color.FromArgb(220, 38, 38);
             roleError.Location = new Point(50, 168);
             roleError.Name = "roleError";
-            roleError.Size = new Size(120, 19);
+            roleError.Size = new Size(0, 19);
             roleError.TabIndex = 32;
             roleError.TextAlign = ContentAlignment.MiddleLeft;
             roleError.Visible = false;
@@ -672,9 +671,9 @@ namespace oop_project
             lastNameError.BackColor = Color.Transparent;
             lastNameError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             lastNameError.ForeColor = Color.FromArgb(220, 38, 38);
-            lastNameError.Location = new Point(50, 264);
+            lastNameError.Location = new Point(360, 168);
             lastNameError.Name = "lastNameError";
-            lastNameError.Size = new Size(120, 19);
+            lastNameError.Size = new Size(0, 19);
             lastNameError.TabIndex = 33;
             lastNameError.TextAlign = ContentAlignment.MiddleLeft;
             lastNameError.Visible = false;
@@ -685,9 +684,9 @@ namespace oop_project
             firstNameError.BackColor = Color.Transparent;
             firstNameError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             firstNameError.ForeColor = Color.FromArgb(220, 38, 38);
-            firstNameError.Location = new Point(255, 264);
+            firstNameError.Location = new Point(50, 264);
             firstNameError.Name = "firstNameError";
-            firstNameError.Size = new Size(120, 19);
+            firstNameError.Size = new Size(0, 19);
             firstNameError.TabIndex = 34;
             firstNameError.TextAlign = ContentAlignment.MiddleLeft;
             firstNameError.Visible = false;
@@ -698,9 +697,9 @@ namespace oop_project
             middleInitialError.BackColor = Color.Transparent;
             middleInitialError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             middleInitialError.ForeColor = Color.FromArgb(220, 38, 38);
-            middleInitialError.Location = new Point(460, 264);
+            middleInitialError.Location = new Point(360, 264);
             middleInitialError.Name = "middleInitialError";
-            middleInitialError.Size = new Size(120, 19);
+            middleInitialError.Size = new Size(0, 19);
             middleInitialError.TabIndex = 35;
             middleInitialError.TextAlign = ContentAlignment.MiddleLeft;
             middleInitialError.Visible = false;
@@ -713,7 +712,7 @@ namespace oop_project
             schoolIdError.ForeColor = Color.FromArgb(220, 38, 38);
             schoolIdError.Location = new Point(50, 360);
             schoolIdError.Name = "schoolIdError";
-            schoolIdError.Size = new Size(120, 19);
+            schoolIdError.Size = new Size(0, 19);
             schoolIdError.TabIndex = 36;
             schoolIdError.TextAlign = ContentAlignment.MiddleLeft;
             schoolIdError.Visible = false;
@@ -724,9 +723,9 @@ namespace oop_project
             programError.BackColor = Color.Transparent;
             programError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             programError.ForeColor = Color.FromArgb(220, 38, 38);
-            programError.Location = new Point(50, 456);
+            programError.Location = new Point(50, 552);
             programError.Name = "programError";
-            programError.Size = new Size(290, 19);
+            programError.Size = new Size(0, 19);
             programError.TabIndex = 37;
             programError.TextAlign = ContentAlignment.MiddleLeft;
             programError.Visible = false;
@@ -737,9 +736,9 @@ namespace oop_project
             yearLevelError.BackColor = Color.Transparent;
             yearLevelError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             yearLevelError.ForeColor = Color.FromArgb(220, 38, 38);
-            yearLevelError.Location = new Point(255, 360);
+            yearLevelError.Location = new Point(360, 360);
             yearLevelError.Name = "yearLevelError";
-            yearLevelError.Size = new Size(120, 19);
+            yearLevelError.Size = new Size(0, 19);
             yearLevelError.TabIndex = 38;
             yearLevelError.TextAlign = ContentAlignment.MiddleLeft;
             yearLevelError.Visible = false;
@@ -752,7 +751,7 @@ namespace oop_project
             instituteError.ForeColor = Color.FromArgb(220, 38, 38);
             instituteError.Location = new Point(360, 456);
             instituteError.Name = "instituteError";
-            instituteError.Size = new Size(120, 19);
+            instituteError.Size = new Size(0, 19);
             instituteError.TabIndex = 39;
             instituteError.TextAlign = ContentAlignment.MiddleLeft;
             instituteError.Visible = false;
@@ -763,9 +762,9 @@ namespace oop_project
             contactError.BackColor = Color.Transparent;
             contactError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             contactError.ForeColor = Color.FromArgb(220, 38, 38);
-            contactError.Location = new Point(460, 360);
+            contactError.Location = new Point(50, 456);
             contactError.Name = "contactError";
-            contactError.Size = new Size(185, 19);
+            contactError.Size = new Size(0, 19);
             contactError.TabIndex = 40;
             contactError.TextAlign = ContentAlignment.MiddleLeft;
             contactError.Visible = false;
@@ -776,9 +775,9 @@ namespace oop_project
             addressError.BackColor = Color.Transparent;
             addressError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             addressError.ForeColor = Color.FromArgb(220, 38, 38);
-            addressError.Location = new Point(50, 552);
+            addressError.Location = new Point(360, 552);
             addressError.Name = "addressError";
-            addressError.Size = new Size(120, 19);
+            addressError.Size = new Size(0, 19);
             addressError.TabIndex = 41;
             addressError.TextAlign = ContentAlignment.MiddleLeft;
             addressError.Visible = false;
@@ -791,7 +790,7 @@ namespace oop_project
             usernameError.ForeColor = Color.FromArgb(220, 38, 38);
             usernameError.Location = new Point(50, 648);
             usernameError.Name = "usernameError";
-            usernameError.Size = new Size(120, 19);
+            usernameError.Size = new Size(0, 19);
             usernameError.TabIndex = 42;
             usernameError.TextAlign = ContentAlignment.MiddleLeft;
             usernameError.Visible = false;
@@ -802,9 +801,9 @@ namespace oop_project
             passwordError.BackColor = Color.Transparent;
             passwordError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             passwordError.ForeColor = Color.FromArgb(220, 38, 38);
-            passwordError.Location = new Point(255, 648);
+            passwordError.Location = new Point(360, 648);
             passwordError.Name = "passwordError";
-            passwordError.Size = new Size(120, 19);
+            passwordError.Size = new Size(0, 19);
             passwordError.TabIndex = 43;
             passwordError.TextAlign = ContentAlignment.MiddleLeft;
             passwordError.Visible = false;
@@ -815,9 +814,9 @@ namespace oop_project
             confirmError.BackColor = Color.Transparent;
             confirmError.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
             confirmError.ForeColor = Color.FromArgb(220, 38, 38);
-            confirmError.Location = new Point(460, 648);
+            confirmError.Location = new Point(50, 744);
             confirmError.Name = "confirmError";
-            confirmError.Size = new Size(120, 19);
+            confirmError.Size = new Size(0, 19);
             confirmError.TabIndex = 44;
             confirmError.TextAlign = ContentAlignment.MiddleLeft;
             confirmError.Visible = false;
@@ -829,7 +828,7 @@ namespace oop_project
             officeLabel.ForeColor = Color.FromArgb(55, 65, 81);
             officeLabel.Location = new Point(50, 292);
             officeLabel.Name = "officeLabel";
-            officeLabel.Size = new Size(60, 20);
+            officeLabel.Size = new Size(58, 20);
             officeLabel.TabIndex = 24;
             officeLabel.Text = "OFFICE";
             officeLabel.Visible = false;
@@ -845,7 +844,7 @@ namespace oop_project
             officeField.IsFocused = false;
             officeField.Location = new Point(50, 314);
             officeField.Name = "officeField";
-            officeField.Size = new Size(600, 44);
+            officeField.Size = new Size(290, 44);
             officeField.TabIndex = 25;
             officeField.Visible = false;
             // 
@@ -854,10 +853,10 @@ namespace oop_project
             office_input.BackColor = Color.FromArgb(243, 244, 246);
             office_input.BorderStyle = BorderStyle.None;
             office_input.Font = new Font("Segoe UI", 11.5F);
-            office_input.Location = new Point(22, 9);
+            office_input.Location = new Point(16, 9);
             office_input.MaxLength = 120;
             office_input.Name = "office_input";
-            office_input.Size = new Size(556, 26);
+            office_input.Size = new Size(258, 26);
             office_input.TabIndex = 0;
             // 
             // officeError
@@ -868,7 +867,7 @@ namespace oop_project
             officeError.ForeColor = Color.FromArgb(220, 38, 38);
             officeError.Location = new Point(50, 360);
             officeError.Name = "officeError";
-            officeError.Size = new Size(120, 19);
+            officeError.Size = new Size(0, 19);
             officeError.TabIndex = 45;
             officeError.TextAlign = ContentAlignment.MiddleLeft;
             officeError.Visible = false;
@@ -882,7 +881,7 @@ namespace oop_project
             create_button.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold);
             create_button.ForeColor = Color.White;
             create_button.HoverColor = Color.FromArgb(21, 128, 61);
-            create_button.Location = new Point(50, 678);
+            create_button.Location = new Point(50, 774);
             create_button.Name = "create_button";
             create_button.NormalColor = Color.FromArgb(22, 163, 74);
             create_button.PressedColor = Color.FromArgb(20, 83, 45);
@@ -896,7 +895,7 @@ namespace oop_project
             // 
             footerPrompt.Font = new Font("Segoe UI", 9.5F);
             footerPrompt.ForeColor = Color.FromArgb(107, 114, 128);
-            footerPrompt.Location = new Point(219, 767);
+            footerPrompt.Location = new Point(219, 863);
             footerPrompt.Name = "footerPrompt";
             footerPrompt.Size = new Size(190, 22);
             footerPrompt.TabIndex = 46;
@@ -981,10 +980,30 @@ namespace oop_project
             roundedCard1.Controls.Add(signin_label);
             roundedCard1.Controls.Add(headingLabel);
             roundedCard1.Controls.Add(signup_label);
-            roundedCard1.Location = new Point(690, 16);
+            roundedCard1.Controls.Add(closeButton);
+            roundedCard1.Location = new Point(720, 16);
             roundedCard1.Name = "roundedCard1";
-            roundedCard1.Size = new Size(700, 821);
+            roundedCard1.Size = new Size(700, 917);
             roundedCard1.TabIndex = 4;
+            // 
+            // closeButton
+            // 
+            closeButton.BackColor = Color.Transparent;
+            closeButton.CornerRadius = 12;
+            closeButton.FlatAppearance.BorderSize = 0;
+            closeButton.FlatStyle = FlatStyle.Flat;
+            closeButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            closeButton.ForeColor = Color.FromArgb(71, 85, 105);
+            closeButton.HoverColor = Color.FromArgb(226, 232, 240);
+            closeButton.Location = new Point(648, 18);
+            closeButton.Name = "closeButton";
+            closeButton.NormalColor = Color.FromArgb(241, 245, 249);
+            closeButton.PressedColor = Color.FromArgb(203, 213, 225);
+            closeButton.Size = new Size(36, 36);
+            closeButton.TabIndex = 25;
+            closeButton.Text = "✕";
+            closeButton.UseVisualStyleBackColor = false;
+            closeButton.Click += closeButton_Click;
             // 
             // logoBadge
             // 
@@ -1020,7 +1039,7 @@ namespace oop_project
             signin_label.Cursor = Cursors.Hand;
             signin_label.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             signin_label.ForeColor = Color.FromArgb(194, 65, 12);
-            signin_label.Location = new Point(415, 767);
+            signin_label.Location = new Point(415, 863);
             signin_label.Name = "signin_label";
             signin_label.Size = new Size(66, 23);
             signin_label.TabIndex = 49;
@@ -1033,7 +1052,7 @@ namespace oop_project
             lrcLogoBadge1.Location = new Point(0, 221);
             lrcLogoBadge1.LogoKind = LogoKind.Lrc;
             lrcLogoBadge1.Name = "lrcLogoBadge1";
-            lrcLogoBadge1.Size = new Size(861, 410);
+            lrcLogoBadge1.Size = new Size(725, 410);
             lrcLogoBadge1.TabIndex = 3;
             lrcLogoBadge1.Text = "lrcLogoBadge1";
             // 
@@ -1044,7 +1063,7 @@ namespace oop_project
             brandLabel.ForeColor = Color.White;
             brandLabel.Location = new Point(3, 172);
             brandLabel.Name = "brandLabel";
-            brandLabel.Size = new Size(858, 24);
+            brandLabel.Size = new Size(722, 24);
             brandLabel.TabIndex = 0;
             brandLabel.Text = "TCGC - LIBRARY MANAGEMENT SYSTEM";
             brandLabel.TextAlign = ContentAlignment.MiddleCenter;
@@ -1056,7 +1075,7 @@ namespace oop_project
             taglineLabel.ForeColor = Color.FromArgb(206, 240, 222);
             taglineLabel.Location = new Point(3, 196);
             taglineLabel.Name = "taglineLabel";
-            taglineLabel.Size = new Size(858, 22);
+            taglineLabel.Size = new Size(722, 22);
             taglineLabel.TabIndex = 1;
             taglineLabel.Text = "Learning Resource Center";
             taglineLabel.TextAlign = ContentAlignment.MiddleCenter;
@@ -1085,7 +1104,6 @@ namespace oop_project
             schoolIdField.ResumeLayout(false);
             schoolIdField.PerformLayout();
             programField.ResumeLayout(false);
-            programField.PerformLayout();
             yearLevelField.ResumeLayout(false);
             instituteField.ResumeLayout(false);
             contactField.ResumeLayout(false);
@@ -1104,7 +1122,6 @@ namespace oop_project
             roundedCard1.ResumeLayout(false);
             roundedCard1.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
@@ -1177,6 +1194,7 @@ namespace oop_project
         private Label taglineLabel;
         private LrcLogoBadge lrcLogoBadge1;
         private RoundedCard roundedCard1;
+        private RoundedButton closeButton;
         private TcgcLogoBadge logoBadge;
         private Label signin_label;
         private Label label2;

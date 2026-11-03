@@ -28,6 +28,8 @@ namespace oop_project.forms
         /// </summary>
         private void InitializeComponent()
         {
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
             gradientPanel1 = new GradientPanel();
             roundedCard1 = new RoundedCard();
             tabControl1 = new TabControl();
@@ -38,8 +40,6 @@ namespace oop_project.forms
             valueDateCreated = new Label();
             captionDateCreated = new Label();
             dividerRow5 = new Panel();
-            valueAccountId = new Label();
-            captionAccountId = new Label();
             dividerRow4 = new Panel();
             valueStatus = new Label();
             captionStatus = new Label();
@@ -56,21 +56,9 @@ namespace oop_project.forms
             detailsSubtitle = new Label();
             detailsHeading = new Label();
             identityCard = new RoundedCard();
-            recordContactValue = new Label();
-            recordContactCaption = new Label();
-            recordInstituteValue = new Label();
-            recordInstituteCaption = new Label();
-            recordYearValue = new Label();
-            recordYearCaption = new Label();
-            recordProgramValue = new Label();
-            recordProgramCaption = new Label();
-            recordSchoolIdValue = new Label();
-            recordSchoolIdCaption = new Label();
-            recordHeading = new Label();
             recordDivider = new Panel();
             identityNote = new Label();
             identityDivider = new Panel();
-            profileMeta = new Label();
             profileRoleBadge = new PillBadge();
             profileName = new Label();
             avatarBadge = new AvatarBadge();
@@ -106,9 +94,9 @@ namespace oop_project.forms
             attendanceGrid = new DataGridView();
             loanIdColumn = new DataGridViewTextBoxColumn();
             loanTitleColumn = new DataGridViewTextBoxColumn();
+            year = new DataGridViewTextBoxColumn();
             loanCopyColumn = new DataGridViewTextBoxColumn();
             program_ = new DataGridViewTextBoxColumn();
-            year = new DataGridViewTextBoxColumn();
             institute = new DataGridViewTextBoxColumn();
             studentid = new DataGridViewTextBoxColumn();
             loanDateColumn = new DataGridViewTextBoxColumn();
@@ -121,6 +109,22 @@ namespace oop_project.forms
             recordBorrowButton = new RoundedButton();
             attendanceSubtitle = new Label();
             attendanceHeading = new Label();
+            requestsTab = new TabPage();
+            requestsGrid = new DataGridView();
+            requestIdColumn = new DataGridViewTextBoxColumn();
+            requestBookColumn = new DataGridViewTextBoxColumn();
+            requestStudentColumn = new DataGridViewTextBoxColumn();
+            requestStudentIdColumn = new DataGridViewTextBoxColumn();
+            requestProgramColumn = new DataGridViewTextBoxColumn();
+            requestDateColumn = new DataGridViewTextBoxColumn();
+            requestStatusColumn = new DataGridViewTextBoxColumn();
+            requestApproveColumn = new DataGridViewTextBoxColumn();
+            requestRejectColumn = new DataGridViewTextBoxColumn();
+            requestsStatusLabel = new Label();
+            requestsRefreshButton = new RoundedButton();
+            requestsSubtitle = new Label();
+            requestsHeading = new Label();
+            tabPage7 = new TabPage();
             tabPage2 = new TabPage();
             accountsEmptyLabel = new Label();
             accountsGrid = new DataGridView();
@@ -132,17 +136,29 @@ namespace oop_project.forms
             accountRoleColumn = new DataGridViewTextBoxColumn();
             accountsStatusLabel = new Label();
             accountsRefreshButton = new RoundedButton();
-            accountsDeactivateButton = new RoundedButton();
-            accountsActivateButton = new RoundedButton();
             accountsSubtitle = new Label();
             accountsHeading = new Label();
+            staffTab = new TabPage();
+            staffEmptyLabel = new Label();
+            staffGrid = new DataGridView();
+            staffIdColumn = new DataGridViewTextBoxColumn();
+            staffNameColumn = new DataGridViewTextBoxColumn();
+            staffUsernameColumn = new DataGridViewTextBoxColumn();
+            staffPasswordColumn = new DataGridViewTextBoxColumn();
+            staffStatusColumn = new DataGridViewTextBoxColumn();
+            staffRoleColumn = new DataGridViewTextBoxColumn();
+            staffStatusLabel = new Label();
+            staffRefreshButton = new RoundedButton();
+            staffDeactivateButton = new RoundedButton();
+            staffActivateButton = new RoundedButton();
+            staffSubtitle = new Label();
+            staffHeading = new Label();
             tabPage5 = new TabPage();
             facultyEmptyLabel = new Label();
             facultyGrid = new DataGridView();
             facultyIdColumn = new DataGridViewTextBoxColumn();
             facultyNameColumn = new DataGridViewTextBoxColumn();
             facultyUsernameColumn = new DataGridViewTextBoxColumn();
-            facultyProgramColumn = new DataGridViewTextBoxColumn();
             facultyInstituteColumn = new DataGridViewTextBoxColumn();
             facultyStatusColumn = new DataGridViewTextBoxColumn();
             facultyStatusLabel = new Label();
@@ -189,8 +205,12 @@ namespace oop_project.forms
             bookStatTotalCard.SuspendLayout();
             tabPage4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)attendanceGrid).BeginInit();
+            requestsTab.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)requestsGrid).BeginInit();
             tabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)accountsGrid).BeginInit();
+            staffTab.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)staffGrid).BeginInit();
             tabPage5.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)facultyGrid).BeginInit();
             tabPage6.SuspendLayout();
@@ -233,10 +253,14 @@ namespace oop_project.forms
             tabControl1.Controls.Add(tabPage1);
             tabControl1.Controls.Add(tabPage3);
             tabControl1.Controls.Add(tabPage4);
+            tabControl1.Controls.Add(requestsTab);
+            tabControl1.Controls.Add(tabPage7);
             tabControl1.Controls.Add(tabPage2);
+            tabControl1.Controls.Add(staffTab);
             tabControl1.Controls.Add(tabPage5);
             tabControl1.Controls.Add(tabPage6);
             tabControl1.Dock = DockStyle.Fill;
+            tabControl1.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             tabControl1.Location = new Point(14, 18);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -265,8 +289,6 @@ namespace oop_project.forms
             detailsCard.Controls.Add(valueDateCreated);
             detailsCard.Controls.Add(captionDateCreated);
             detailsCard.Controls.Add(dividerRow5);
-            detailsCard.Controls.Add(valueAccountId);
-            detailsCard.Controls.Add(captionAccountId);
             detailsCard.Controls.Add(dividerRow4);
             detailsCard.Controls.Add(valueStatus);
             detailsCard.Controls.Add(captionStatus);
@@ -343,31 +365,6 @@ namespace oop_project.forms
             dividerRow5.Name = "dividerRow5";
             dividerRow5.Size = new Size(832, 1);
             dividerRow5.TabIndex = 17;
-            // 
-            // valueAccountId
-            // 
-            valueAccountId.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            valueAccountId.BackColor = Color.Transparent;
-            valueAccountId.Font = new Font("Segoe UI", 10.75F);
-            valueAccountId.ForeColor = Color.FromArgb(15, 23, 42);
-            valueAccountId.Location = new Point(340, 402);
-            valueAccountId.Name = "valueAccountId";
-            valueAccountId.Size = new Size(528, 44);
-            valueAccountId.TabIndex = 16;
-            valueAccountId.Text = "#0";
-            valueAccountId.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // captionAccountId
-            // 
-            captionAccountId.BackColor = Color.Transparent;
-            captionAccountId.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            captionAccountId.ForeColor = Color.FromArgb(148, 163, 184);
-            captionAccountId.Location = new Point(34, 410);
-            captionAccountId.Name = "captionAccountId";
-            captionAccountId.Size = new Size(300, 34);
-            captionAccountId.TabIndex = 15;
-            captionAccountId.Text = "ACCOUNT ID";
-            captionAccountId.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // dividerRow4
             // 
@@ -543,21 +540,9 @@ namespace oop_project.forms
             identityCard.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
             identityCard.BackColor = Color.FromArgb(240, 253, 244);
             identityCard.BorderColor = Color.FromArgb(187, 247, 208);
-            identityCard.Controls.Add(recordContactValue);
-            identityCard.Controls.Add(recordContactCaption);
-            identityCard.Controls.Add(recordInstituteValue);
-            identityCard.Controls.Add(recordInstituteCaption);
-            identityCard.Controls.Add(recordYearValue);
-            identityCard.Controls.Add(recordYearCaption);
-            identityCard.Controls.Add(recordProgramValue);
-            identityCard.Controls.Add(recordProgramCaption);
-            identityCard.Controls.Add(recordSchoolIdValue);
-            identityCard.Controls.Add(recordSchoolIdCaption);
-            identityCard.Controls.Add(recordHeading);
             identityCard.Controls.Add(recordDivider);
             identityCard.Controls.Add(identityNote);
             identityCard.Controls.Add(identityDivider);
-            identityCard.Controls.Add(profileMeta);
             identityCard.Controls.Add(profileRoleBadge);
             identityCard.Controls.Add(profileName);
             identityCard.Controls.Add(avatarBadge);
@@ -566,144 +551,6 @@ namespace oop_project.forms
             identityCard.Name = "identityCard";
             identityCard.Size = new Size(402, 643);
             identityCard.TabIndex = 2;
-            // 
-            // recordContactValue
-            // 
-            recordContactValue.AutoEllipsis = true;
-            recordContactValue.BackColor = Color.Transparent;
-            recordContactValue.Font = new Font("Segoe UI", 9.5F);
-            recordContactValue.ForeColor = Color.FromArgb(15, 23, 42);
-            recordContactValue.Location = new Point(166, 548);
-            recordContactValue.Name = "recordContactValue";
-            recordContactValue.Size = new Size(196, 26);
-            recordContactValue.TabIndex = 17;
-            recordContactValue.Text = "—";
-            recordContactValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordContactCaption
-            // 
-            recordContactCaption.BackColor = Color.Transparent;
-            recordContactCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            recordContactCaption.ForeColor = Color.FromArgb(71, 105, 92);
-            recordContactCaption.Location = new Point(40, 548);
-            recordContactCaption.Name = "recordContactCaption";
-            recordContactCaption.Size = new Size(120, 26);
-            recordContactCaption.TabIndex = 16;
-            recordContactCaption.Text = "CONTACT";
-            recordContactCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordInstituteValue
-            // 
-            recordInstituteValue.AutoEllipsis = true;
-            recordInstituteValue.BackColor = Color.Transparent;
-            recordInstituteValue.Font = new Font("Segoe UI", 9.5F);
-            recordInstituteValue.ForeColor = Color.FromArgb(15, 23, 42);
-            recordInstituteValue.Location = new Point(166, 520);
-            recordInstituteValue.Name = "recordInstituteValue";
-            recordInstituteValue.Size = new Size(196, 26);
-            recordInstituteValue.TabIndex = 15;
-            recordInstituteValue.Text = "—";
-            recordInstituteValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordInstituteCaption
-            // 
-            recordInstituteCaption.BackColor = Color.Transparent;
-            recordInstituteCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            recordInstituteCaption.ForeColor = Color.FromArgb(71, 105, 92);
-            recordInstituteCaption.Location = new Point(40, 520);
-            recordInstituteCaption.Name = "recordInstituteCaption";
-            recordInstituteCaption.Size = new Size(120, 26);
-            recordInstituteCaption.TabIndex = 14;
-            recordInstituteCaption.Text = "INSTITUTE";
-            recordInstituteCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordYearValue
-            // 
-            recordYearValue.AutoEllipsis = true;
-            recordYearValue.BackColor = Color.Transparent;
-            recordYearValue.Font = new Font("Segoe UI", 9.5F);
-            recordYearValue.ForeColor = Color.FromArgb(15, 23, 42);
-            recordYearValue.Location = new Point(166, 492);
-            recordYearValue.Name = "recordYearValue";
-            recordYearValue.Size = new Size(196, 26);
-            recordYearValue.TabIndex = 13;
-            recordYearValue.Text = "—";
-            recordYearValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordYearCaption
-            // 
-            recordYearCaption.BackColor = Color.Transparent;
-            recordYearCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            recordYearCaption.ForeColor = Color.FromArgb(71, 105, 92);
-            recordYearCaption.Location = new Point(40, 492);
-            recordYearCaption.Name = "recordYearCaption";
-            recordYearCaption.Size = new Size(120, 26);
-            recordYearCaption.TabIndex = 12;
-            recordYearCaption.Text = "YEAR LEVEL";
-            recordYearCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordProgramValue
-            // 
-            recordProgramValue.AutoEllipsis = true;
-            recordProgramValue.BackColor = Color.Transparent;
-            recordProgramValue.Font = new Font("Segoe UI", 9.5F);
-            recordProgramValue.ForeColor = Color.FromArgb(15, 23, 42);
-            recordProgramValue.Location = new Point(166, 464);
-            recordProgramValue.Name = "recordProgramValue";
-            recordProgramValue.Size = new Size(196, 26);
-            recordProgramValue.TabIndex = 11;
-            recordProgramValue.Text = "—";
-            recordProgramValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordProgramCaption
-            // 
-            recordProgramCaption.BackColor = Color.Transparent;
-            recordProgramCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            recordProgramCaption.ForeColor = Color.FromArgb(71, 105, 92);
-            recordProgramCaption.Location = new Point(40, 464);
-            recordProgramCaption.Name = "recordProgramCaption";
-            recordProgramCaption.Size = new Size(120, 26);
-            recordProgramCaption.TabIndex = 10;
-            recordProgramCaption.Text = "PROGRAM";
-            recordProgramCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordSchoolIdValue
-            // 
-            recordSchoolIdValue.AutoEllipsis = true;
-            recordSchoolIdValue.BackColor = Color.Transparent;
-            recordSchoolIdValue.Font = new Font("Segoe UI", 9.5F);
-            recordSchoolIdValue.ForeColor = Color.FromArgb(15, 23, 42);
-            recordSchoolIdValue.Location = new Point(166, 436);
-            recordSchoolIdValue.Name = "recordSchoolIdValue";
-            recordSchoolIdValue.Size = new Size(196, 26);
-            recordSchoolIdValue.TabIndex = 9;
-            recordSchoolIdValue.Text = "—";
-            recordSchoolIdValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordSchoolIdCaption
-            // 
-            recordSchoolIdCaption.BackColor = Color.Transparent;
-            recordSchoolIdCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            recordSchoolIdCaption.ForeColor = Color.FromArgb(71, 105, 92);
-            recordSchoolIdCaption.Location = new Point(40, 436);
-            recordSchoolIdCaption.Name = "recordSchoolIdCaption";
-            recordSchoolIdCaption.Size = new Size(120, 26);
-            recordSchoolIdCaption.TabIndex = 8;
-            recordSchoolIdCaption.Text = "SCHOOL ID";
-            recordSchoolIdCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // recordHeading
-            // 
-            recordHeading.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            recordHeading.BackColor = Color.Transparent;
-            recordHeading.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            recordHeading.ForeColor = Color.FromArgb(4, 120, 87);
-            recordHeading.Location = new Point(40, 406);
-            recordHeading.Name = "recordHeading";
-            recordHeading.Size = new Size(322, 22);
-            recordHeading.TabIndex = 7;
-            recordHeading.Text = "STUDENT RECORD";
-            recordHeading.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // recordDivider
             // 
@@ -724,7 +571,7 @@ namespace oop_project.forms
             identityNote.Name = "identityNote";
             identityNote.Size = new Size(322, 62);
             identityNote.TabIndex = 5;
-            identityNote.Text = "You are signed in to the TCGC Learning Resource Center library system.";
+            identityNote.Text = "YOU ARE SIGNED IN TO THE TCGC LEARNING RESOURCE CENTER LIBRARY SYSTEM.";
             identityNote.TextAlign = ContentAlignment.TopCenter;
             // 
             // identityDivider
@@ -735,18 +582,6 @@ namespace oop_project.forms
             identityDivider.Name = "identityDivider";
             identityDivider.Size = new Size(322, 1);
             identityDivider.TabIndex = 4;
-            // 
-            // profileMeta
-            // 
-            profileMeta.BackColor = Color.Transparent;
-            profileMeta.Font = new Font("Segoe UI", 9.5F);
-            profileMeta.ForeColor = Color.FromArgb(71, 85, 105);
-            profileMeta.Location = new Point(20, 264);
-            profileMeta.Name = "profileMeta";
-            profileMeta.Size = new Size(364, 22);
-            profileMeta.TabIndex = 3;
-            profileMeta.Text = "ACCOUNT ID  #0";
-            profileMeta.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // profileRoleBadge
             // 
@@ -1197,6 +1032,13 @@ namespace oop_project.forms
             loanTitleColumn.MinimumWidth = 150;
             loanTitleColumn.Name = "loanTitleColumn";
             // 
+            // year
+            // 
+            year.HeaderText = "YEAR";
+            year.MinimumWidth = 6;
+            year.Name = "year";
+            year.Width = 125;
+            // 
             // loanCopyColumn
             // 
             loanCopyColumn.HeaderText = "BORROWED COPY";
@@ -1211,13 +1053,6 @@ namespace oop_project.forms
             program_.MinimumWidth = 6;
             program_.Name = "program_";
             program_.Width = 125;
-            // 
-            // year
-            // 
-            year.HeaderText = "YEAR";
-            year.MinimumWidth = 6;
-            year.Name = "year";
-            year.Width = 125;
             // 
             // institute
             // 
@@ -1355,6 +1190,196 @@ namespace oop_project.forms
             attendanceHeading.TabIndex = 0;
             attendanceHeading.Text = "BORROW RECORDS";
             // 
+            // requestsTab
+            // 
+            requestsTab.BackColor = Color.White;
+            requestsTab.Controls.Add(requestsGrid);
+            requestsTab.Controls.Add(requestsStatusLabel);
+            requestsTab.Controls.Add(requestsRefreshButton);
+            requestsTab.Controls.Add(requestsSubtitle);
+            requestsTab.Controls.Add(requestsHeading);
+            requestsTab.Location = new Point(4, 29);
+            requestsTab.Name = "requestsTab";
+            requestsTab.Padding = new Padding(3);
+            requestsTab.Size = new Size(1344, 655);
+            requestsTab.TabIndex = 3;
+            requestsTab.Text = "BORROW REQUESTS";
+            // 
+            // requestsGrid
+            // 
+            requestsGrid.AllowUserToAddRows = false;
+            requestsGrid.AllowUserToDeleteRows = false;
+            requestsGrid.AllowUserToResizeRows = false;
+            requestsGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            requestsGrid.BackgroundColor = Color.White;
+            requestsGrid.BorderStyle = BorderStyle.None;
+            requestsGrid.ColumnHeadersHeight = 44;
+            requestsGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            requestsGrid.Columns.AddRange(new DataGridViewColumn[] { requestIdColumn, requestBookColumn, requestStudentColumn, requestStudentIdColumn, requestProgramColumn, requestDateColumn, requestStatusColumn, requestApproveColumn, requestRejectColumn });
+            requestsGrid.Location = new Point(30, 156);
+            requestsGrid.MultiSelect = false;
+            requestsGrid.Name = "requestsGrid";
+            requestsGrid.ReadOnly = true;
+            requestsGrid.RowHeadersVisible = false;
+            requestsGrid.RowHeadersWidth = 51;
+            requestsGrid.RowTemplate.Height = 38;
+            requestsGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            requestsGrid.Size = new Size(1284, 469);
+            requestsGrid.TabIndex = 4;
+            requestsGrid.CellClick += RequestsGrid_CellClick;
+            // 
+            // requestIdColumn
+            // 
+            requestIdColumn.HeaderText = "ID";
+            requestIdColumn.MinimumWidth = 50;
+            requestIdColumn.Name = "requestIdColumn";
+            requestIdColumn.ReadOnly = true;
+            requestIdColumn.Width = 60;
+            // 
+            // requestBookColumn
+            // 
+            requestBookColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            requestBookColumn.FillWeight = 22F;
+            requestBookColumn.HeaderText = "BOOK TITLE";
+            requestBookColumn.MinimumWidth = 150;
+            requestBookColumn.Name = "requestBookColumn";
+            requestBookColumn.ReadOnly = true;
+            // 
+            // requestStudentColumn
+            // 
+            requestStudentColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            requestStudentColumn.FillWeight = 20F;
+            requestStudentColumn.HeaderText = "STUDENT/FACULTY/STAFF";
+            requestStudentColumn.MinimumWidth = 150;
+            requestStudentColumn.Name = "requestStudentColumn";
+            requestStudentColumn.ReadOnly = true;
+            // 
+            // requestStudentIdColumn
+            // 
+            requestStudentIdColumn.HeaderText = "ID NO.";
+            requestStudentIdColumn.MinimumWidth = 90;
+            requestStudentIdColumn.Name = "requestStudentIdColumn";
+            requestStudentIdColumn.ReadOnly = true;
+            requestStudentIdColumn.Width = 112;
+            // 
+            // requestProgramColumn
+            // 
+            requestProgramColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            requestProgramColumn.FillWeight = 12F;
+            requestProgramColumn.HeaderText = "PROGRAM";
+            requestProgramColumn.MinimumWidth = 95;
+            requestProgramColumn.Name = "requestProgramColumn";
+            requestProgramColumn.ReadOnly = true;
+            // 
+            // requestDateColumn
+            // 
+            requestDateColumn.HeaderText = "REQUESTED";
+            requestDateColumn.MinimumWidth = 135;
+            requestDateColumn.Name = "requestDateColumn";
+            requestDateColumn.ReadOnly = true;
+            requestDateColumn.Width = 148;
+            // 
+            // requestStatusColumn
+            // 
+            requestStatusColumn.HeaderText = "STATUS";
+            requestStatusColumn.MinimumWidth = 90;
+            requestStatusColumn.Name = "requestStatusColumn";
+            requestStatusColumn.ReadOnly = true;
+            requestStatusColumn.Width = 104;
+            // 
+            // requestApproveColumn
+            // 
+            requestApproveColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dataGridViewCellStyle1.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+            dataGridViewCellStyle1.ForeColor = Color.FromArgb(4, 120, 87);
+            requestApproveColumn.DefaultCellStyle = dataGridViewCellStyle1;
+            requestApproveColumn.HeaderText = "APPROVE";
+            requestApproveColumn.MinimumWidth = 98;
+            requestApproveColumn.Name = "requestApproveColumn";
+            requestApproveColumn.ReadOnly = true;
+            requestApproveColumn.SortMode = DataGridViewColumnSortMode.NotSortable;
+            requestApproveColumn.Width = 108;
+            // 
+            // requestRejectColumn
+            // 
+            requestRejectColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+            dataGridViewCellStyle2.ForeColor = Color.FromArgb(185, 28, 28);
+            requestRejectColumn.DefaultCellStyle = dataGridViewCellStyle2;
+            requestRejectColumn.HeaderText = "REJECT";
+            requestRejectColumn.MinimumWidth = 82;
+            requestRejectColumn.Name = "requestRejectColumn";
+            requestRejectColumn.ReadOnly = true;
+            requestRejectColumn.SortMode = DataGridViewColumnSortMode.NotSortable;
+            requestRejectColumn.Width = 92;
+            // 
+            // requestsStatusLabel
+            // 
+            requestsStatusLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            requestsStatusLabel.BackColor = Color.Transparent;
+            requestsStatusLabel.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            requestsStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
+            requestsStatusLabel.Location = new Point(630, 104);
+            requestsStatusLabel.Name = "requestsStatusLabel";
+            requestsStatusLabel.Size = new Size(684, 20);
+            requestsStatusLabel.TabIndex = 3;
+            requestsStatusLabel.Text = "REQUESTS HAVE NOT BEEN LOADED YET.";
+            requestsStatusLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // requestsRefreshButton
+            // 
+            requestsRefreshButton.BackColor = Color.Transparent;
+            requestsRefreshButton.CornerRadius = 12;
+            requestsRefreshButton.FlatAppearance.BorderSize = 0;
+            requestsRefreshButton.FlatStyle = FlatStyle.Flat;
+            requestsRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            requestsRefreshButton.ForeColor = Color.White;
+            requestsRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
+            requestsRefreshButton.Location = new Point(30, 92);
+            requestsRefreshButton.Name = "requestsRefreshButton";
+            requestsRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
+            requestsRefreshButton.PressedColor = Color.FromArgb(20, 83, 45);
+            requestsRefreshButton.Size = new Size(188, 44);
+            requestsRefreshButton.TabIndex = 2;
+            requestsRefreshButton.Text = "REFRESH REQUESTS";
+            requestsRefreshButton.UseVisualStyleBackColor = false;
+            requestsRefreshButton.Click += requestsRefreshButton_Click;
+            // 
+            // requestsSubtitle
+            // 
+            requestsSubtitle.AutoSize = true;
+            requestsSubtitle.BackColor = Color.Transparent;
+            requestsSubtitle.Font = new Font("Segoe UI", 9F);
+            requestsSubtitle.ForeColor = Color.FromArgb(148, 163, 184);
+            requestsSubtitle.Location = new Point(32, 56);
+            requestsSubtitle.Name = "requestsSubtitle";
+            requestsSubtitle.Size = new Size(261, 20);
+            requestsSubtitle.TabIndex = 1;
+            requestsSubtitle.Text = "Student requests waiting for approval.";
+            // 
+            // requestsHeading
+            // 
+            requestsHeading.AutoSize = true;
+            requestsHeading.BackColor = Color.Transparent;
+            requestsHeading.Font = new Font("Segoe UI", 14.5F, FontStyle.Bold);
+            requestsHeading.ForeColor = Color.FromArgb(15, 23, 42);
+            requestsHeading.Location = new Point(30, 22);
+            requestsHeading.Name = "requestsHeading";
+            requestsHeading.Size = new Size(255, 35);
+            requestsHeading.TabIndex = 0;
+            requestsHeading.Text = "BORROW REQUESTS";
+            // 
+            // tabPage7
+            // 
+            tabPage7.Location = new Point(4, 29);
+            tabPage7.Name = "tabPage7";
+            tabPage7.Size = new Size(1344, 655);
+            tabPage7.TabIndex = 6;
+            tabPage7.Text = "LIBRARY ATTENDANCE";
+            tabPage7.UseVisualStyleBackColor = true;
+            // 
             // tabPage2
             // 
             tabPage2.BackColor = Color.White;
@@ -1362,8 +1387,6 @@ namespace oop_project.forms
             tabPage2.Controls.Add(accountsGrid);
             tabPage2.Controls.Add(accountsStatusLabel);
             tabPage2.Controls.Add(accountsRefreshButton);
-            tabPage2.Controls.Add(accountsDeactivateButton);
-            tabPage2.Controls.Add(accountsActivateButton);
             tabPage2.Controls.Add(accountsSubtitle);
             tabPage2.Controls.Add(accountsHeading);
             tabPage2.Location = new Point(4, 29);
@@ -1481,7 +1504,7 @@ namespace oop_project.forms
             accountsRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             accountsRefreshButton.ForeColor = Color.White;
             accountsRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
-            accountsRefreshButton.Location = new Point(416, 92);
+            accountsRefreshButton.Location = new Point(32, 92);
             accountsRefreshButton.Name = "accountsRefreshButton";
             accountsRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
             accountsRefreshButton.PressedColor = Color.FromArgb(20, 83, 45);
@@ -1491,44 +1514,6 @@ namespace oop_project.forms
             accountsRefreshButton.UseVisualStyleBackColor = false;
             accountsRefreshButton.Click += accountsRefreshButton_Click;
             // 
-            // accountsDeactivateButton
-            // 
-            accountsDeactivateButton.BackColor = Color.Transparent;
-            accountsDeactivateButton.CornerRadius = 12;
-            accountsDeactivateButton.FlatAppearance.BorderSize = 0;
-            accountsDeactivateButton.FlatStyle = FlatStyle.Flat;
-            accountsDeactivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            accountsDeactivateButton.ForeColor = Color.White;
-            accountsDeactivateButton.HoverColor = Color.FromArgb(153, 27, 27);
-            accountsDeactivateButton.Location = new Point(218, 92);
-            accountsDeactivateButton.Name = "accountsDeactivateButton";
-            accountsDeactivateButton.NormalColor = Color.FromArgb(185, 28, 28);
-            accountsDeactivateButton.PressedColor = Color.FromArgb(127, 29, 29);
-            accountsDeactivateButton.Size = new Size(186, 44);
-            accountsDeactivateButton.TabIndex = 7;
-            accountsDeactivateButton.Text = "DEACTIVATE ACCOUNT";
-            accountsDeactivateButton.UseVisualStyleBackColor = false;
-            accountsDeactivateButton.Click += accountsDeactivateButton_Click;
-            // 
-            // accountsActivateButton
-            // 
-            accountsActivateButton.BackColor = Color.Transparent;
-            accountsActivateButton.CornerRadius = 12;
-            accountsActivateButton.FlatAppearance.BorderSize = 0;
-            accountsActivateButton.FlatStyle = FlatStyle.Flat;
-            accountsActivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            accountsActivateButton.ForeColor = Color.White;
-            accountsActivateButton.HoverColor = Color.FromArgb(21, 128, 61);
-            accountsActivateButton.Location = new Point(30, 92);
-            accountsActivateButton.Name = "accountsActivateButton";
-            accountsActivateButton.NormalColor = Color.FromArgb(22, 163, 74);
-            accountsActivateButton.PressedColor = Color.FromArgb(20, 83, 45);
-            accountsActivateButton.Size = new Size(176, 44);
-            accountsActivateButton.TabIndex = 6;
-            accountsActivateButton.Text = "ACTIVATE ACCOUNT";
-            accountsActivateButton.UseVisualStyleBackColor = false;
-            accountsActivateButton.Click += accountsActivateButton_Click;
-            // 
             // accountsSubtitle
             // 
             accountsSubtitle.AutoSize = true;
@@ -1537,9 +1522,9 @@ namespace oop_project.forms
             accountsSubtitle.ForeColor = Color.FromArgb(148, 163, 184);
             accountsSubtitle.Location = new Point(32, 56);
             accountsSubtitle.Name = "accountsSubtitle";
-            accountsSubtitle.Size = new Size(320, 20);
+            accountsSubtitle.Size = new Size(386, 20);
             accountsSubtitle.TabIndex = 1;
-            accountsSubtitle.Text = "Librarian accounts that administer the library.";
+            accountsSubtitle.Text = "LIBRARIAN ACCOUNTS THAT ADMINISTER THE LIBRARY.";
             // 
             // accountsHeading
             // 
@@ -1552,6 +1537,204 @@ namespace oop_project.forms
             accountsHeading.Size = new Size(290, 35);
             accountsHeading.TabIndex = 0;
             accountsHeading.Text = "LIBRARIAN ACCOUNTS";
+            // 
+            // staffTab
+            // 
+            staffTab.BackColor = Color.White;
+            staffTab.Controls.Add(staffEmptyLabel);
+            staffTab.Controls.Add(staffGrid);
+            staffTab.Controls.Add(staffStatusLabel);
+            staffTab.Controls.Add(staffRefreshButton);
+            staffTab.Controls.Add(staffDeactivateButton);
+            staffTab.Controls.Add(staffActivateButton);
+            staffTab.Controls.Add(staffSubtitle);
+            staffTab.Controls.Add(staffHeading);
+            staffTab.Location = new Point(4, 29);
+            staffTab.Name = "staffTab";
+            staffTab.Padding = new Padding(3);
+            staffTab.Size = new Size(1344, 655);
+            staffTab.TabIndex = 4;
+            staffTab.Text = "STAFF ACCOUNTS";
+            // 
+            // staffEmptyLabel
+            // 
+            staffEmptyLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            staffEmptyLabel.BackColor = Color.White;
+            staffEmptyLabel.Font = new Font("Segoe UI", 10F);
+            staffEmptyLabel.ForeColor = Color.FromArgb(148, 163, 184);
+            staffEmptyLabel.Location = new Point(30, 396);
+            staffEmptyLabel.Name = "staffEmptyLabel";
+            staffEmptyLabel.Size = new Size(1284, 60);
+            staffEmptyLabel.TabIndex = 5;
+            staffEmptyLabel.Text = "NO STAFF ACCOUNTS HAVE BEEN REGISTERED YET.";
+            staffEmptyLabel.TextAlign = ContentAlignment.MiddleCenter;
+            staffEmptyLabel.Visible = false;
+            // 
+            // staffGrid
+            // 
+            staffGrid.AllowUserToAddRows = false;
+            staffGrid.AllowUserToDeleteRows = false;
+            staffGrid.AllowUserToResizeRows = false;
+            staffGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            staffGrid.BackgroundColor = Color.White;
+            staffGrid.BorderStyle = BorderStyle.None;
+            staffGrid.ColumnHeadersHeight = 44;
+            staffGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            staffGrid.Columns.AddRange(new DataGridViewColumn[] { staffIdColumn, staffNameColumn, staffUsernameColumn, staffPasswordColumn, staffStatusColumn, staffRoleColumn });
+            staffGrid.Location = new Point(30, 156);
+            staffGrid.MultiSelect = false;
+            staffGrid.Name = "staffGrid";
+            staffGrid.ReadOnly = true;
+            staffGrid.RowHeadersVisible = false;
+            staffGrid.RowHeadersWidth = 51;
+            staffGrid.RowTemplate.Height = 38;
+            staffGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            staffGrid.Size = new Size(1284, 469);
+            staffGrid.TabIndex = 4;
+            // 
+            // staffIdColumn
+            // 
+            staffIdColumn.HeaderText = "ID";
+            staffIdColumn.MinimumWidth = 6;
+            staffIdColumn.Name = "staffIdColumn";
+            staffIdColumn.ReadOnly = true;
+            staffIdColumn.Width = 70;
+            // 
+            // staffNameColumn
+            // 
+            staffNameColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            staffNameColumn.FillWeight = 28F;
+            staffNameColumn.HeaderText = "NAME";
+            staffNameColumn.MinimumWidth = 120;
+            staffNameColumn.Name = "staffNameColumn";
+            staffNameColumn.ReadOnly = true;
+            // 
+            // staffUsernameColumn
+            // 
+            staffUsernameColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            staffUsernameColumn.FillWeight = 22F;
+            staffUsernameColumn.HeaderText = "USERNAME";
+            staffUsernameColumn.MinimumWidth = 80;
+            staffUsernameColumn.Name = "staffUsernameColumn";
+            staffUsernameColumn.ReadOnly = true;
+            // 
+            // staffPasswordColumn
+            // 
+            staffPasswordColumn.HeaderText = "PASSWORD";
+            staffPasswordColumn.MinimumWidth = 6;
+            staffPasswordColumn.Name = "staffPasswordColumn";
+            staffPasswordColumn.ReadOnly = true;
+            staffPasswordColumn.Width = 130;
+            // 
+            // staffStatusColumn
+            // 
+            staffStatusColumn.HeaderText = "STATUS";
+            staffStatusColumn.MinimumWidth = 6;
+            staffStatusColumn.Name = "staffStatusColumn";
+            staffStatusColumn.ReadOnly = true;
+            staffStatusColumn.Width = 120;
+            // 
+            // staffRoleColumn
+            // 
+            staffRoleColumn.HeaderText = "ROLE";
+            staffRoleColumn.MinimumWidth = 6;
+            staffRoleColumn.Name = "staffRoleColumn";
+            staffRoleColumn.ReadOnly = true;
+            staffRoleColumn.Width = 120;
+            // 
+            // staffStatusLabel
+            // 
+            staffStatusLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            staffStatusLabel.BackColor = Color.Transparent;
+            staffStatusLabel.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            staffStatusLabel.ForeColor = Color.FromArgb(148, 163, 184);
+            staffStatusLabel.Location = new Point(566, 104);
+            staffStatusLabel.Name = "staffStatusLabel";
+            staffStatusLabel.Size = new Size(748, 20);
+            staffStatusLabel.TabIndex = 3;
+            staffStatusLabel.Text = "STAFF ACCOUNTS HAVE NOT BEEN LOADED YET.";
+            staffStatusLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // staffRefreshButton
+            // 
+            staffRefreshButton.BackColor = Color.Transparent;
+            staffRefreshButton.CornerRadius = 12;
+            staffRefreshButton.FlatAppearance.BorderSize = 0;
+            staffRefreshButton.FlatStyle = FlatStyle.Flat;
+            staffRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            staffRefreshButton.ForeColor = Color.White;
+            staffRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
+            staffRefreshButton.Location = new Point(416, 92);
+            staffRefreshButton.Name = "staffRefreshButton";
+            staffRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
+            staffRefreshButton.PressedColor = Color.FromArgb(20, 83, 45);
+            staffRefreshButton.Size = new Size(126, 44);
+            staffRefreshButton.TabIndex = 7;
+            staffRefreshButton.Text = "REFRESH";
+            staffRefreshButton.UseVisualStyleBackColor = false;
+            staffRefreshButton.Click += staffRefreshButton_Click;
+            // 
+            // staffDeactivateButton
+            // 
+            staffDeactivateButton.BackColor = Color.Transparent;
+            staffDeactivateButton.CornerRadius = 12;
+            staffDeactivateButton.FlatAppearance.BorderSize = 0;
+            staffDeactivateButton.FlatStyle = FlatStyle.Flat;
+            staffDeactivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            staffDeactivateButton.ForeColor = Color.White;
+            staffDeactivateButton.HoverColor = Color.FromArgb(153, 27, 27);
+            staffDeactivateButton.Location = new Point(218, 92);
+            staffDeactivateButton.Name = "staffDeactivateButton";
+            staffDeactivateButton.NormalColor = Color.FromArgb(185, 28, 28);
+            staffDeactivateButton.PressedColor = Color.FromArgb(127, 29, 29);
+            staffDeactivateButton.Size = new Size(186, 44);
+            staffDeactivateButton.TabIndex = 6;
+            staffDeactivateButton.Text = "DEACTIVATE ACCOUNT";
+            staffDeactivateButton.UseVisualStyleBackColor = false;
+            staffDeactivateButton.Click += staffDeactivateButton_Click;
+            // 
+            // staffActivateButton
+            // 
+            staffActivateButton.BackColor = Color.Transparent;
+            staffActivateButton.CornerRadius = 12;
+            staffActivateButton.FlatAppearance.BorderSize = 0;
+            staffActivateButton.FlatStyle = FlatStyle.Flat;
+            staffActivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            staffActivateButton.ForeColor = Color.White;
+            staffActivateButton.HoverColor = Color.FromArgb(21, 128, 61);
+            staffActivateButton.Location = new Point(30, 92);
+            staffActivateButton.Name = "staffActivateButton";
+            staffActivateButton.NormalColor = Color.FromArgb(22, 163, 74);
+            staffActivateButton.PressedColor = Color.FromArgb(20, 83, 45);
+            staffActivateButton.Size = new Size(176, 44);
+            staffActivateButton.TabIndex = 2;
+            staffActivateButton.Text = "ACTIVATE ACCOUNT";
+            staffActivateButton.UseVisualStyleBackColor = false;
+            staffActivateButton.Click += staffActivateButton_Click;
+            // 
+            // staffSubtitle
+            // 
+            staffSubtitle.AutoSize = true;
+            staffSubtitle.BackColor = Color.Transparent;
+            staffSubtitle.Font = new Font("Segoe UI", 9F);
+            staffSubtitle.ForeColor = Color.FromArgb(148, 163, 184);
+            staffSubtitle.Location = new Point(32, 56);
+            staffSubtitle.Name = "staffSubtitle";
+            staffSubtitle.Size = new Size(150, 20);
+            staffSubtitle.TabIndex = 1;
+            staffSubtitle.Text = "STAFF INFORMATION";
+            // 
+            // staffHeading
+            // 
+            staffHeading.AutoSize = true;
+            staffHeading.BackColor = Color.Transparent;
+            staffHeading.Font = new Font("Segoe UI", 14.5F, FontStyle.Bold);
+            staffHeading.ForeColor = Color.FromArgb(15, 23, 42);
+            staffHeading.Location = new Point(30, 22);
+            staffHeading.Name = "staffHeading";
+            staffHeading.Size = new Size(228, 35);
+            staffHeading.TabIndex = 0;
+            staffHeading.Text = "STAFF ACCOUNTS";
             // 
             // tabPage5
             // 
@@ -1595,7 +1778,7 @@ namespace oop_project.forms
             facultyGrid.BorderStyle = BorderStyle.None;
             facultyGrid.ColumnHeadersHeight = 44;
             facultyGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            facultyGrid.Columns.AddRange(new DataGridViewColumn[] { facultyIdColumn, facultyNameColumn, facultyUsernameColumn, facultyProgramColumn, facultyInstituteColumn, facultyStatusColumn });
+            facultyGrid.Columns.AddRange(new DataGridViewColumn[] { facultyIdColumn, facultyNameColumn, facultyUsernameColumn, facultyInstituteColumn, facultyStatusColumn });
             facultyGrid.Location = new Point(30, 156);
             facultyGrid.MultiSelect = false;
             facultyGrid.Name = "facultyGrid";
@@ -1632,15 +1815,6 @@ namespace oop_project.forms
             facultyUsernameColumn.MinimumWidth = 80;
             facultyUsernameColumn.Name = "facultyUsernameColumn";
             facultyUsernameColumn.ReadOnly = true;
-            // 
-            // facultyProgramColumn
-            // 
-            facultyProgramColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            facultyProgramColumn.FillWeight = 26F;
-            facultyProgramColumn.HeaderText = "PROGRAM";
-            facultyProgramColumn.MinimumWidth = 110;
-            facultyProgramColumn.Name = "facultyProgramColumn";
-            facultyProgramColumn.ReadOnly = true;
             // 
             // facultyInstituteColumn
             // 
@@ -1736,9 +1910,9 @@ namespace oop_project.forms
             facultySubtitle.ForeColor = Color.FromArgb(148, 163, 184);
             facultySubtitle.Location = new Point(32, 56);
             facultySubtitle.Name = "facultySubtitle";
-            facultySubtitle.Size = new Size(339, 20);
+            facultySubtitle.Size = new Size(240, 20);
             facultySubtitle.TabIndex = 1;
-            facultySubtitle.Text = "Faculty members registered from the signup form.";
+            facultySubtitle.Text = "FACULTY MEMBERS INFORMATION";
             // 
             // facultyHeading
             // 
@@ -1959,9 +2133,9 @@ namespace oop_project.forms
             studentSubtitle.ForeColor = Color.FromArgb(148, 163, 184);
             studentSubtitle.Location = new Point(32, 56);
             studentSubtitle.Name = "studentSubtitle";
-            studentSubtitle.Size = new Size(332, 20);
+            studentSubtitle.Size = new Size(175, 20);
             studentSubtitle.TabIndex = 1;
-            studentSubtitle.Text = "Student records registered from the signup form.";
+            studentSubtitle.Text = "STUDENT INFORMATION";
             // 
             // studentHeading
             // 
@@ -2089,21 +2263,21 @@ namespace oop_project.forms
             tabPage4.ResumeLayout(false);
             tabPage4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)attendanceGrid).EndInit();
+            requestsTab.ResumeLayout(false);
+            requestsTab.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)requestsGrid).EndInit();
             tabPage2.ResumeLayout(false);
             tabPage2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)accountsGrid).EndInit();
+            staffTab.ResumeLayout(false);
+            staffTab.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)staffGrid).EndInit();
             tabPage5.ResumeLayout(false);
             tabPage5.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)facultyGrid).EndInit();
             tabPage6.ResumeLayout(false);
             tabPage6.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)studentGrid).EndInit();
-
-            // The two extra management tabs are created as part of the designer
-            // pass so they appear on the design surface with the rest of the form.
-            CreateBorrowRequestsTab();
-            CreateStaffAccountsTab();
-
             ResumeLayout(false);
         }
 
@@ -2125,7 +2299,6 @@ namespace oop_project.forms
         private RoundedCard identityCard;
         private Label identityNote;
         private Panel identityDivider;
-        private Label profileMeta;
         private PillBadge profileRoleBadge;
         private Label profileName;
         private AvatarBadge avatarBadge;
@@ -2152,8 +2325,6 @@ namespace oop_project.forms
         private Label accountsHeading;
         private Label accountsSubtitle;
         private RoundedButton accountsRefreshButton;
-        private RoundedButton accountsActivateButton;
-        private RoundedButton accountsDeactivateButton;
         private Label accountsStatusLabel;
         private Label accountsEmptyLabel;
         private DataGridView accountsGrid;
@@ -2214,11 +2385,31 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn facultyIdColumn;
         private DataGridViewTextBoxColumn facultyNameColumn;
         private DataGridViewTextBoxColumn facultyUsernameColumn;
-        private DataGridViewTextBoxColumn facultyProgramColumn;
         private DataGridViewTextBoxColumn facultyInstituteColumn;
         private DataGridViewTextBoxColumn facultyStatusColumn;
         private Label facultyEmptyLabel;
         private Label studentHeading;
+        private TabPage requestsTab;
+        private DataGridView requestsGrid;
+        private Label requestsStatusLabel;
+        private RoundedButton requestsRefreshButton;
+        private Label requestsSubtitle;
+        private Label requestsHeading;
+        private TabPage staffTab;
+        private DataGridView staffGrid;
+        private DataGridViewTextBoxColumn staffIdColumn;
+        private DataGridViewTextBoxColumn staffNameColumn;
+        private DataGridViewTextBoxColumn staffUsernameColumn;
+        private DataGridViewTextBoxColumn staffPasswordColumn;
+        private DataGridViewTextBoxColumn staffStatusColumn;
+        private DataGridViewTextBoxColumn staffRoleColumn;
+        private Label staffStatusLabel;
+        private Label staffEmptyLabel;
+        private RoundedButton staffActivateButton;
+        private RoundedButton staffDeactivateButton;
+        private RoundedButton staffRefreshButton;
+        private Label staffSubtitle;
+        private Label staffHeading;
         private Label studentSubtitle;
         private RoundedButton studentActivateButton;
         private RoundedButton studentDeactivateButton;
@@ -2238,24 +2429,23 @@ namespace oop_project.forms
         private Panel dividerRow6;
         private Label valueDateCreated;
         private Label captionDateCreated;
-        private Label recordHeading;
         private Panel recordDivider;
-        private Label recordSchoolIdCaption;
-        private Label recordSchoolIdValue;
-        private Label recordProgramCaption;
-        private Label recordProgramValue;
-        private Label recordYearCaption;
-        private Label recordYearValue;
-        private Label recordInstituteCaption;
-        private Label recordInstituteValue;
-        private Label recordContactCaption;
-        private Label recordContactValue;
         private DataGridViewTextBoxColumn bookIdColumn;
         private DataGridViewTextBoxColumn bookTitleColumn;
         private DataGridViewTextBoxColumn bookAuthorColumn;
         private DataGridViewTextBoxColumn bookYearColumn;
         private DataGridViewTextBoxColumn quantity;
         private DataGridViewTextBoxColumn bookAddedColumn;
+        private DataGridViewTextBoxColumn requestIdColumn;
+        private DataGridViewTextBoxColumn requestBookColumn;
+        private DataGridViewTextBoxColumn requestStudentColumn;
+        private DataGridViewTextBoxColumn requestStudentIdColumn;
+        private DataGridViewTextBoxColumn requestProgramColumn;
+        private DataGridViewTextBoxColumn requestDateColumn;
+        private DataGridViewTextBoxColumn requestStatusColumn;
+        private DataGridViewTextBoxColumn requestApproveColumn;
+        private DataGridViewTextBoxColumn requestRejectColumn;
+        private TabPage tabPage7;
     }
 }
 

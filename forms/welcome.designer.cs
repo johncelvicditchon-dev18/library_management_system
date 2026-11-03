@@ -29,6 +29,7 @@ namespace oop_project
         private void InitializeComponent()
         {
             card = new RoundedCard();
+            qr_scanner_button = new RoundedButton();
             eyebrowChip = new PillBadge();
             tcgcLogoBadge = new TcgcLogoBadge();
             logoDivider = new Panel();
@@ -50,6 +51,7 @@ namespace oop_project
             // 
             card.BackColor = Color.White;
             card.BorderColor = Color.FromArgb(238, 242, 247);
+            card.Controls.Add(qr_scanner_button);
             card.Controls.Add(eyebrowChip);
             card.Controls.Add(tcgcLogoBadge);
             card.Controls.Add(logoDivider);
@@ -66,6 +68,25 @@ namespace oop_project
             card.Name = "card";
             card.Size = new Size(780, 540);
             card.TabIndex = 0;
+            // 
+            // qr_scanner_button
+            // 
+            qr_scanner_button.BackColor = Color.Transparent;
+            qr_scanner_button.CornerRadius = 1;
+            qr_scanner_button.FlatAppearance.BorderSize = 0;
+            qr_scanner_button.FlatStyle = FlatStyle.Flat;
+            qr_scanner_button.Font = new Font("Segoe UI", 11F);
+            qr_scanner_button.ForeColor = Color.White;
+            qr_scanner_button.HoverColor = Color.FromArgb(4, 120, 87);
+            qr_scanner_button.Location = new Point(260, 432);
+            qr_scanner_button.Name = "qr_scanner_button";
+            qr_scanner_button.NormalColor = Color.FromArgb(6, 95, 70);
+            qr_scanner_button.PressedColor = Color.FromArgb(6, 78, 59);
+            qr_scanner_button.Size = new Size(260, 35);
+            qr_scanner_button.TabIndex = 12;
+            qr_scanner_button.Text = "QR CODE SCANNER";
+            qr_scanner_button.UseVisualStyleBackColor = false;
+            qr_scanner_button.Click += roundedButton1_Click;
             // 
             // eyebrowChip
             // 
@@ -166,7 +187,7 @@ namespace oop_project
             start_button.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             start_button.ForeColor = Color.White;
             start_button.HoverColor = Color.FromArgb(4, 120, 87);
-            start_button.Location = new Point(230, 366);
+            start_button.Location = new Point(230, 354);
             start_button.Name = "start_button";
             start_button.NormalColor = Color.FromArgb(6, 95, 70);
             start_button.PressedColor = Color.FromArgb(6, 78, 59);
@@ -248,11 +269,12 @@ namespace oop_project
         private Label tcgcCaption;
         private Label lrcCaption;
         private Label headingLabel;
-        private Label subtitleLabel;
         private RoundedButton start_button;
         private Panel footerDivider;
         private Label footerLabel;
         private Label creditLabel;
         private WelcomeBackdrop backdrop;
+        private RoundedButton qr_scanner_button;
+        private Label subtitleLabel;
     }
 }

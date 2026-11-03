@@ -8,6 +8,7 @@ namespace oop_project.Models
         private string _fullName = string.Empty;
         private string _program = string.Empty;
         private string _institute = string.Empty;
+        private string _contactNumber = string.Empty;
         public string Username
         {
             get { return _username; }
@@ -39,6 +40,13 @@ namespace oop_project.Models
         {
             get { return _institute; }
             set { _institute = (value ?? string.Empty).Trim(); }
+        }
+        // ENCAPSULATION: STUDENT, FACULTY and STAFF are asked for a contact
+        // number, so the value lives on the shared base class.
+        public string ContactNumber
+        {
+            get { return _contactNumber; }
+            set { _contactNumber = (value ?? string.Empty).Trim(); }
         }
         public virtual string GetWelcomeMessage()
         {

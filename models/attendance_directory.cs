@@ -124,11 +124,21 @@ namespace oop_project.Models
 
         private readonly IDatabaseConnection _database = new MySqlDatabaseConnection();
 
+        // PROGRAM / OFFICE is role aware: only a STUDENT shows a program and only a
+        // STAFF member shows an office. FACULTY no longer keeps a program and the
+        // LIBRARIAN no longer keeps an office, so both columns show "—" for them.
+        private const string ProgramOfficeSelect =
+            "CASE " +
+            "  WHEN COALESCE(r.`role`, 'STUDENT') = 'STUDENT' THEN COALESCE(p.`program_name`, '—') " +
+            "  WHEN COALESCE(r.`role`, 'STUDENT') IN ('STAFF', 'OFFICER') THEN COALESCE(st.`office`, '—') " +
+            "  ELSE '—' " +
+            "END";
+
         private const string AttendanceSelect =
             "SELECT t.`attendance_id`, t.`account_id`, a.`name`, " +
             "       COALESCE(r.`role`, 'STUDENT'), " +
             "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)), " +
-            "       COALESCE(p.`program_name`, fp.`program_name`, st.`office`, li.`office`, '—'), " +
+            "       " + ProgramOfficeSelect + ", " +
             "       COALESCE(i.`institute_code`, fi.`institute_code`, '—'), " +
             "       t.`scan_time`, COALESCE(t.`gate`, 'LIBRARY OFFICE') " +
             "FROM `attendance_table` t " +
@@ -138,10 +148,8 @@ namespace oop_project.Models
             "LEFT JOIN `program_table` p ON p.`program_id` = s.`program_id` " +
             "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` " +
             "LEFT JOIN `faculty_info_table` f ON f.`account_id` = a.`account_id` " +
-            "LEFT JOIN `program_table` fp ON fp.`program_id` = f.`program_id` " +
             "LEFT JOIN `institute_table` fi ON fi.`institute_id` = f.`institute_id` " +
-            "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` " +
-            "LEFT JOIN `librarian_info_table` li ON li.`account_id` = a.`account_id` ";
+            "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` ";
 
         /// <summary>
         /// Records one entrance scan. The QR text is parsed for the account id,
@@ -230,7 +238,7 @@ namespace oop_project.Models
                 sql += "WHERE (a.`name` LIKE @search OR " +
                        "       COALESCE(r.`role`, 'STUDENT') LIKE @search OR " +
                        "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)) LIKE @search OR " +
-                       "       COALESCE(p.`program_name`, fp.`program_name`, st.`office`, li.`office`, '—') LIKE @search OR " +
+                       "       " + ProgramOfficeSelect + " LIKE @search OR " +
                        "       COALESCE(i.`institute_code`, fi.`institute_code`, '—') LIKE @search OR " +
                        "       COALESCE(t.`gate`, '') LIKE @search OR " +
                        "       DATE_FORMAT(t.`scan_time`, '%M %e, %Y %h:%i %p') LIKE @search) ";
@@ -322,7 +330,7 @@ namespace oop_project.Models
             const string sql =
                 "SELECT a.`account_id`, a.`name`, COALESCE(r.`role`, 'STUDENT'), COALESCE(r.`status`, 'PENDING'), " +
                 "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)), " +
-                "       COALESCE(p.`program_name`, fp.`program_name`, st.`office`, li.`office`, '—'), " +
+                "       " + ProgramOfficeSelect + ", " +
                 "       COALESCE(i.`institute_code`, fi.`institute_code`, '—') " +
                 "FROM `account_table` a " +
                 "LEFT JOIN `account_role_table` r ON r.`account_id` = a.`account_id` " +
@@ -330,10 +338,8 @@ namespace oop_project.Models
                 "LEFT JOIN `program_table` p ON p.`program_id` = s.`program_id` " +
                 "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` " +
                 "LEFT JOIN `faculty_info_table` f ON f.`account_id` = a.`account_id` " +
-                "LEFT JOIN `program_table` fp ON fp.`program_id` = f.`program_id` " +
                 "LEFT JOIN `institute_table` fi ON fi.`institute_id` = f.`institute_id` " +
                 "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` " +
-                "LEFT JOIN `librarian_info_table` li ON li.`account_id` = a.`account_id` " +
                 "WHERE a.`account_id` = @accountId LIMIT 1;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
