@@ -346,11 +346,27 @@ namespace oop_project
     public sealed class FieldPanel : Panel
     {
         private bool _focused;
+        private bool _hasError;
 
         public Color FillColor { get; set; } = Color.FromArgb(243, 244, 246);
         public Color BorderColor { get; set; } = Color.FromArgb(229, 231, 235);
         public Color FocusColor { get; set; } = Color.FromArgb(22, 163, 74);
         public int CornerRadius { get; set; } = 10;
+
+        // An invalid field keeps its red border even while the cursor sits in it,
+        // so the inline warning and the field always agree.
+        public bool HasError
+        {
+            get => _hasError;
+            set
+            {
+                if (_hasError != value)
+                {
+                    _hasError = value;
+                    Invalidate();
+                }
+            }
+        }
 
         public bool IsFocused
         {
@@ -388,7 +404,7 @@ namespace oop_project
                 g.FillPath(fill, path);
             }
 
-            using var border = new Pen(_focused ? FocusColor : BorderColor, _focused ? 1.8f : 1f);
+            using var border = new Pen(_focused && !_hasError ? FocusColor : BorderColor, _focused && !_hasError ? 1.8f : 1f);
             g.DrawPath(border, path);
         }
     }
@@ -402,6 +418,10 @@ namespace oop_project
         public Color NormalColor { get; set; } = Color.FromArgb(22, 163, 74);
         public Color HoverColor { get; set; } = Color.FromArgb(21, 128, 61);
         public Color PressedColor { get; set; } = Color.FromArgb(20, 83, 45);
+
+        // Text colour used when the button is disabled. Kept as a property so a
+        // light button (such as the copy stepper) stays readable when it greys out.
+        public Color DisabledTextColor { get; set; } = Color.FromArgb(248, 250, 252);
 
         public RoundedButton()
         {
@@ -447,7 +467,7 @@ namespace oop_project
                 Text,
                 Font,
                 rect,
-                Enabled ? ForeColor : Color.FromArgb(248, 250, 252),
+                Enabled ? ForeColor : DisabledTextColor,
                 TextFormatFlags.HorizontalCenter |
                 TextFormatFlags.VerticalCenter |
                 TextFormatFlags.EndEllipsis);

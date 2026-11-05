@@ -1,4 +1,4 @@
-﻿namespace oop_project.forms
+namespace oop_project.forms
 {
     partial class student_faculty_staff_dashboard
     {
@@ -33,6 +33,7 @@
             profileSubtitle = new Label();
             profileTitle = new Label();
             profileRefresh = new RoundedButton();
+            changePasswordButton = new RoundedButton();
             profileColumns = new TableLayoutPanel();
             profileIdentityCard = new Panel();
             _schoolIdValue = new Label();
@@ -90,7 +91,7 @@
             catalogStatRow = new FlowLayoutPanel();
             _catalogStatTitles = new StatCard();
             _catalogStatCopies = new StatCard();
-            _catalogStatOnLoan = new StatCard();
+            _catalogStatBorrowed = new StatCard();
             _catalogStatPending = new StatCard();
             catalogListHost = new Panel();
             _catalogFlow = new FlowLayoutPanel();
@@ -110,21 +111,21 @@
             requestsListHost = new Panel();
             _requestFlow = new FlowLayoutPanel();
             _requestsEmpty = new EmptyState();
-            tabPageLoans = new TabPage();
-            _loansPage = new Panel();
-            loansGrid = new TableLayoutPanel();
-            loansHead = new Panel();
-            _loansSearch = new SearchBox();
-            loansTitle = new Label();
-            loansRefresh = new RoundedButton();
-            loansStatRow = new FlowLayoutPanel();
-            _loanStatActive = new StatCard();
-            _loanStatReturned = new StatCard();
-            _loanStatTotal = new StatCard();
-            _loanStatLongest = new StatCard();
-            loansListHost = new Panel();
-            _loanFlow = new FlowLayoutPanel();
-            _loansEmpty = new EmptyState();
+            tabPageBorrowed = new TabPage();
+            _borrowedPage = new Panel();
+            borrowedGrid = new TableLayoutPanel();
+            borrowedHead = new Panel();
+            _borrowedSearch = new SearchBox();
+            borrowedTitle = new Label();
+            borrowedRefresh = new RoundedButton();
+            borrowedStatRow = new FlowLayoutPanel();
+            _borrowedStatActive = new StatCard();
+            _borrowedStatReturned = new StatCard();
+            _borrowedStatTotal = new StatCard();
+            _borrowedStatLongest = new StatCard();
+            borrowedListHost = new Panel();
+            _borrowedFlow = new FlowLayoutPanel();
+            _borrowedEmpty = new EmptyState();
             rootGrid.SuspendLayout();
             headerPanel.SuspendLayout();
             _tabs.SuspendLayout();
@@ -154,12 +155,12 @@
             requestsHead.SuspendLayout();
             requestsStatRow.SuspendLayout();
             requestsListHost.SuspendLayout();
-            tabPageLoans.SuspendLayout();
-            _loansPage.SuspendLayout();
-            loansGrid.SuspendLayout();
-            loansHead.SuspendLayout();
-            loansStatRow.SuspendLayout();
-            loansListHost.SuspendLayout();
+            tabPageBorrowed.SuspendLayout();
+            _borrowedPage.SuspendLayout();
+            borrowedGrid.SuspendLayout();
+            borrowedHead.SuspendLayout();
+            borrowedStatRow.SuspendLayout();
+            borrowedListHost.SuspendLayout();
             SuspendLayout();
             // 
             // rootGrid
@@ -258,7 +259,7 @@
             _tabs.Controls.Add(tabPageAttendance);
             _tabs.Controls.Add(tabPageCatalog);
             _tabs.Controls.Add(tabPageRequests);
-            _tabs.Controls.Add(tabPageLoans);
+            _tabs.Controls.Add(tabPageBorrowed);
             _tabs.Dock = DockStyle.Fill;
             _tabs.Font = new Font("Segoe UI", 9.25F, FontStyle.Bold);
             _tabs.Location = new Point(3, 103);
@@ -308,6 +309,7 @@
             profileHead.Controls.Add(profileSubtitle);
             profileHead.Controls.Add(profileTitle);
             profileHead.Controls.Add(profileRefresh);
+            profileHead.Controls.Add(changePasswordButton);
             profileHead.Dock = DockStyle.Fill;
             profileHead.Location = new Point(3, 3);
             profileHead.Name = "profileHead";
@@ -352,6 +354,24 @@
             profileRefresh.TabIndex = 2;
             profileRefresh.Text = "REFRESH";
             profileRefresh.UseVisualStyleBackColor = false;
+            // 
+            // changePasswordButton
+            // 
+            changePasswordButton.BackColor = Color.Transparent;
+            changePasswordButton.CornerRadius = 11;
+            changePasswordButton.FlatAppearance.BorderSize = 0;
+            changePasswordButton.FlatStyle = FlatStyle.Flat;
+            changePasswordButton.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            changePasswordButton.ForeColor = Color.FromArgb(51, 65, 85);
+            changePasswordButton.HoverColor = Color.FromArgb(226, 232, 240);
+            changePasswordButton.Location = new Point(126, 10);
+            changePasswordButton.Name = "changePasswordButton";
+            changePasswordButton.NormalColor = Color.FromArgb(241, 245, 249);
+            changePasswordButton.PressedColor = Color.FromArgb(203, 213, 225);
+            changePasswordButton.Size = new Size(178, 44);
+            changePasswordButton.TabIndex = 3;
+            changePasswordButton.Text = "CHANGE PASSWORD";
+            changePasswordButton.UseVisualStyleBackColor = false;
             // 
             // profileColumns
             // 
@@ -405,7 +425,7 @@
             _schoolIdValue.Name = "_schoolIdValue";
             _schoolIdValue.Size = new Size(232, 22);
             _schoolIdValue.TabIndex = 0;
-            _schoolIdValue.Text = "—";
+            _schoolIdValue.Text = "�";
             _schoolIdValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // idNumberCaption
@@ -432,7 +452,7 @@
             _programValue.Name = "_programValue";
             _programValue.Size = new Size(232, 22);
             _programValue.TabIndex = 2;
-            _programValue.Text = "—";
+            _programValue.Text = "�";
             _programValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // programCaption
@@ -459,7 +479,7 @@
             _yearValue.Name = "_yearValue";
             _yearValue.Size = new Size(232, 22);
             _yearValue.TabIndex = 4;
-            _yearValue.Text = "—";
+            _yearValue.Text = "�";
             _yearValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // yearCaption
@@ -486,7 +506,7 @@
             _instituteValue.Name = "_instituteValue";
             _instituteValue.Size = new Size(232, 22);
             _instituteValue.TabIndex = 6;
-            _instituteValue.Text = "—";
+            _instituteValue.Text = "�";
             _instituteValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // instituteCaption
@@ -513,7 +533,7 @@
             _contactValue.Name = "_contactValue";
             _contactValue.Size = new Size(232, 22);
             _contactValue.TabIndex = 8;
-            _contactValue.Text = "—";
+            _contactValue.Text = "�";
             _contactValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // contactCaption
@@ -540,7 +560,7 @@
             _addressValue.Name = "_addressValue";
             _addressValue.Size = new Size(232, 22);
             _addressValue.TabIndex = 10;
-            _addressValue.Text = "—";
+            _addressValue.Text = "�";
             _addressValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // addressCaption
@@ -725,7 +745,7 @@
             _qrCaption.Name = "_qrCaption";
             _qrCaption.Size = new Size(120, 42);
             _qrCaption.TabIndex = 6;
-            _qrCaption.Text = "SHOW THIS QR PASS AT THE LIBRARY OFFICE ENTRANCE. THE LIBRARIAN SCANS IT TO RECORD YOUR ATTENDANCE.";
+            _qrCaption.Text = "SHOW THIS QR CODE AT THE LIBRARY OFFICE ENTRANCE. THE LIBRARIAN SCANS IT TO RECORD YOUR ATTENDANCE.";
             _qrCaption.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // _qrPicture
@@ -945,7 +965,7 @@
             // 
             _attendanceEmpty.BackColor = Color.Transparent;
             _attendanceEmpty.BorderColor = Color.FromArgb(226, 232, 240);
-            _attendanceEmpty.Caption = "SHOW YOUR QR PASS TO THE LIBRARIAN AT THE LIBRARY OFFICE ENTRANCE.";
+            _attendanceEmpty.Caption = "SHOW YOUR QR CODE TO THE LIBRARIAN AT THE LIBRARY OFFICE ENTRANCE.";
             _attendanceEmpty.CaptionColor = Color.FromArgb(148, 163, 184);
             _attendanceEmpty.CornerRadius = 20;
             _attendanceEmpty.Dock = DockStyle.Fill;
@@ -1063,7 +1083,7 @@
             // 
             catalogStatRow.Controls.Add(_catalogStatTitles);
             catalogStatRow.Controls.Add(_catalogStatCopies);
-            catalogStatRow.Controls.Add(_catalogStatOnLoan);
+            catalogStatRow.Controls.Add(_catalogStatBorrowed);
             catalogStatRow.Controls.Add(_catalogStatPending);
             catalogStatRow.Dock = DockStyle.Fill;
             catalogStatRow.Location = new Point(3, 95);
@@ -1101,19 +1121,19 @@
             _catalogStatCopies.Value = "0";
             _catalogStatCopies.ValueColor = Color.FromArgb(15, 23, 42);
             // 
-            // _catalogStatOnLoan
+            // _catalogStatBorrowed
             // 
-            _catalogStatOnLoan.AccentColor = Color.FromArgb(37, 99, 235);
-            _catalogStatOnLoan.BackColor = Color.FromArgb(241, 245, 249);
-            _catalogStatOnLoan.Caption = "YOUR BOOKS ON LOAN";
-            _catalogStatOnLoan.Location = new Point(534, 4);
-            _catalogStatOnLoan.Margin = new Padding(0, 0, 14, 0);
-            _catalogStatOnLoan.Name = "_catalogStatOnLoan";
-            _catalogStatOnLoan.Size = new Size(253, 78);
-            _catalogStatOnLoan.TabIndex = 2;
-            _catalogStatOnLoan.TabStop = false;
-            _catalogStatOnLoan.Value = "0";
-            _catalogStatOnLoan.ValueColor = Color.FromArgb(15, 23, 42);
+            _catalogStatBorrowed.AccentColor = Color.FromArgb(37, 99, 235);
+            _catalogStatBorrowed.BackColor = Color.FromArgb(241, 245, 249);
+            _catalogStatBorrowed.Caption = "YOUR BORROWED BOOKS";
+            _catalogStatBorrowed.Location = new Point(534, 4);
+            _catalogStatBorrowed.Margin = new Padding(0, 0, 14, 0);
+            _catalogStatBorrowed.Name = "_catalogStatBorrowed";
+            _catalogStatBorrowed.Size = new Size(253, 78);
+            _catalogStatBorrowed.TabIndex = 2;
+            _catalogStatBorrowed.TabStop = false;
+            _catalogStatBorrowed.Value = "0";
+            _catalogStatBorrowed.ValueColor = Color.FromArgb(15, 23, 42);
             // 
             // _catalogStatPending
             // 
@@ -1365,202 +1385,202 @@
             _requestsEmpty.TitleColor = Color.FromArgb(100, 116, 139);
             _requestsEmpty.Visible = false;
             // 
-            // tabPageLoans
+            // tabPageBorrowed
             // 
-            tabPageLoans.BackColor = Color.FromArgb(241, 245, 249);
-            tabPageLoans.Controls.Add(_loansPage);
-            tabPageLoans.Location = new Point(4, 29);
-            tabPageLoans.Name = "tabPageLoans";
-            tabPageLoans.Padding = new Padding(3);
-            tabPageLoans.Size = new Size(1266, 661);
-            tabPageLoans.TabIndex = 4;
-            tabPageLoans.Text = "MY BORROWED BOOKS";
+            tabPageBorrowed.BackColor = Color.FromArgb(241, 245, 249);
+            tabPageBorrowed.Controls.Add(_borrowedPage);
+            tabPageBorrowed.Location = new Point(4, 29);
+            tabPageBorrowed.Name = "tabPageBorrowed";
+            tabPageBorrowed.Padding = new Padding(3);
+            tabPageBorrowed.Size = new Size(1266, 661);
+            tabPageBorrowed.TabIndex = 4;
+            tabPageBorrowed.Text = "MY BORROWED BOOKS";
             // 
-            // _loansPage
+            // _borrowedPage
             // 
-            _loansPage.Controls.Add(loansGrid);
-            _loansPage.Dock = DockStyle.Fill;
-            _loansPage.Location = new Point(3, 3);
-            _loansPage.Name = "_loansPage";
-            _loansPage.Padding = new Padding(26, 18, 26, 22);
-            _loansPage.Size = new Size(1260, 655);
-            _loansPage.TabIndex = 2;
+            _borrowedPage.Controls.Add(borrowedGrid);
+            _borrowedPage.Dock = DockStyle.Fill;
+            _borrowedPage.Location = new Point(3, 3);
+            _borrowedPage.Name = "_borrowedPage";
+            _borrowedPage.Padding = new Padding(26, 18, 26, 22);
+            _borrowedPage.Size = new Size(1260, 655);
+            _borrowedPage.TabIndex = 2;
             // 
-            // loansGrid
+            // borrowedGrid
             // 
-            loansGrid.ColumnCount = 1;
-            loansGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            loansGrid.Controls.Add(loansHead, 0, 0);
-            loansGrid.Controls.Add(loansStatRow, 0, 1);
-            loansGrid.Controls.Add(loansListHost, 0, 3);
-            loansGrid.Dock = DockStyle.Fill;
-            loansGrid.Location = new Point(26, 18);
-            loansGrid.Name = "loansGrid";
-            loansGrid.RowCount = 4;
-            loansGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 92F));
-            loansGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 90F));
-            loansGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
-            loansGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            loansGrid.Size = new Size(1208, 615);
-            loansGrid.TabIndex = 0;
+            borrowedGrid.ColumnCount = 1;
+            borrowedGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            borrowedGrid.Controls.Add(borrowedHead, 0, 0);
+            borrowedGrid.Controls.Add(borrowedStatRow, 0, 1);
+            borrowedGrid.Controls.Add(borrowedListHost, 0, 3);
+            borrowedGrid.Dock = DockStyle.Fill;
+            borrowedGrid.Location = new Point(26, 18);
+            borrowedGrid.Name = "borrowedGrid";
+            borrowedGrid.RowCount = 4;
+            borrowedGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 92F));
+            borrowedGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 90F));
+            borrowedGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            borrowedGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            borrowedGrid.Size = new Size(1208, 615);
+            borrowedGrid.TabIndex = 0;
             // 
-            // loansHead
+            // borrowedHead
             // 
-            loansHead.Controls.Add(_loansSearch);
-            loansHead.Controls.Add(loansTitle);
-            loansHead.Controls.Add(loansRefresh);
-            loansHead.Dock = DockStyle.Fill;
-            loansHead.Location = new Point(3, 3);
-            loansHead.Name = "loansHead";
-            loansHead.Size = new Size(1202, 86);
-            loansHead.TabIndex = 0;
+            borrowedHead.Controls.Add(_borrowedSearch);
+            borrowedHead.Controls.Add(borrowedTitle);
+            borrowedHead.Controls.Add(borrowedRefresh);
+            borrowedHead.Dock = DockStyle.Fill;
+            borrowedHead.Location = new Point(3, 3);
+            borrowedHead.Name = "borrowedHead";
+            borrowedHead.Size = new Size(1202, 86);
+            borrowedHead.TabIndex = 0;
             // 
-            // _loansSearch
+            // _borrowedSearch
             // 
-            _loansSearch.BackColor = Color.White;
-            _loansSearch.Location = new Point(825, 10);
-            _loansSearch.Name = "_loansSearch";
-            _loansSearch.PlaceholderText = "SEARCH LOANS...";
-            _loansSearch.SearchText = "";
-            _loansSearch.Size = new Size(360, 44);
-            _loansSearch.TabIndex = 0;
+            _borrowedSearch.BackColor = Color.White;
+            _borrowedSearch.Location = new Point(825, 10);
+            _borrowedSearch.Name = "_borrowedSearch";
+            _borrowedSearch.PlaceholderText = "SEARCH BORROWED BOOKS...";
+            _borrowedSearch.SearchText = "";
+            _borrowedSearch.Size = new Size(360, 44);
+            _borrowedSearch.TabIndex = 0;
             // 
-            // loansTitle
+            // borrowedTitle
             // 
-            loansTitle.AutoSize = true;
-            loansTitle.Font = new Font("Segoe UI", 26F, FontStyle.Bold);
-            loansTitle.ForeColor = Color.FromArgb(15, 23, 42);
-            loansTitle.Location = new Point(0, 0);
-            loansTitle.Name = "loansTitle";
-            loansTitle.Size = new Size(517, 60);
-            loansTitle.TabIndex = 2;
-            loansTitle.Text = "MY BORROWED BOOKS";
+            borrowedTitle.AutoSize = true;
+            borrowedTitle.Font = new Font("Segoe UI", 26F, FontStyle.Bold);
+            borrowedTitle.ForeColor = Color.FromArgb(15, 23, 42);
+            borrowedTitle.Location = new Point(0, 0);
+            borrowedTitle.Name = "borrowedTitle";
+            borrowedTitle.Size = new Size(517, 60);
+            borrowedTitle.TabIndex = 2;
+            borrowedTitle.Text = "MY BORROWED BOOKS";
             // 
-            // loansRefresh
+            // borrowedRefresh
             // 
-            loansRefresh.BackColor = Color.Transparent;
-            loansRefresh.CornerRadius = 11;
-            loansRefresh.FlatAppearance.BorderSize = 0;
-            loansRefresh.FlatStyle = FlatStyle.Flat;
-            loansRefresh.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            loansRefresh.ForeColor = Color.White;
-            loansRefresh.HoverColor = Color.FromArgb(21, 128, 61);
-            loansRefresh.Location = new Point(28, 10);
-            loansRefresh.Name = "loansRefresh";
-            loansRefresh.NormalColor = Color.FromArgb(22, 163, 74);
-            loansRefresh.PressedColor = Color.FromArgb(20, 83, 45);
-            loansRefresh.Size = new Size(114, 44);
-            loansRefresh.TabIndex = 3;
-            loansRefresh.Text = "REFRESH";
-            loansRefresh.UseVisualStyleBackColor = false;
+            borrowedRefresh.BackColor = Color.Transparent;
+            borrowedRefresh.CornerRadius = 11;
+            borrowedRefresh.FlatAppearance.BorderSize = 0;
+            borrowedRefresh.FlatStyle = FlatStyle.Flat;
+            borrowedRefresh.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            borrowedRefresh.ForeColor = Color.White;
+            borrowedRefresh.HoverColor = Color.FromArgb(21, 128, 61);
+            borrowedRefresh.Location = new Point(28, 10);
+            borrowedRefresh.Name = "borrowedRefresh";
+            borrowedRefresh.NormalColor = Color.FromArgb(22, 163, 74);
+            borrowedRefresh.PressedColor = Color.FromArgb(20, 83, 45);
+            borrowedRefresh.Size = new Size(114, 44);
+            borrowedRefresh.TabIndex = 3;
+            borrowedRefresh.Text = "REFRESH";
+            borrowedRefresh.UseVisualStyleBackColor = false;
             // 
-            // loansStatRow
+            // borrowedStatRow
             // 
-            loansStatRow.Controls.Add(_loanStatActive);
-            loansStatRow.Controls.Add(_loanStatReturned);
-            loansStatRow.Controls.Add(_loanStatTotal);
-            loansStatRow.Controls.Add(_loanStatLongest);
-            loansStatRow.Dock = DockStyle.Fill;
-            loansStatRow.Location = new Point(3, 95);
-            loansStatRow.Name = "loansStatRow";
-            loansStatRow.Padding = new Padding(0, 4, 0, 4);
-            loansStatRow.Size = new Size(1202, 84);
-            loansStatRow.TabIndex = 1;
-            loansStatRow.WrapContents = false;
+            borrowedStatRow.Controls.Add(_borrowedStatActive);
+            borrowedStatRow.Controls.Add(_borrowedStatReturned);
+            borrowedStatRow.Controls.Add(_borrowedStatTotal);
+            borrowedStatRow.Controls.Add(_borrowedStatLongest);
+            borrowedStatRow.Dock = DockStyle.Fill;
+            borrowedStatRow.Location = new Point(3, 95);
+            borrowedStatRow.Name = "borrowedStatRow";
+            borrowedStatRow.Padding = new Padding(0, 4, 0, 4);
+            borrowedStatRow.Size = new Size(1202, 84);
+            borrowedStatRow.TabIndex = 1;
+            borrowedStatRow.WrapContents = false;
             // 
-            // _loanStatActive
+            // _borrowedStatActive
             // 
-            _loanStatActive.AccentColor = Color.FromArgb(22, 163, 74);
-            _loanStatActive.BackColor = Color.FromArgb(241, 245, 249);
-            _loanStatActive.Caption = "ON BORROWED RIGHT NOW";
-            _loanStatActive.Location = new Point(0, 4);
-            _loanStatActive.Margin = new Padding(0, 0, 14, 0);
-            _loanStatActive.Name = "_loanStatActive";
-            _loanStatActive.Size = new Size(110, 78);
-            _loanStatActive.TabIndex = 0;
-            _loanStatActive.TabStop = false;
-            _loanStatActive.Value = "0";
-            _loanStatActive.ValueColor = Color.FromArgb(15, 23, 42);
+            _borrowedStatActive.AccentColor = Color.FromArgb(22, 163, 74);
+            _borrowedStatActive.BackColor = Color.FromArgb(241, 245, 249);
+            _borrowedStatActive.Caption = "CURRENTLY BORROWED";
+            _borrowedStatActive.Location = new Point(0, 4);
+            _borrowedStatActive.Margin = new Padding(0, 0, 14, 0);
+            _borrowedStatActive.Name = "_borrowedStatActive";
+            _borrowedStatActive.Size = new Size(110, 78);
+            _borrowedStatActive.TabIndex = 0;
+            _borrowedStatActive.TabStop = false;
+            _borrowedStatActive.Value = "0";
+            _borrowedStatActive.ValueColor = Color.FromArgb(15, 23, 42);
             // 
-            // _loanStatReturned
+            // _borrowedStatReturned
             // 
-            _loanStatReturned.AccentColor = Color.FromArgb(100, 116, 139);
-            _loanStatReturned.BackColor = Color.FromArgb(241, 245, 249);
-            _loanStatReturned.Caption = "ALREADY RETURNED";
-            _loanStatReturned.Location = new Point(124, 4);
-            _loanStatReturned.Margin = new Padding(0, 0, 14, 0);
-            _loanStatReturned.Name = "_loanStatReturned";
-            _loanStatReturned.Size = new Size(110, 78);
-            _loanStatReturned.TabIndex = 1;
-            _loanStatReturned.TabStop = false;
-            _loanStatReturned.Value = "0";
-            _loanStatReturned.ValueColor = Color.FromArgb(15, 23, 42);
+            _borrowedStatReturned.AccentColor = Color.FromArgb(100, 116, 139);
+            _borrowedStatReturned.BackColor = Color.FromArgb(241, 245, 249);
+            _borrowedStatReturned.Caption = "ALREADY RETURNED";
+            _borrowedStatReturned.Location = new Point(124, 4);
+            _borrowedStatReturned.Margin = new Padding(0, 0, 14, 0);
+            _borrowedStatReturned.Name = "_borrowedStatReturned";
+            _borrowedStatReturned.Size = new Size(110, 78);
+            _borrowedStatReturned.TabIndex = 1;
+            _borrowedStatReturned.TabStop = false;
+            _borrowedStatReturned.Value = "0";
+            _borrowedStatReturned.ValueColor = Color.FromArgb(15, 23, 42);
             // 
-            // _loanStatTotal
+            // _borrowedStatTotal
             // 
-            _loanStatTotal.AccentColor = Color.FromArgb(37, 99, 235);
-            _loanStatTotal.BackColor = Color.FromArgb(241, 245, 249);
-            _loanStatTotal.Caption = "TOTAL LOANS ON FILE";
-            _loanStatTotal.Location = new Point(248, 4);
-            _loanStatTotal.Margin = new Padding(0, 0, 14, 0);
-            _loanStatTotal.Name = "_loanStatTotal";
-            _loanStatTotal.Size = new Size(110, 78);
-            _loanStatTotal.TabIndex = 2;
-            _loanStatTotal.TabStop = false;
-            _loanStatTotal.Value = "0";
-            _loanStatTotal.ValueColor = Color.FromArgb(15, 23, 42);
+            _borrowedStatTotal.AccentColor = Color.FromArgb(37, 99, 235);
+            _borrowedStatTotal.BackColor = Color.FromArgb(241, 245, 249);
+            _borrowedStatTotal.Caption = "TOTAL BORROW RECORDS";
+            _borrowedStatTotal.Location = new Point(248, 4);
+            _borrowedStatTotal.Margin = new Padding(0, 0, 14, 0);
+            _borrowedStatTotal.Name = "_borrowedStatTotal";
+            _borrowedStatTotal.Size = new Size(110, 78);
+            _borrowedStatTotal.TabIndex = 2;
+            _borrowedStatTotal.TabStop = false;
+            _borrowedStatTotal.Value = "0";
+            _borrowedStatTotal.ValueColor = Color.FromArgb(15, 23, 42);
             // 
-            // _loanStatLongest
+            // _borrowedStatLongest
             // 
-            _loanStatLongest.AccentColor = Color.FromArgb(217, 119, 6);
-            _loanStatLongest.BackColor = Color.FromArgb(241, 245, 249);
-            _loanStatLongest.Caption = "LONGEST OPEN LOAN";
-            _loanStatLongest.Location = new Point(372, 4);
-            _loanStatLongest.Margin = new Padding(0);
-            _loanStatLongest.Name = "_loanStatLongest";
-            _loanStatLongest.Size = new Size(110, 78);
-            _loanStatLongest.TabIndex = 3;
-            _loanStatLongest.TabStop = false;
-            _loanStatLongest.Value = "0";
-            _loanStatLongest.ValueColor = Color.FromArgb(15, 23, 42);
+            _borrowedStatLongest.AccentColor = Color.FromArgb(217, 119, 6);
+            _borrowedStatLongest.BackColor = Color.FromArgb(241, 245, 249);
+            _borrowedStatLongest.Caption = "LONGEST ACTIVE BORROW";
+            _borrowedStatLongest.Location = new Point(372, 4);
+            _borrowedStatLongest.Margin = new Padding(0);
+            _borrowedStatLongest.Name = "_borrowedStatLongest";
+            _borrowedStatLongest.Size = new Size(110, 78);
+            _borrowedStatLongest.TabIndex = 3;
+            _borrowedStatLongest.TabStop = false;
+            _borrowedStatLongest.Value = "0";
+            _borrowedStatLongest.ValueColor = Color.FromArgb(15, 23, 42);
             // 
-            // loansListHost
+            // borrowedListHost
             // 
-            loansListHost.Controls.Add(_loanFlow);
-            loansListHost.Controls.Add(_loansEmpty);
-            loansListHost.Dock = DockStyle.Fill;
-            loansListHost.Location = new Point(3, 213);
-            loansListHost.Name = "loansListHost";
-            loansListHost.Size = new Size(1202, 399);
-            loansListHost.TabIndex = 3;
+            borrowedListHost.Controls.Add(_borrowedFlow);
+            borrowedListHost.Controls.Add(_borrowedEmpty);
+            borrowedListHost.Dock = DockStyle.Fill;
+            borrowedListHost.Location = new Point(3, 213);
+            borrowedListHost.Name = "borrowedListHost";
+            borrowedListHost.Size = new Size(1202, 399);
+            borrowedListHost.TabIndex = 3;
             // 
-            // _loanFlow
+            // _borrowedFlow
             // 
-            _loanFlow.AutoScroll = true;
-            _loanFlow.Dock = DockStyle.Fill;
-            _loanFlow.Location = new Point(0, 0);
-            _loanFlow.Name = "_loanFlow";
-            _loanFlow.Padding = new Padding(0, 0, 4, 4);
-            _loanFlow.Size = new Size(1202, 399);
-            _loanFlow.TabIndex = 0;
+            _borrowedFlow.AutoScroll = true;
+            _borrowedFlow.Dock = DockStyle.Fill;
+            _borrowedFlow.Location = new Point(0, 0);
+            _borrowedFlow.Name = "_borrowedFlow";
+            _borrowedFlow.Padding = new Padding(0, 0, 4, 4);
+            _borrowedFlow.Size = new Size(1202, 399);
+            _borrowedFlow.TabIndex = 0;
             // 
-            // _loansEmpty
+            // _borrowedEmpty
             // 
-            _loansEmpty.BackColor = Color.Transparent;
-            _loansEmpty.BorderColor = Color.FromArgb(226, 232, 240);
-            _loansEmpty.Caption = "WHEN THE LIBRARIAN RELEASES AN APPROVED REQUEST, THE LOAN APPEARS HERE.";
-            _loansEmpty.CaptionColor = Color.FromArgb(148, 163, 184);
-            _loansEmpty.CornerRadius = 20;
-            _loansEmpty.Dock = DockStyle.Fill;
-            _loansEmpty.FillColor = Color.FromArgb(248, 250, 252);
-            _loansEmpty.Location = new Point(0, 0);
-            _loansEmpty.Name = "_loansEmpty";
-            _loansEmpty.Size = new Size(1202, 399);
-            _loansEmpty.TabIndex = 1;
-            _loansEmpty.TabStop = false;
-            _loansEmpty.Title = "NO BORROW RECORDS YET";
-            _loansEmpty.TitleColor = Color.FromArgb(100, 116, 139);
-            _loansEmpty.Visible = false;
+            _borrowedEmpty.BackColor = Color.Transparent;
+            _borrowedEmpty.BorderColor = Color.FromArgb(226, 232, 240);
+            _borrowedEmpty.Caption = "WHEN THE LIBRARIAN RELEASES AN APPROVED REQUEST, THE BORROWED BOOK APPEARS HERE.";
+            _borrowedEmpty.CaptionColor = Color.FromArgb(148, 163, 184);
+            _borrowedEmpty.CornerRadius = 20;
+            _borrowedEmpty.Dock = DockStyle.Fill;
+            _borrowedEmpty.FillColor = Color.FromArgb(248, 250, 252);
+            _borrowedEmpty.Location = new Point(0, 0);
+            _borrowedEmpty.Name = "_borrowedEmpty";
+            _borrowedEmpty.Size = new Size(1202, 399);
+            _borrowedEmpty.TabIndex = 1;
+            _borrowedEmpty.TabStop = false;
+            _borrowedEmpty.Title = "NO BORROW RECORDS YET";
+            _borrowedEmpty.TitleColor = Color.FromArgb(100, 116, 139);
+            _borrowedEmpty.Visible = false;
             // 
             // student_faculty_staff_dashboard
             // 
@@ -1609,13 +1629,13 @@
             requestsHead.PerformLayout();
             requestsStatRow.ResumeLayout(false);
             requestsListHost.ResumeLayout(false);
-            tabPageLoans.ResumeLayout(false);
-            _loansPage.ResumeLayout(false);
-            loansGrid.ResumeLayout(false);
-            loansHead.ResumeLayout(false);
-            loansHead.PerformLayout();
-            loansStatRow.ResumeLayout(false);
-            loansListHost.ResumeLayout(false);
+            tabPageBorrowed.ResumeLayout(false);
+            _borrowedPage.ResumeLayout(false);
+            borrowedGrid.ResumeLayout(false);
+            borrowedHead.ResumeLayout(false);
+            borrowedHead.PerformLayout();
+            borrowedStatRow.ResumeLayout(false);
+            borrowedListHost.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -1638,7 +1658,7 @@
         private FlowLayoutPanel catalogStatRow;
         private StatCard _catalogStatTitles;
         private StatCard _catalogStatCopies;
-        private StatCard _catalogStatOnLoan;
+        private StatCard _catalogStatBorrowed;
         private StatCard _catalogStatPending;
         private Panel catalogListHost;
         private FlowLayoutPanel _catalogFlow;
@@ -1657,20 +1677,20 @@
         private Panel requestsListHost;
         private FlowLayoutPanel _requestFlow;
         private EmptyState _requestsEmpty;
-        private Panel _loansPage;
-        private TableLayoutPanel loansGrid;
-        private Panel loansHead;
-        private SearchBox _loansSearch;
-        private Label loansTitle;
-        private RoundedButton loansRefresh;
-        private FlowLayoutPanel loansStatRow;
-        private StatCard _loanStatActive;
-        private StatCard _loanStatReturned;
-        private StatCard _loanStatTotal;
-        private StatCard _loanStatLongest;
-        private Panel loansListHost;
-        private FlowLayoutPanel _loanFlow;
-        private EmptyState _loansEmpty;
+        private Panel _borrowedPage;
+        private TableLayoutPanel borrowedGrid;
+        private Panel borrowedHead;
+        private SearchBox _borrowedSearch;
+        private Label borrowedTitle;
+        private RoundedButton borrowedRefresh;
+        private FlowLayoutPanel borrowedStatRow;
+        private StatCard _borrowedStatActive;
+        private StatCard _borrowedStatReturned;
+        private StatCard _borrowedStatTotal;
+        private StatCard _borrowedStatLongest;
+        private Panel borrowedListHost;
+        private FlowLayoutPanel _borrowedFlow;
+        private EmptyState _borrowedEmpty;
         private Panel _attendancePage;
         private TableLayoutPanel attendanceGrid;
         private Panel attendanceHead;
@@ -1692,6 +1712,7 @@
         private Label profileSubtitle;
         private Label profileTitle;
         private RoundedButton profileRefresh;
+        private RoundedButton changePasswordButton;
         private TableLayoutPanel profileColumns;
         private Panel profileIdentityCard;
         private Label _schoolIdValue;
@@ -1726,6 +1747,6 @@
         private TabPage tabPageAttendance;
         private TabPage tabPageCatalog;
         private TabPage tabPageRequests;
-        private TabPage tabPageLoans;
+        private TabPage tabPageBorrowed;
     }
 }

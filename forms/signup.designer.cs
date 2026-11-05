@@ -68,9 +68,11 @@ namespace oop_project
             passwordLabel = new Label();
             passwordField = new FieldPanel();
             password_input = new TextBox();
+            password_toggle = new PasswordToggle();
             confirmLabel = new Label();
             confirmField = new FieldPanel();
             confirm_input = new TextBox();
+            confirm_toggle = new PasswordToggle();
             fullNameError = new Label();
             roleError = new Label();
             lastNameError = new Label();
@@ -583,6 +585,7 @@ namespace oop_project
             passwordField.BackColor = Color.White;
             passwordField.BorderColor = Color.FromArgb(229, 231, 235);
             passwordField.Controls.Add(password_input);
+            passwordField.Controls.Add(password_toggle);
             passwordField.CornerRadius = 10;
             passwordField.FillColor = Color.FromArgb(243, 244, 246);
             passwordField.FocusColor = Color.FromArgb(22, 163, 74);
@@ -599,9 +602,18 @@ namespace oop_project
             password_input.Font = new Font("Segoe UI", 11.5F);
             password_input.Location = new Point(16, 9);
             password_input.Name = "password_input";
-            password_input.Size = new Size(258, 26);
+            password_input.Size = new Size(228, 26);
             password_input.TabIndex = 0;
             password_input.UseSystemPasswordChar = true;
+            // 
+            // password_toggle
+            // 
+            password_toggle.BackColor = Color.FromArgb(243, 244, 246);
+            password_toggle.Location = new Point(254, 9);
+            password_toggle.Name = "password_toggle";
+            password_toggle.Size = new Size(26, 26);
+            password_toggle.TabIndex = 1;
+            password_toggle.TabStop = false;
             // 
             // confirmLabel
             // 
@@ -619,6 +631,7 @@ namespace oop_project
             confirmField.BackColor = Color.White;
             confirmField.BorderColor = Color.FromArgb(229, 231, 235);
             confirmField.Controls.Add(confirm_input);
+            confirmField.Controls.Add(confirm_toggle);
             confirmField.CornerRadius = 10;
             confirmField.FillColor = Color.FromArgb(243, 244, 246);
             confirmField.FocusColor = Color.FromArgb(22, 163, 74);
@@ -635,9 +648,18 @@ namespace oop_project
             confirm_input.Font = new Font("Segoe UI", 11.5F);
             confirm_input.Location = new Point(16, 9);
             confirm_input.Name = "confirm_input";
-            confirm_input.Size = new Size(258, 26);
+            confirm_input.Size = new Size(228, 26);
             confirm_input.TabIndex = 0;
             confirm_input.UseSystemPasswordChar = true;
+            // 
+            // confirm_toggle
+            // 
+            confirm_toggle.BackColor = Color.FromArgb(243, 244, 246);
+            confirm_toggle.Location = new Point(564, 9);
+            confirm_toggle.Name = "confirm_toggle";
+            confirm_toggle.Size = new Size(26, 26);
+            confirm_toggle.TabIndex = 1;
+            confirm_toggle.TabStop = false;
             // 
             // fullNameError
             // 
@@ -1165,9 +1187,11 @@ namespace oop_project
         private Label passwordLabel;
         private FieldPanel passwordField;
         private TextBox password_input;
+        private PasswordToggle password_toggle;
         private Label confirmLabel;
         private FieldPanel confirmField;
         private TextBox confirm_input;
+        private PasswordToggle confirm_toggle;
         private Label fullNameError;
         private Label roleError;
         private Label lastNameError;

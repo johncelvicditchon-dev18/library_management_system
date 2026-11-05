@@ -1,6 +1,6 @@
 namespace oop_project.forms
 {
-    partial class admin_dashboard
+    partial class librarian_dashboard
     {
         /// <summary>
         /// Required designer variable.
@@ -39,6 +39,10 @@ namespace oop_project.forms
             dividerRow6 = new Panel();
             valueDateCreated = new Label();
             captionDateCreated = new Label();
+            valueProgramOffice = new Label();
+            captionProgramOffice = new Label();
+            valueInstitute = new Label();
+            captionInstitute = new Label();
             dividerRow5 = new Panel();
             dividerRow4 = new Panel();
             valueStatus = new Label();
@@ -62,6 +66,8 @@ namespace oop_project.forms
             profileRoleBadge = new PillBadge();
             profileName = new Label();
             avatarBadge = new AvatarBadge();
+            securityCaption = new Label();
+            changePasswordButton = new RoundedButton();
             tabPage3 = new TabPage();
             booksEmptyLabel = new Label();
             booksGrid = new DataGridView();
@@ -117,6 +123,7 @@ namespace oop_project.forms
             requestStudentIdColumn = new DataGridViewTextBoxColumn();
             requestProgramColumn = new DataGridViewTextBoxColumn();
             requestDateColumn = new DataGridViewTextBoxColumn();
+            requestCopiesColumn = new DataGridViewTextBoxColumn();
             requestStatusColumn = new DataGridViewTextBoxColumn();
             requestApproveColumn = new DataGridViewTextBoxColumn();
             requestRejectColumn = new DataGridViewTextBoxColumn();
@@ -149,8 +156,6 @@ namespace oop_project.forms
             staffRoleColumn = new DataGridViewTextBoxColumn();
             staffStatusLabel = new Label();
             staffRefreshButton = new RoundedButton();
-            staffDeactivateButton = new RoundedButton();
-            staffActivateButton = new RoundedButton();
             staffSubtitle = new Label();
             staffHeading = new Label();
             tabPage5 = new TabPage();
@@ -163,8 +168,6 @@ namespace oop_project.forms
             facultyStatusColumn = new DataGridViewTextBoxColumn();
             facultyStatusLabel = new Label();
             facultyRefreshButton = new RoundedButton();
-            facultyDeactivateButton = new RoundedButton();
-            facultyActivateButton = new RoundedButton();
             facultySubtitle = new Label();
             facultyHeading = new Label();
             tabPage6 = new TabPage();
@@ -181,8 +184,6 @@ namespace oop_project.forms
             studentStatusColumn = new DataGridViewTextBoxColumn();
             studentStatusLabel = new Label();
             studentRefreshButton = new RoundedButton();
-            studentDeactivateButton = new RoundedButton();
-            studentActivateButton = new RoundedButton();
             studentSubtitle = new Label();
             studentHeading = new Label();
             logoutButton = new RoundedButton();
@@ -289,7 +290,11 @@ namespace oop_project.forms
             detailsCard.Controls.Add(valueDateCreated);
             detailsCard.Controls.Add(captionDateCreated);
             detailsCard.Controls.Add(dividerRow5);
+            detailsCard.Controls.Add(valueInstitute);
+            detailsCard.Controls.Add(captionInstitute);
             detailsCard.Controls.Add(dividerRow4);
+            detailsCard.Controls.Add(valueProgramOffice);
+            detailsCard.Controls.Add(captionProgramOffice);
             detailsCard.Controls.Add(valueStatus);
             detailsCard.Controls.Add(captionStatus);
             detailsCard.Controls.Add(dividerRow3);
@@ -321,7 +326,7 @@ namespace oop_project.forms
             profileFooter.Name = "profileFooter";
             profileFooter.Size = new Size(384, 19);
             profileFooter.TabIndex = 18;
-            profileFooter.Text = "PROFILE DETAILS ARE MANAGED BY THE LIBRARY STAFF.";
+            profileFooter.Text = "ACCOUNT DETAILS ARE READ-ONLY. USE CHANGE PASSWORD TO UPDATE YOUR SIGN-IN PASSWORD.";
             // 
             // dividerRow6
             // 
@@ -356,6 +361,56 @@ namespace oop_project.forms
             captionDateCreated.TabIndex = 19;
             captionDateCreated.Text = "DATE CREATED";
             captionDateCreated.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // valueProgramOffice
+            // 
+            valueProgramOffice.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            valueProgramOffice.BackColor = Color.Transparent;
+            valueProgramOffice.Font = new Font("Segoe UI", 10.75F);
+            valueProgramOffice.ForeColor = Color.FromArgb(15, 23, 42);
+            valueProgramOffice.Location = new Point(340, 392);
+            valueProgramOffice.Name = "valueProgramOffice";
+            valueProgramOffice.Size = new Size(528, 44);
+            valueProgramOffice.TabIndex = 22;
+            valueProgramOffice.Text = "—";
+            valueProgramOffice.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // captionProgramOffice
+            // 
+            captionProgramOffice.BackColor = Color.Transparent;
+            captionProgramOffice.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            captionProgramOffice.ForeColor = Color.FromArgb(148, 163, 184);
+            captionProgramOffice.Location = new Point(34, 400);
+            captionProgramOffice.Name = "captionProgramOffice";
+            captionProgramOffice.Size = new Size(300, 34);
+            captionProgramOffice.TabIndex = 23;
+            captionProgramOffice.Text = "PROGRAM / OFFICE";
+            captionProgramOffice.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // valueInstitute
+            // 
+            valueInstitute.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            valueInstitute.BackColor = Color.Transparent;
+            valueInstitute.Font = new Font("Segoe UI", 10.75F);
+            valueInstitute.ForeColor = Color.FromArgb(15, 23, 42);
+            valueInstitute.Location = new Point(340, 462);
+            valueInstitute.Name = "valueInstitute";
+            valueInstitute.Size = new Size(528, 44);
+            valueInstitute.TabIndex = 24;
+            valueInstitute.Text = "—";
+            valueInstitute.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // captionInstitute
+            // 
+            captionInstitute.BackColor = Color.Transparent;
+            captionInstitute.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            captionInstitute.ForeColor = Color.FromArgb(148, 163, 184);
+            captionInstitute.Location = new Point(34, 470);
+            captionInstitute.Name = "captionInstitute";
+            captionInstitute.Size = new Size(300, 34);
+            captionInstitute.TabIndex = 25;
+            captionInstitute.Text = "INSTITUTE";
+            captionInstitute.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // dividerRow5
             // 
@@ -546,6 +601,8 @@ namespace oop_project.forms
             identityCard.Controls.Add(profileRoleBadge);
             identityCard.Controls.Add(profileName);
             identityCard.Controls.Add(avatarBadge);
+            identityCard.Controls.Add(securityCaption);
+            identityCard.Controls.Add(changePasswordButton);
             identityCard.CornerRadius = 20;
             identityCard.Location = new Point(6, 6);
             identityCard.Name = "identityCard";
@@ -623,6 +680,36 @@ namespace oop_project.forms
             avatarBadge.Size = new Size(104, 104);
             avatarBadge.TabIndex = 0;
             avatarBadge.TabStop = false;
+            // 
+            // securityCaption
+            // 
+            securityCaption.BackColor = Color.Transparent;
+            securityCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            securityCaption.ForeColor = Color.FromArgb(4, 120, 87);
+            securityCaption.Location = new Point(40, 416);
+            securityCaption.Name = "securityCaption";
+            securityCaption.Size = new Size(322, 20);
+            securityCaption.TabIndex = 7;
+            securityCaption.Text = "ACCOUNT SECURITY";
+            securityCaption.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // changePasswordButton
+            // 
+            changePasswordButton.BackColor = Color.Transparent;
+            changePasswordButton.CornerRadius = 11;
+            changePasswordButton.FlatAppearance.BorderSize = 0;
+            changePasswordButton.FlatStyle = FlatStyle.Flat;
+            changePasswordButton.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+            changePasswordButton.ForeColor = Color.FromArgb(4, 120, 87);
+            changePasswordButton.HoverColor = Color.FromArgb(220, 252, 231);
+            changePasswordButton.Location = new Point(91, 444);
+            changePasswordButton.Name = "changePasswordButton";
+            changePasswordButton.NormalColor = Color.White;
+            changePasswordButton.PressedColor = Color.FromArgb(187, 247, 208);
+            changePasswordButton.Size = new Size(220, 44);
+            changePasswordButton.TabIndex = 8;
+            changePasswordButton.Text = "CHANGE PASSWORD";
+            changePasswordButton.UseVisualStyleBackColor = false;
             // 
             // tabPage3
             // 
@@ -1215,7 +1302,7 @@ namespace oop_project.forms
             requestsGrid.BorderStyle = BorderStyle.None;
             requestsGrid.ColumnHeadersHeight = 44;
             requestsGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            requestsGrid.Columns.AddRange(new DataGridViewColumn[] { requestIdColumn, requestBookColumn, requestStudentColumn, requestStudentIdColumn, requestProgramColumn, requestDateColumn, requestStatusColumn, requestApproveColumn, requestRejectColumn });
+            requestsGrid.Columns.AddRange(new DataGridViewColumn[] { requestIdColumn, requestBookColumn, requestStudentColumn, requestStudentIdColumn, requestProgramColumn, requestDateColumn, requestCopiesColumn, requestStatusColumn, requestApproveColumn, requestRejectColumn });
             requestsGrid.Location = new Point(30, 156);
             requestsGrid.MultiSelect = false;
             requestsGrid.Name = "requestsGrid";
@@ -1278,6 +1365,14 @@ namespace oop_project.forms
             requestDateColumn.Name = "requestDateColumn";
             requestDateColumn.ReadOnly = true;
             requestDateColumn.Width = 148;
+            // 
+            // requestCopiesColumn
+            // 
+            requestCopiesColumn.HeaderText = "COPIES";
+            requestCopiesColumn.MinimumWidth = 6;
+            requestCopiesColumn.Name = "requestCopiesColumn";
+            requestCopiesColumn.ReadOnly = true;
+            requestCopiesColumn.Width = 78;
             // 
             // requestStatusColumn
             // 
@@ -1545,8 +1640,6 @@ namespace oop_project.forms
             staffTab.Controls.Add(staffGrid);
             staffTab.Controls.Add(staffStatusLabel);
             staffTab.Controls.Add(staffRefreshButton);
-            staffTab.Controls.Add(staffDeactivateButton);
-            staffTab.Controls.Add(staffActivateButton);
             staffTab.Controls.Add(staffSubtitle);
             staffTab.Controls.Add(staffHeading);
             staffTab.Location = new Point(4, 29);
@@ -1664,7 +1757,7 @@ namespace oop_project.forms
             staffRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             staffRefreshButton.ForeColor = Color.White;
             staffRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
-            staffRefreshButton.Location = new Point(416, 92);
+            staffRefreshButton.Location = new Point(32, 92);
             staffRefreshButton.Name = "staffRefreshButton";
             staffRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
             staffRefreshButton.PressedColor = Color.FromArgb(20, 83, 45);
@@ -1673,44 +1766,6 @@ namespace oop_project.forms
             staffRefreshButton.Text = "REFRESH";
             staffRefreshButton.UseVisualStyleBackColor = false;
             staffRefreshButton.Click += staffRefreshButton_Click;
-            // 
-            // staffDeactivateButton
-            // 
-            staffDeactivateButton.BackColor = Color.Transparent;
-            staffDeactivateButton.CornerRadius = 12;
-            staffDeactivateButton.FlatAppearance.BorderSize = 0;
-            staffDeactivateButton.FlatStyle = FlatStyle.Flat;
-            staffDeactivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            staffDeactivateButton.ForeColor = Color.White;
-            staffDeactivateButton.HoverColor = Color.FromArgb(153, 27, 27);
-            staffDeactivateButton.Location = new Point(218, 92);
-            staffDeactivateButton.Name = "staffDeactivateButton";
-            staffDeactivateButton.NormalColor = Color.FromArgb(185, 28, 28);
-            staffDeactivateButton.PressedColor = Color.FromArgb(127, 29, 29);
-            staffDeactivateButton.Size = new Size(186, 44);
-            staffDeactivateButton.TabIndex = 6;
-            staffDeactivateButton.Text = "DEACTIVATE ACCOUNT";
-            staffDeactivateButton.UseVisualStyleBackColor = false;
-            staffDeactivateButton.Click += staffDeactivateButton_Click;
-            // 
-            // staffActivateButton
-            // 
-            staffActivateButton.BackColor = Color.Transparent;
-            staffActivateButton.CornerRadius = 12;
-            staffActivateButton.FlatAppearance.BorderSize = 0;
-            staffActivateButton.FlatStyle = FlatStyle.Flat;
-            staffActivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            staffActivateButton.ForeColor = Color.White;
-            staffActivateButton.HoverColor = Color.FromArgb(21, 128, 61);
-            staffActivateButton.Location = new Point(30, 92);
-            staffActivateButton.Name = "staffActivateButton";
-            staffActivateButton.NormalColor = Color.FromArgb(22, 163, 74);
-            staffActivateButton.PressedColor = Color.FromArgb(20, 83, 45);
-            staffActivateButton.Size = new Size(176, 44);
-            staffActivateButton.TabIndex = 2;
-            staffActivateButton.Text = "ACTIVATE ACCOUNT";
-            staffActivateButton.UseVisualStyleBackColor = false;
-            staffActivateButton.Click += staffActivateButton_Click;
             // 
             // staffSubtitle
             // 
@@ -1743,8 +1798,6 @@ namespace oop_project.forms
             tabPage5.Controls.Add(facultyGrid);
             tabPage5.Controls.Add(facultyStatusLabel);
             tabPage5.Controls.Add(facultyRefreshButton);
-            tabPage5.Controls.Add(facultyDeactivateButton);
-            tabPage5.Controls.Add(facultyActivateButton);
             tabPage5.Controls.Add(facultySubtitle);
             tabPage5.Controls.Add(facultyHeading);
             tabPage5.Location = new Point(4, 29);
@@ -1854,7 +1907,7 @@ namespace oop_project.forms
             facultyRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             facultyRefreshButton.ForeColor = Color.White;
             facultyRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
-            facultyRefreshButton.Location = new Point(416, 92);
+            facultyRefreshButton.Location = new Point(32, 92);
             facultyRefreshButton.Name = "facultyRefreshButton";
             facultyRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
             facultyRefreshButton.PressedColor = Color.FromArgb(20, 83, 45);
@@ -1863,44 +1916,6 @@ namespace oop_project.forms
             facultyRefreshButton.Text = "REFRESH";
             facultyRefreshButton.UseVisualStyleBackColor = false;
             facultyRefreshButton.Click += facultyRefreshButton_Click;
-            // 
-            // facultyDeactivateButton
-            // 
-            facultyDeactivateButton.BackColor = Color.Transparent;
-            facultyDeactivateButton.CornerRadius = 12;
-            facultyDeactivateButton.FlatAppearance.BorderSize = 0;
-            facultyDeactivateButton.FlatStyle = FlatStyle.Flat;
-            facultyDeactivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            facultyDeactivateButton.ForeColor = Color.White;
-            facultyDeactivateButton.HoverColor = Color.FromArgb(153, 27, 27);
-            facultyDeactivateButton.Location = new Point(218, 92);
-            facultyDeactivateButton.Name = "facultyDeactivateButton";
-            facultyDeactivateButton.NormalColor = Color.FromArgb(185, 28, 28);
-            facultyDeactivateButton.PressedColor = Color.FromArgb(127, 29, 29);
-            facultyDeactivateButton.Size = new Size(186, 44);
-            facultyDeactivateButton.TabIndex = 3;
-            facultyDeactivateButton.Text = "DEACTIVATE ACCOUNT";
-            facultyDeactivateButton.UseVisualStyleBackColor = false;
-            facultyDeactivateButton.Click += facultyDeactivateButton_Click;
-            // 
-            // facultyActivateButton
-            // 
-            facultyActivateButton.BackColor = Color.Transparent;
-            facultyActivateButton.CornerRadius = 12;
-            facultyActivateButton.FlatAppearance.BorderSize = 0;
-            facultyActivateButton.FlatStyle = FlatStyle.Flat;
-            facultyActivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            facultyActivateButton.ForeColor = Color.White;
-            facultyActivateButton.HoverColor = Color.FromArgb(21, 128, 61);
-            facultyActivateButton.Location = new Point(30, 92);
-            facultyActivateButton.Name = "facultyActivateButton";
-            facultyActivateButton.NormalColor = Color.FromArgb(22, 163, 74);
-            facultyActivateButton.PressedColor = Color.FromArgb(20, 83, 45);
-            facultyActivateButton.Size = new Size(176, 44);
-            facultyActivateButton.TabIndex = 2;
-            facultyActivateButton.Text = "ACTIVATE ACCOUNT";
-            facultyActivateButton.UseVisualStyleBackColor = false;
-            facultyActivateButton.Click += facultyActivateButton_Click;
             // 
             // facultySubtitle
             // 
@@ -1933,8 +1948,6 @@ namespace oop_project.forms
             tabPage6.Controls.Add(studentGrid);
             tabPage6.Controls.Add(studentStatusLabel);
             tabPage6.Controls.Add(studentRefreshButton);
-            tabPage6.Controls.Add(studentDeactivateButton);
-            tabPage6.Controls.Add(studentActivateButton);
             tabPage6.Controls.Add(studentSubtitle);
             tabPage6.Controls.Add(studentHeading);
             tabPage6.Location = new Point(4, 29);
@@ -2077,7 +2090,7 @@ namespace oop_project.forms
             studentRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             studentRefreshButton.ForeColor = Color.White;
             studentRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
-            studentRefreshButton.Location = new Point(416, 92);
+            studentRefreshButton.Location = new Point(32, 92);
             studentRefreshButton.Name = "studentRefreshButton";
             studentRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
             studentRefreshButton.PressedColor = Color.FromArgb(20, 83, 45);
@@ -2086,44 +2099,6 @@ namespace oop_project.forms
             studentRefreshButton.Text = "REFRESH";
             studentRefreshButton.UseVisualStyleBackColor = false;
             studentRefreshButton.Click += studentRefreshButton_Click;
-            // 
-            // studentDeactivateButton
-            // 
-            studentDeactivateButton.BackColor = Color.Transparent;
-            studentDeactivateButton.CornerRadius = 12;
-            studentDeactivateButton.FlatAppearance.BorderSize = 0;
-            studentDeactivateButton.FlatStyle = FlatStyle.Flat;
-            studentDeactivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            studentDeactivateButton.ForeColor = Color.White;
-            studentDeactivateButton.HoverColor = Color.FromArgb(153, 27, 27);
-            studentDeactivateButton.Location = new Point(218, 92);
-            studentDeactivateButton.Name = "studentDeactivateButton";
-            studentDeactivateButton.NormalColor = Color.FromArgb(185, 28, 28);
-            studentDeactivateButton.PressedColor = Color.FromArgb(127, 29, 29);
-            studentDeactivateButton.Size = new Size(186, 44);
-            studentDeactivateButton.TabIndex = 3;
-            studentDeactivateButton.Text = "DEACTIVATE ACCOUNT";
-            studentDeactivateButton.UseVisualStyleBackColor = false;
-            studentDeactivateButton.Click += studentDeactivateButton_Click;
-            // 
-            // studentActivateButton
-            // 
-            studentActivateButton.BackColor = Color.Transparent;
-            studentActivateButton.CornerRadius = 12;
-            studentActivateButton.FlatAppearance.BorderSize = 0;
-            studentActivateButton.FlatStyle = FlatStyle.Flat;
-            studentActivateButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            studentActivateButton.ForeColor = Color.White;
-            studentActivateButton.HoverColor = Color.FromArgb(21, 128, 61);
-            studentActivateButton.Location = new Point(30, 92);
-            studentActivateButton.Name = "studentActivateButton";
-            studentActivateButton.NormalColor = Color.FromArgb(22, 163, 74);
-            studentActivateButton.PressedColor = Color.FromArgb(20, 83, 45);
-            studentActivateButton.Size = new Size(176, 44);
-            studentActivateButton.TabIndex = 2;
-            studentActivateButton.Text = "ACTIVATE ACCOUNT";
-            studentActivateButton.UseVisualStyleBackColor = false;
-            studentActivateButton.Click += studentActivateButton_Click;
             // 
             // studentSubtitle
             // 
@@ -2300,8 +2275,10 @@ namespace oop_project.forms
         private Label identityNote;
         private Panel identityDivider;
         private PillBadge profileRoleBadge;
-        private Label profileName;
-        private AvatarBadge avatarBadge;
+        private Label profileName;         
+        private AvatarBadge avatarBadge;   
+        private Label securityCaption;
+        private RoundedButton changePasswordButton;
         private RoundedCard detailsCard;
         private Label profileFooter;
         private Panel dividerRow5;
@@ -2377,8 +2354,6 @@ namespace oop_project.forms
         private TabPage tabPage6;
         private Label facultyHeading;
         private Label facultySubtitle;
-        private RoundedButton facultyActivateButton;
-        private RoundedButton facultyDeactivateButton;
         private RoundedButton facultyRefreshButton;
         private Label facultyStatusLabel;
         private DataGridView facultyGrid;
@@ -2405,14 +2380,10 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn staffRoleColumn;
         private Label staffStatusLabel;
         private Label staffEmptyLabel;
-        private RoundedButton staffActivateButton;
-        private RoundedButton staffDeactivateButton;
         private RoundedButton staffRefreshButton;
         private Label staffSubtitle;
         private Label staffHeading;
         private Label studentSubtitle;
-        private RoundedButton studentActivateButton;
-        private RoundedButton studentDeactivateButton;
         private RoundedButton studentRefreshButton;
         private Label studentStatusLabel;
         private DataGridView studentGrid;
@@ -2427,8 +2398,12 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn studentStatusColumn;
         private Label studentEmptyLabel;
         private Panel dividerRow6;
-        private Label valueDateCreated;
+        private Label valueDateCreated;  
         private Label captionDateCreated;
+        private Label valueProgramOffice;
+        private Label captionProgramOffice;
+        private Label valueInstitute;
+        private Label captionInstitute;
         private Panel recordDivider;
         private DataGridViewTextBoxColumn bookIdColumn;
         private DataGridViewTextBoxColumn bookTitleColumn;
@@ -2442,6 +2417,7 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn requestStudentIdColumn;
         private DataGridViewTextBoxColumn requestProgramColumn;
         private DataGridViewTextBoxColumn requestDateColumn;
+        private DataGridViewTextBoxColumn requestCopiesColumn;
         private DataGridViewTextBoxColumn requestStatusColumn;
         private DataGridViewTextBoxColumn requestApproveColumn;
         private DataGridViewTextBoxColumn requestRejectColumn;

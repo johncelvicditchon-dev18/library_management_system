@@ -20,7 +20,8 @@ namespace oop_project.Models
             "       a.`name`, COALESCE(s.`school_id`, ''), COALESCE(p.`program_name`, ''), " +
             "       COALESCE(s.`year_level`, ''), COALESCE(i.`institute_code`, ''), " +
             "       r.`request_date`, r.`status`, COALESCE(r.`note`, ''), " +
-            "       COALESCE(r.`processed_by`, 0), r.`processed_date`, COALESCE(r.`borrow_id`, 0) " +
+            "       COALESCE(r.`processed_by`, 0), r.`processed_date`, COALESCE(r.`borrow_id`, 0), " +
+            "       COALESCE(r.`copies_requested`, 1) " +
             "FROM `borrow_requests_table` r " +
             "JOIN `account_table` a ON a.`account_id` = r.`account_id` " +
             "LEFT JOIN `books_table` b ON b.`book_id` = r.`book_id` " +
@@ -28,7 +29,9 @@ namespace oop_project.Models
             "LEFT JOIN `program_table` p ON p.`program_id` = s.`program_id` " +
             "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` ";
 
-        public int Create(int accountId, Book book, string note = "")
+        private static bool _schemaReady;
+
+        public int Create(int accountId, Book book, int copies = 1, string note = "")
         {
             if (accountId <= 0)
             {
@@ -40,6 +43,11 @@ namespace oop_project.Models
                 throw new ArgumentNullException(nameof(book));
             }
 
+            if (copies < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(copies), "Request at least one copy.");
+            }
+
             if (!book.IsAvailable || book.Quantity <= 0 || book.BookId <= 0)
             {
                 throw new InvalidOperationException("That book has no copy available to request.");
@@ -48,6 +56,7 @@ namespace oop_project.Models
             using (MySqlConnection connection = _database.CreateConnection())
             {
                 connection.Open();
+                EnsureSchema(connection);
 
                 // Re-check the shelf in MySQL, not just the grid the student is
                 // looking at, so a copy borrowed a second ago is not requested.
@@ -68,37 +77,32 @@ namespace oop_project.Models
                             throw new InvalidOperationException("That book is no longer in the catalog.");
                         }
 
-                        int copies = reader.IsDBNull(0)
+                        int shelfCopies = reader.IsDBNull(0)
                             ? 0
                             : Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture);
                         int openLoans = reader.IsDBNull(1)
                             ? 0
                             : Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture);
 
-                        if (copies - openLoans <= 0)
+                        int available = shelfCopies - openLoans;
+
+                        if (available <= 0)
                         {
                             throw new InvalidOperationException("That book has no copy available to request.");
+                        }
+
+                        if (copies > available)
+                        {
+                            throw new InvalidOperationException(
+                                "ONLY " + available.ToString(CultureInfo.InvariantCulture) +
+                                " COPY(IES) OF THAT BOOK CAN BE REQUESTED.");
                         }
                     }
                 }
 
-                const string activeLoanSql =
-                    "SELECT COUNT(*) FROM `borrow_transactions_table` t " +
-                    "JOIN `borrowers_table` b ON b.`borrower_id` = t.`borrower_id` " +
-                    "JOIN `student_info_table` s ON s.`school_id` = b.`id_number` " +
-                    "WHERE s.`account_id` = @accountId AND t.`book_id` = @bookId AND t.`date_return` IS NULL;";
-
-                using (MySqlCommand activeLoan = new MySqlCommand(activeLoanSql, connection))
-                {
-                    activeLoan.Parameters.AddWithValue("@accountId", accountId);
-                    activeLoan.Parameters.AddWithValue("@bookId", book.BookId);
-
-                    if (Convert.ToInt64(activeLoan.ExecuteScalar(), CultureInfo.InvariantCulture) > 0)
-                    {
-                        throw new InvalidOperationException("You already have that book on loan.");
-                    }
-                }
-
+                // A patron may borrow the same title more than once while copies
+                // remain on the shelf, so only an existing PENDING request is
+                // checked here. The shelf count above still blocks an empty title.
                 const string pendingSql = "SELECT COUNT(*) FROM `borrow_requests_table` " +
                                           "WHERE `account_id` = @accountId AND `book_id` = @bookId AND `status` = 'PENDING';";
 
@@ -114,13 +118,14 @@ namespace oop_project.Models
                     }
                 }
 
-                const string sql = "INSERT INTO `borrow_requests_table` (`account_id`, `book_id`, `request_date`, `status`, `note`) " +
-                                   "VALUES (@accountId, @bookId, NOW(), 'PENDING', @note);";
+                const string sql = "INSERT INTO `borrow_requests_table` (`account_id`, `book_id`, `request_date`, `status`, `note`, `copies_requested`) " +
+                                   "VALUES (@accountId, @bookId, NOW(), 'PENDING', @note, @copies);";
 
                 using (MySqlCommand command = new MySqlCommand(sql, connection))
                 {
                     command.Parameters.AddWithValue("@accountId", accountId);
                     command.Parameters.AddWithValue("@bookId", book.BookId);
+                    command.Parameters.AddWithValue("@copies", copies);
                     command.Parameters.AddWithValue("@note", string.IsNullOrWhiteSpace(note) ? (object)DBNull.Value : note.Trim());
                     command.ExecuteNonQuery();
                     return (int)command.LastInsertedId;
@@ -133,6 +138,7 @@ namespace oop_project.Models
             using (MySqlConnection connection = _database.CreateConnection())
             {
                 connection.Open();
+                EnsureSchema(connection);
 
                 using (MySqlCommand command = new MySqlCommand(
                     RequestSelect + "WHERE r.`account_id` = @accountId ORDER BY r.`request_date` DESC, r.`request_id` DESC;", connection))
@@ -148,6 +154,7 @@ namespace oop_project.Models
             using (MySqlConnection connection = _database.CreateConnection())
             {
                 connection.Open();
+                EnsureSchema(connection);
 
                 using (MySqlCommand command = new MySqlCommand(
                     RequestSelect + "WHERE r.`status` = 'PENDING' ORDER BY r.`request_date` ASC, r.`request_id` ASC;", connection))
@@ -209,10 +216,10 @@ namespace oop_project.Models
         }
 
         /// <summary>
-        /// Approves one pending request: the copy is written to the normal borrow
-        /// tables first, then the request row is linked to the new borrow_id.
+        /// Approves one pending request: one borrow record is written per requested
+        /// copy, then the request row is linked to the first of those records.
         /// </summary>
-        public BorrowRecord Approve(
+        public List<BorrowRecord> Approve(
             BorrowRequestRow request,
             int processedBy,
             LibraryCatalog catalog,
@@ -252,6 +259,17 @@ namespace oop_project.Models
                 throw new InvalidOperationException("The requested book is no longer in the catalog.");
             }
 
+            int copies = request.Copies < 1 ? 1 : request.Copies;
+            int available = catalog.AvailableCopyCount(book);
+
+            if (copies > available)
+            {
+                throw new InvalidOperationException(
+                    "ONLY " + available.ToString(CultureInfo.InvariantCulture) +
+                    " COPY(IES) OF \"" + book.Title.ToUpperInvariant() + "\" ARE STILL AVAILABLE, BUT " +
+                    copies.ToString(CultureInfo.InvariantCulture) + " WERE REQUESTED.");
+            }
+
             string idNumber = Clean(profile.SchoolId);
             if (idNumber.Length == 0)
             {
@@ -265,7 +283,14 @@ namespace oop_project.Models
                 Clean(profile.YearLevel),
                 Clean(profile.Institute));
 
-            BorrowRecord record = catalog.RecordBorrow(book, borrower, DateTime.Now);
+            List<BorrowRecord> records = new List<BorrowRecord>();
+
+            for (int copy = 0; copy < copies; copy++)
+            {
+                records.Add(catalog.RecordBorrow(book, borrower, DateTime.Now));
+            }
+
+            BorrowRecord record = records[0];
 
             using (MySqlConnection connection = _database.CreateConnection())
             {
@@ -288,7 +313,52 @@ namespace oop_project.Models
                 }
             }
 
-            return record;
+            return records;
+        }
+
+        /// <summary>
+        /// Adds the COPIES_REQUESTED column to databases created before the patron
+        /// could choose how many copies to request.
+        /// </summary>
+        private static void EnsureSchema(MySqlConnection connection)
+        {
+            if (_schemaReady)
+            {
+                return;
+            }
+
+            try
+            {
+                const string checkSql =
+                    "SELECT COUNT(*) FROM information_schema.columns " +
+                    "WHERE table_schema = DATABASE() AND table_name = 'borrow_requests_table' " +
+                    "AND column_name = 'copies_requested';";
+
+                bool missing;
+
+                using (MySqlCommand check = new MySqlCommand(checkSql, connection))
+                {
+                    missing = Convert.ToInt32(check.ExecuteScalar(), CultureInfo.InvariantCulture) == 0;
+                }
+
+                if (missing)
+                {
+                    using (MySqlCommand alter = new MySqlCommand(
+                        "ALTER TABLE `borrow_requests_table` " +
+                        "ADD COLUMN `copies_requested` INT(11) NOT NULL DEFAULT 1 AFTER `book_id`;",
+                        connection))
+                    {
+                        alter.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (MySqlException)
+            {
+                // A database user without ALTER rights keeps working with one copy;
+                // the SELECT still falls back to 1 through COALESCE.
+            }
+
+            _schemaReady = true;
         }
 
         private static List<BorrowRequestRow> ReadRows(MySqlCommand command)
@@ -316,7 +386,8 @@ namespace oop_project.Models
                         Text(reader, 13),
                         reader.IsDBNull(14) ? 0 : Convert.ToInt32(reader.GetValue(14), CultureInfo.InvariantCulture),
                         reader.IsDBNull(15) ? null : reader.GetDateTime(15),
-                        reader.IsDBNull(16) ? 0 : Convert.ToInt32(reader.GetValue(16), CultureInfo.InvariantCulture)));
+                        reader.IsDBNull(16) ? 0 : Convert.ToInt32(reader.GetValue(16), CultureInfo.InvariantCulture),
+                        reader.IsDBNull(17) ? 1 : Convert.ToInt32(reader.GetValue(17), CultureInfo.InvariantCulture)));
                 }
             }
 

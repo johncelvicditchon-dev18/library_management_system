@@ -27,6 +27,9 @@ namespace oop_project
             password_input.TextChanged += password_input_TextChanged;
             password_input.Leave += password_input_Leave;
 
+            // SHOW / HIDE: the eye inside the password field reveals the typed text.
+            password_toggle.Attach(password_input);
+
             if (System.ComponentModel.LicenseManager.UsageMode != System.ComponentModel.LicenseUsageMode.Designtime)
             {
                 TestConnection();
@@ -216,7 +219,7 @@ namespace oop_project
                             }
                             else
                             {
-                                admin_dashboard dashboardForm = new admin_dashboard(
+                                librarian_dashboard dashboardForm = new librarian_dashboard(
                                     accountID, person.FullName, role, accountUsername, status);
                                 dashboardForm.Show();
                             }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -34,7 +34,6 @@ namespace oop_project.forms
         private static readonly Color SuccessText = Color.FromArgb(4, 120, 87);
         private static readonly Color WarningText = Color.FromArgb(180, 83, 9);
         private static readonly Color DangerText = Color.FromArgb(185, 28, 28);
-        private static readonly Font RoleCellFont = new Font("Segoe UI", 8.75F, FontStyle.Bold);
 
         private readonly LibraryCatalog _catalog = new LibraryCatalog();
         private readonly AccountDirectory _directory = new AccountDirectory();
@@ -55,11 +54,12 @@ namespace oop_project.forms
 
         private readonly List<BookCard> _bookCards = new List<BookCard>();
         private readonly List<RequestCard> _requestCards = new List<RequestCard>();
-        private readonly List<LoanCard> _loanCards = new List<LoanCard>();
+        private readonly List<BorrowedBookCard> _borrowedCards = new List<BorrowedBookCard>();
         private readonly List<Label> _profileValueLabels = new List<Label>();
 
         // MY ATTENDANCE is shown as a table so every scanned visit lists the full
-        // account record (name, role, school id, program / office and institute).
+        // account record (name, school id, program / office and institute) with the
+        // date and time of the scan.
         private readonly DataGridView _attendanceTable = new DataGridView();
 
         /// <summary>
@@ -130,33 +130,36 @@ namespace oop_project.forms
 
             WirePageHead(catalogHead, _catalogSearch, catalogRefresh, catalogSubtitle);
             WirePageHead(requestsHead, _requestsSearch, requestsRefresh);
-            WirePageHead(loansHead, _loansSearch, loansRefresh);
+            WirePageHead(borrowedHead, _borrowedSearch, borrowedRefresh);
             WirePageHead(attendanceHead, _attendanceSearch, attendanceRefresh, attendanceSubtitle);
             WirePageHead(profileHead, null, profileRefresh, profileSubtitle);
 
-            catalogRefresh.Click += (s, e) => { LoadCatalogData(); LoadRequests(); LoadLoans(); };
+            catalogRefresh.Click += (s, e) => { LoadCatalogData(); LoadRequests(); LoadBorrowedBooks(); };
             requestsRefresh.Click += (s, e) => LoadRequests();
-            loansRefresh.Click += (s, e) => { LoadCatalogData(); LoadLoans(); };
+            borrowedRefresh.Click += (s, e) => { LoadCatalogData(); LoadBorrowedBooks(); };
             attendanceRefresh.Click += (s, e) => LoadAttendance();
             profileRefresh.Click += (s, e) => LoadProfile();
+            changePasswordButton.Click += (s, e) => ShowChangePasswordDialog();
+            profileHead.Resize += (s, e) => LayoutProfileActions();
+            LayoutProfileActions();
 
             _catalogSearch.SearchTextChanged += (s, e) => { if (!_layingOutCards) RebuildCatalogCards(); };
             _catalogSearch.SearchRequested += (s, e) => RebuildCatalogCards();
             _requestsSearch.SearchTextChanged += (s, e) => { if (!_layingOutCards) RebuildRequestCards(); };
             _requestsSearch.SearchRequested += (s, e) => RebuildRequestCards();
-            _loansSearch.SearchTextChanged += (s, e) => { if (!_layingOutCards) RebuildLoanCards(); };
-            _loansSearch.SearchRequested += (s, e) => RebuildLoanCards();
+            _borrowedSearch.SearchTextChanged += (s, e) => { if (!_layingOutCards) RebuildBorrowedCards(); };
+            _borrowedSearch.SearchRequested += (s, e) => RebuildBorrowedCards();
             _attendanceSearch.SearchTextChanged += (s, e) => { if (!_layingOutCards) RebuildAttendanceCards(); };
             _attendanceSearch.SearchRequested += (s, e) => RebuildAttendanceCards();
 
             _catalogFlow.ClientSizeChanged += (s, e) => RelayoutCards(_catalogFlow, true);
             _requestFlow.ClientSizeChanged += (s, e) => RelayoutCards(_requestFlow, false);
-            _loanFlow.ClientSizeChanged += (s, e) => RelayoutCards(_loanFlow, false);
+            _borrowedFlow.ClientSizeChanged += (s, e) => RelayoutCards(_borrowedFlow, false);
             _attendanceFlow.ClientSizeChanged += (s, e) => RelayoutCards(_attendanceFlow, false);
 
             catalogStatRow.Resize += (s, e) => LayoutStatRow(catalogStatRow);
             requestsStatRow.Resize += (s, e) => LayoutStatRow(requestsStatRow);
-            loansStatRow.Resize += (s, e) => LayoutStatRow(loansStatRow);
+            borrowedStatRow.Resize += (s, e) => LayoutStatRow(borrowedStatRow);
             attendanceStatRow.Resize += (s, e) => LayoutStatRow(attendanceStatRow);
 
             profileIdentityCard.Paint += PaintRoundedCard;
@@ -225,12 +228,11 @@ namespace oop_project.forms
             _attendanceTable.RowTemplate.Height = 38;
             _attendanceTable.Visible = false;
 
-            AddAttendanceColumn("attendanceNumber", "ATTENDANCE #", 9F, 90);
-            AddAttendanceColumn("attendanceStamp", "DATE & TIME", 24F, 160);
-            AddAttendanceColumn("attendanceName", "NAME", 30F, 150);
-            AddAttendanceColumn("attendanceRole", "ROLE", 12F, 90);
-            AddAttendanceColumn("attendanceProgram", "PROGRAM / OFFICE", 20F, 120);
-            AddAttendanceColumn("attendanceInstitute", "INSTITUTE", 13F, 100);
+            AddAttendanceColumn("attendanceNumber", "ATTENDANCE #", 10F, 90);
+            AddAttendanceColumn("attendanceStamp", "DATE & TIME", 26F, 160);
+            AddAttendanceColumn("attendanceName", "NAME", 32F, 150);
+            AddAttendanceColumn("attendanceProgram", "PROGRAM / OFFICE", 22F, 120);
+            AddAttendanceColumn("attendanceInstitute", "INSTITUTE", 14F, 100);
 
             attendanceListHost.Controls.Add(_attendanceTable);
             _attendanceTable.BringToFront();
@@ -274,6 +276,27 @@ namespace oop_project.forms
             {
                 subtitle.Width = Math.Max(160, (search == null ? refresh.Left : search.Left) - 16);
             }
+        }
+
+        // The PROFILE header carries two actions, so CHANGE PASSWORD sits just
+        // left of REFRESH and the subtitle stops before both buttons.
+        private void LayoutProfileActions()
+        {
+            int right = profileHead.ClientSize.Width;
+
+            profileRefresh.Left = Math.Max(0, right - profileRefresh.Width);
+            profileRefresh.Top = 10;
+
+            changePasswordButton.Left = Math.Max(0, profileRefresh.Left - 12 - changePasswordButton.Width);
+            changePasswordButton.Top = 10;
+
+            profileSubtitle.Width = Math.Max(160, changePasswordButton.Left - 16);
+        }
+
+        private void ShowChangePasswordDialog()
+        {
+            using ChangePasswordDialog dialog = new ChangePasswordDialog(_accountId, _username, _role);
+            dialog.ShowDialog(this);
         }
 
         private void LayoutHeaderCluster()
@@ -383,6 +406,15 @@ namespace oop_project.forms
             {
                 LoadAttendance();
             }
+            else if (index == 2)
+            {
+                // The shelf changes when the librarian approves a request, so the
+                // catalog is reloaded when the patron opens this tab. A title that
+                // is already borrowed is then marked ALREADY BORROWED before the
+                // patron can press REQUEST TO BORROW again.
+                LoadCatalogData();
+                LoadRequests();
+            }
         }
 
         /// <summary>
@@ -420,7 +452,7 @@ namespace oop_project.forms
             LoadProfile();
             LoadCatalogData();
             LoadRequests();
-            LoadLoans();
+            LoadBorrowedBooks();
             LoadAttendance();
         }
 
@@ -498,7 +530,6 @@ namespace oop_project.forms
             text.AppendLine("ID NUMBER: " + DisplayId());
             text.AppendLine("PROGRAM / OFFICE: " + DisplayProgramOrOffice());
             text.AppendLine("INSTITUTE: " + Value(_profile?.Institute));
-            text.AppendLine("GATE: LIBRARY OFFICE");
 
             try
             {
@@ -548,7 +579,7 @@ namespace oop_project.forms
                     book,
                     _catalog.AvailableCopyCount(book),
                     HasPendingRequest(book.BookId),
-                    HasActiveLoan(book.BookId));
+                    HasActiveBorrow(book.BookId));
 
                 Book captured = book;
                 card.RequestClicked += delegate { RequestBook(captured); };
@@ -586,25 +617,56 @@ namespace oop_project.forms
 
         private void RequestBook(Book book)
         {
-            DialogResult answer = MessageBox.Show(
-                "REQUEST \"" + book.Title.ToUpperInvariant() + "\" FROM THE LIBRARY?\n\n" +
-                "THE LIBRARIAN WILL APPROVE OR REJECT YOUR REQUEST.",
-                "CONFIRM BORROW REQUEST",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
+            int available = _catalog.AvailableCopyCount(book);
 
-            if (answer != DialogResult.Yes)
+            // ONE ACTIVE LOAN PER TITLE IS NOT REQUIRED: a patron may borrow the
+            // same title again while another copy is still on the shelf. Only a
+            // duplicate PENDING request or an empty shelf blocks the action.
+            if (HasPendingRequest(book.BookId))
             {
+                MessageBox.Show(
+                    "YOU ALREADY HAVE A PENDING REQUEST FOR \"" + book.Title.ToUpperInvariant() + "\".\n" +
+                    "WAIT FOR THE LIBRARIAN TO PROCESS IT.",
+                    "REQUEST PENDING",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                RefreshCatalogStates();
                 return;
+            }
+
+            if (available <= 0)
+            {
+                MessageBox.Show(
+                    "EVERY COPY OF \"" + book.Title.ToUpperInvariant() + "\" IS ALREADY BORROWED.",
+                    "NO COPY AVAILABLE",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                RefreshCatalogStates();
+                return;
+            }
+
+            int copies;
+
+            // The pop up asks for one thing only: how many copies to request.
+            using (RequestCopiesDialog dialog = new RequestCopiesDialog(book.Title, available))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                copies = dialog.Copies;
             }
 
             try
             {
-                _requestDirectory.Create(_accountId, book);
+                _requestDirectory.Create(_accountId, book, copies);
                 LoadRequests();
                 RefreshCatalogStates();
                 MessageBox.Show(
-                    "YOUR REQUEST WAS SENT. WAIT FOR THE LIBRARIAN TO APPROVE IT.",
+                    "YOUR REQUEST FOR " + (copies == 1 ? "1 COPY" : copies + " COPIES") +
+                    " OF \"" + book.Title.ToUpperInvariant() + "\" WAS SENT.\n" +
+                    "WAIT FOR THE LIBRARIAN TO APPROVE IT.",
                     "REQUEST SENT",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -612,6 +674,11 @@ namespace oop_project.forms
             catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
             {
                 MessageBox.Show(ex.Message.ToUpperInvariant(), "REQUEST NOT SENT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                // The request was refused by the database rule (already borrowed,
+                // pending, or no copy left). Reload so the card shows the real state.
+                LoadCatalogData();
+                LoadRequests();
             }
             catch (MySqlException ex)
             {
@@ -723,11 +790,11 @@ namespace oop_project.forms
             }
         }
 
-        private void LoadLoans()
+        private void LoadBorrowedBooks()
         {
-            RebuildLoanCards();
+            RebuildBorrowedCards();
 
-            int count = GetMyLoans().Count;
+            int count = GetMyBorrowRecords().Count;
           
         }
 
@@ -756,7 +823,8 @@ namespace oop_project.forms
         /// <summary>
         /// Fills the MY ATTENDANCE table. Every recorded scan carries the full
         /// account record returned by the attendance query, so the table shows the
-        /// name, role, school id, program / office, institute, gate and time.
+        /// attendance number, the date and time, the name, the program / office and
+        /// the institute.
         /// </summary>
         private void RebuildAttendanceCards()
         {
@@ -776,13 +844,10 @@ namespace oop_project.forms
                     visit.AttendanceId,
                     visit.StampText,
                     visit.Name,
-                    visit.Role,
                     visit.ProgramOrOffice,
                     visit.Institute);
 
                 DataGridViewRow row = _attendanceTable.Rows[index];
-                row.Cells["attendanceRole"].Style.Font = RoleCellFont;
-                row.Cells["attendanceRole"].Style.ForeColor = HeaderGreen;
                 row.Cells["attendanceNumber"].Style.ForeColor = MutedText;
                 shown++;
             }
@@ -802,7 +867,7 @@ namespace oop_project.forms
             {
                 _attendanceEmpty.Title = term.Length > 0 ? "NO MATCHING VISITS" : "NO ATTENDANCE RECORDED YET";
                 _attendanceEmpty.Caption = term.Length > 0
-                    ? "TRY ANOTHER DATE, TIME, NAME OR ROLE."
+                    ? "TRY ANOTHER DATE, TIME OR NAME."
                     : "SHOW YOUR QR PASS TO THE LIBRARIAN AT THE LIBRARY OFFICE ENTRANCE.";
                 _attendanceEmpty.BringToFront();
             }
@@ -826,56 +891,55 @@ namespace oop_project.forms
         {
             // Matches only the columns the MY ATTENDANCE table actually shows.
             return visit.Name.ToUpperInvariant().Contains(term) ||
-                   visit.Role.Contains(term) ||
                    visit.ProgramOrOffice.ToUpperInvariant().Contains(term) ||
                    visit.Institute.ToUpperInvariant().Contains(term) ||
                    visit.DateText.Contains(term) ||
                    visit.TimeText.Contains(term);
         }
 
-        private void RebuildLoanCards()
+        private void RebuildBorrowedCards()
         {
-            string term = _loansSearch.SearchText.ToUpperInvariant();
+            string term = _borrowedSearch.SearchText.ToUpperInvariant();
             int shown = 0;
 
-            ClearCards(_loanFlow, _loanCards);
+            ClearCards(_borrowedFlow, _borrowedCards);
 
-            List<BorrowRecord> loans = GetMyLoans()
+            List<BorrowRecord> borrowRecords = GetMyBorrowRecords()
                 .OrderBy(record => record.DateReturned.HasValue)
                 .ThenByDescending(record => record.DateBorrowed)
                 .ToList();
 
-            foreach (BorrowRecord record in loans)
+            foreach (BorrowRecord record in borrowRecords)
             {
-                if (term.Length > 0 && !MatchesLoan(record, term))
+                if (term.Length > 0 && !MatchesBorrowRecord(record, term))
                 {
                     continue;
                 }
 
                 Book? coverBook = _catalog.Books.FirstOrDefault(book => book.BookId == record.BookId);
-                LoanCard card = new LoanCard(record, coverBook?.CoverImage);
-                _loanFlow.Controls.Add(card);
-                _loanCards.Add(card);
+                BorrowedBookCard card = new BorrowedBookCard(record, coverBook?.CoverImage);
+                _borrowedFlow.Controls.Add(card);
+                _borrowedCards.Add(card);
                 shown++;
             }
 
-            _loanFlow.Visible = shown > 0;
-            _loansEmpty.Visible = shown == 0;
-            if (_loansEmpty.Visible)
+            _borrowedFlow.Visible = shown > 0;
+            _borrowedEmpty.Visible = shown == 0;
+            if (_borrowedEmpty.Visible)
             {
-                _loansEmpty.Title = term.Length > 0 ? "NO MATCHING LOANS" : "NO BORROW RECORDS YET";
-                _loansEmpty.Caption = term.Length > 0
+                _borrowedEmpty.Title = term.Length > 0 ? "NO MATCHING BORROW RECORDS" : "NO BORROW RECORDS YET";
+                _borrowedEmpty.Caption = term.Length > 0
                     ? "TRY ANOTHER TITLE, AUTHOR OR STATUS."
-                    : "WHEN THE LIBRARIAN RELEASES AN APPROVED REQUEST, THE LOAN APPEARS HERE.";
-                _loansEmpty.BringToFront();
+                    : "WHEN THE LIBRARIAN RELEASES AN APPROVED REQUEST, THE BORROWED BOOK APPEARS HERE.";
+                _borrowedEmpty.BringToFront();
             }
 
-            LayoutCardColumns(_loanFlow, false);
+            LayoutCardColumns(_borrowedFlow, false);
 
-            if (loans.Count > 0)
+            if (borrowRecords.Count > 0)
             {
-                int active = loans.Count(record => !record.DateReturned.HasValue);
-                int returned = loans.Count - active;
+                int active = borrowRecords.Count(record => !record.DateReturned.HasValue);
+                int returned = borrowRecords.Count - active;
 
             }
 
@@ -894,22 +958,22 @@ namespace oop_project.forms
                 card.UpdateState(
                     _catalog.AvailableCopyCount(card.Book),
                     HasPendingRequest(card.Book.BookId),
-                    HasActiveLoan(card.Book.BookId));
+                    HasActiveBorrow(card.Book.BookId));
             }
         }
 
         private void UpdateStats()
         {
-            List<BorrowRecord> loans = GetMyLoans();
-            int activeLoans = loans.Count(record => !record.DateReturned.HasValue);
-            int returnedLoans = loans.Count - activeLoans;
+            List<BorrowRecord> borrowRecords = GetMyBorrowRecords();
+            int currentlyBorrowed = borrowRecords.Count(record => !record.DateReturned.HasValue);
+            int alreadyReturned = borrowRecords.Count - currentlyBorrowed;
             int pending = _studentRequests.Count(request => request.IsPending);
             int approved = _studentRequests.Count(request => request.IsApproved);
             int closed = _studentRequests.Count - pending - approved;
 
             _catalogStatTitles.Value = _catalog.Books.Count.ToString(CultureInfo.InvariantCulture);
             _catalogStatCopies.Value = _catalog.AvailableCopies.ToString(CultureInfo.InvariantCulture);
-            _catalogStatOnLoan.Value = activeLoans.ToString(CultureInfo.InvariantCulture);
+            _catalogStatBorrowed.Value = currentlyBorrowed.ToString(CultureInfo.InvariantCulture);
             _catalogStatPending.Value = pending.ToString(CultureInfo.InvariantCulture);
 
             _requestStatTotal.Value = _studentRequests.Count.ToString(CultureInfo.InvariantCulture);
@@ -917,28 +981,28 @@ namespace oop_project.forms
             _requestStatApproved.Value = approved.ToString(CultureInfo.InvariantCulture);
             _requestStatClosed.Value = Math.Max(0, closed).ToString(CultureInfo.InvariantCulture);
 
-            int longest = activeLoans == 0
+            int longest = currentlyBorrowed == 0
                 ? 0
-                : loans.Where(record => !record.DateReturned.HasValue).Max(record => record.DaysBorrowed);
+                : borrowRecords.Where(record => !record.DateReturned.HasValue).Max(record => record.DaysBorrowed);
 
-            _loanStatActive.Value = activeLoans.ToString(CultureInfo.InvariantCulture);
-            _loanStatReturned.Value = returnedLoans.ToString(CultureInfo.InvariantCulture);
-            _loanStatTotal.Value = loans.Count.ToString(CultureInfo.InvariantCulture);
-            _loanStatLongest.Value = longest.ToString(CultureInfo.InvariantCulture) + "D";
+            _borrowedStatActive.Value = currentlyBorrowed.ToString(CultureInfo.InvariantCulture);
+            _borrowedStatReturned.Value = alreadyReturned.ToString(CultureInfo.InvariantCulture);
+            _borrowedStatTotal.Value = borrowRecords.Count.ToString(CultureInfo.InvariantCulture);
+            _borrowedStatLongest.Value = longest.ToString(CultureInfo.InvariantCulture) + "D";
 
             _tabs.TabPages[3].Text = "MY REQUESTS" + (pending > 0 ? "  (" + pending.ToString(CultureInfo.InvariantCulture) + ")" : string.Empty);
-            _tabs.TabPages[4].Text = "MY BORROWED BOOKS" + (activeLoans > 0 ? "  (" + activeLoans.ToString(CultureInfo.InvariantCulture) + ")" : string.Empty);
+            _tabs.TabPages[4].Text = "MY BORROWED BOOKS" + (currentlyBorrowed > 0 ? "  (" + currentlyBorrowed.ToString(CultureInfo.InvariantCulture) + ")" : string.Empty);
         }
 
         // ------------------------------------------------------------------ HELPERS
 
-        private List<BorrowRecord> GetMyLoans()
+        private List<BorrowRecord> GetMyBorrowRecords()
         {
             List<BorrowRecord> mine = new List<BorrowRecord>();
 
             foreach (BorrowRecord record in _catalog.BorrowRecords)
             {
-                if (IsMyLoan(record))
+                if (IsMyBorrowRecord(record))
                 {
                     mine.Add(record);
                 }
@@ -947,7 +1011,7 @@ namespace oop_project.forms
             return mine;
         }
 
-        private bool IsMyLoan(BorrowRecord record)
+        private bool IsMyBorrowRecord(BorrowRecord record)
         {
             string myId = DisplayId();
             if (string.Equals(record.BorrowerIdNumber, myId, StringComparison.OrdinalIgnoreCase))
@@ -966,10 +1030,10 @@ namespace oop_project.forms
             return _studentRequests.Any(request => request.IsPending && request.BookId == bookId);
         }
 
-        private bool HasActiveLoan(int bookId)
+        private bool HasActiveBorrow(int bookId)
         {
             return _catalog.BorrowRecords.Any(record =>
-                !record.DateReturned.HasValue && record.BookId == bookId && IsMyLoan(record));
+                !record.DateReturned.HasValue && record.BookId == bookId && IsMyBorrowRecord(record));
         }
 
         private static bool MatchesBook(Book book, string term)
@@ -986,7 +1050,7 @@ namespace oop_project.forms
                    request.Status.ToUpperInvariant().Contains(term);
         }
 
-        private static bool MatchesLoan(BorrowRecord record, string term)
+        private static bool MatchesBorrowRecord(BorrowRecord record, string term)
         {
             return record.BookTitle.ToUpperInvariant().Contains(term) ||
                    record.Author.ToUpperInvariant().Contains(term) ||
@@ -1067,7 +1131,7 @@ namespace oop_project.forms
             cards.Clear();
         }
 
-        private static void ClearCards(FlowLayoutPanel flow, List<LoanCard> cards)
+        private static void ClearCards(FlowLayoutPanel flow, List<BorrowedBookCard> cards)
         {
             while (flow.Controls.Count > 0)
             {

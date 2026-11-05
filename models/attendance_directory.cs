@@ -22,7 +22,6 @@ namespace oop_project.Models
         public string ProgramOrOffice { get; private set; }
         public string Institute { get; private set; }
         public DateTime ScanTime { get; private set; }
-        public string Gate { get; private set; }
 
         public AttendanceRow(
             int attendanceId,
@@ -32,8 +31,7 @@ namespace oop_project.Models
             string idNumber,
             string programOrOffice,
             string institute,
-            DateTime scanTime,
-            string gate)
+            DateTime scanTime)
         {
             AttendanceId = attendanceId;
             AccountId = accountId;
@@ -43,7 +41,6 @@ namespace oop_project.Models
             ProgramOrOffice = string.IsNullOrWhiteSpace(programOrOffice) ? "—" : programOrOffice.Trim();
             Institute = string.IsNullOrWhiteSpace(institute) ? "—" : institute.Trim();
             ScanTime = scanTime;
-            Gate = string.IsNullOrWhiteSpace(gate) ? "LIBRARY OFFICE" : gate.Trim();
         }
 
         public bool IsStudent
@@ -115,7 +112,6 @@ namespace oop_project.Models
     public class AttendanceDirectory
     {
         private const int DuplicateWindowSeconds = 60;
-        private const string GateName = "LIBRARY OFFICE";
 
         private static readonly Regex AccountPattern =
             new Regex(@"ACCOUNT\s*[-:#]?\s*(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -140,7 +136,7 @@ namespace oop_project.Models
             "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)), " +
             "       " + ProgramOfficeSelect + ", " +
             "       COALESCE(i.`institute_code`, fi.`institute_code`, '—'), " +
-            "       t.`scan_time`, COALESCE(t.`gate`, 'LIBRARY OFFICE') " +
+            "       t.`scan_time` " +
             "FROM `attendance_table` t " +
             "JOIN `account_table` a ON a.`account_id` = t.`account_id` " +
             "LEFT JOIN `account_role_table` r ON r.`account_id` = a.`account_id` " +
@@ -179,14 +175,13 @@ namespace oop_project.Models
                 }
 
                 const string insertSql =
-                    "INSERT INTO `attendance_table` (`account_id`, `scan_time`, `role`, `gate`) " +
-                    "VALUES (@accountId, NOW(), @role, @gate);";
+                    "INSERT INTO `attendance_table` (`account_id`, `scan_time`, `role`) " +
+                    "VALUES (@accountId, NOW(), @role);";
 
                 using (MySqlCommand command = new MySqlCommand(insertSql, connection))
                 {
                     command.Parameters.AddWithValue("@accountId", accountId);
                     command.Parameters.AddWithValue("@role", account.Role);
-                    command.Parameters.AddWithValue("@gate", GateName);
                     command.ExecuteNonQuery();
 
                     AttendanceRow row = new AttendanceRow(
@@ -197,8 +192,7 @@ namespace oop_project.Models
                         account.IdNumber,
                         account.ProgramOrOffice,
                         account.Institute,
-                        DateTime.Now,
-                        GateName);
+                        DateTime.Now);
 
                     return new AttendanceScanResult(row, false);
                 }
@@ -225,7 +219,7 @@ namespace oop_project.Models
 
         /// <summary>
         /// The librarian's full attendance log. The optional search term is applied
-        /// by MySQL across the visible columns (name, role, id, office, date, gate).
+        /// by MySQL across the visible columns (name, role, id, office and date).
         /// </summary>
         public List<AttendanceRow> LoadAll(string? search = null)
         {
@@ -240,7 +234,6 @@ namespace oop_project.Models
                        "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)) LIKE @search OR " +
                        "       " + ProgramOfficeSelect + " LIKE @search OR " +
                        "       COALESCE(i.`institute_code`, fi.`institute_code`, '—') LIKE @search OR " +
-                       "       COALESCE(t.`gate`, '') LIKE @search OR " +
                        "       DATE_FORMAT(t.`scan_time`, '%M %e, %Y %h:%i %p') LIKE @search) ";
             }
 
@@ -280,7 +273,6 @@ namespace oop_project.Models
                 "  `account_id` INT(11) NOT NULL," +
                 "  `scan_time` DATETIME NOT NULL," +
                 "  `role` VARCHAR(20) NOT NULL," +
-                "  `gate` VARCHAR(60) NOT NULL DEFAULT 'LIBRARY OFFICE'," +
                 "  PRIMARY KEY (`attendance_id`)," +
                 "  KEY `idx_attendance_account` (`account_id`)," +
                 "  KEY `idx_attendance_time` (`scan_time`)," +
@@ -294,7 +286,43 @@ namespace oop_project.Models
                 command.ExecuteNonQuery();
             }
 
+            DropGateColumn(connection);
+
             _schemaReady = true;
+        }
+
+        /// <summary>
+        /// Older installations still carry the GATE column the scanner used to fill
+        /// with "LIBRARY OFFICE". The gate is not used anywhere any more, so the
+        /// column is dropped once. A database user without ALTER rights is ignored,
+        /// because the insert no longer mentions the column.
+        /// </summary>
+        private static void DropGateColumn(MySqlConnection connection)
+        {
+            try
+            {
+                const string checkSql =
+                    "SELECT COUNT(*) FROM information_schema.columns " +
+                    "WHERE table_schema = DATABASE() AND table_name = 'attendance_table' AND column_name = 'gate';";
+
+                using (MySqlCommand check = new MySqlCommand(checkSql, connection))
+                {
+                    if (Convert.ToInt32(check.ExecuteScalar(), CultureInfo.InvariantCulture) == 0)
+                    {
+                        return;
+                    }
+                }
+
+                using (MySqlCommand drop = new MySqlCommand(
+                    "ALTER TABLE `attendance_table` DROP COLUMN `gate`;", connection))
+                {
+                    drop.ExecuteNonQuery();
+                }
+            }
+            catch (MySqlException)
+            {
+                // Schema changes may be forbidden for the login; scanning still works.
+            }
         }
 
         private static int ParseAccountId(string scannedCode)
@@ -322,7 +350,7 @@ namespace oop_project.Models
                 }
             }
 
-            throw new ArgumentException("THAT IS NOT A TCGC LIBRARY ATTENDANCE QR PASS.");
+            throw new ArgumentException("THAT IS NOT A TCGC LIBRARY ATTENDANCE QR CODE.");
         }
 
         private static AccountSnapshot LoadAccount(MySqlConnection connection, int accountId)
@@ -397,8 +425,7 @@ namespace oop_project.Models
                         Text(reader, 4),
                         Text(reader, 5),
                         Text(reader, 6),
-                        reader.GetDateTime(7),
-                        Text(reader, 8, GateName)));
+                        reader.GetDateTime(7)));
                 }
             }
 

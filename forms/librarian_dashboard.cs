@@ -9,7 +9,7 @@ using oop_project.Models;
 
 namespace oop_project.forms
 {
-    public partial class admin_dashboard : Form
+    public partial class librarian_dashboard : Form
     {
         private static readonly Color HeaderGreen = Color.FromArgb(6, 78, 59);
         private static readonly Color MutedText = Color.FromArgb(148, 163, 184);
@@ -54,13 +54,31 @@ namespace oop_project.forms
 
         private DataGridViewImageColumn bookCoverColumn = null!;
 
+        // SEARCH: every table tab has its own field. The typed term is kept here so a
+        // refresh, a tab switch or an edit never loses the current filter.
+        private SearchBox accountsSearch = null!;
+        private SearchBox staffSearch = null!;
+        private SearchBox facultySearch = null!;
+        private SearchBox studentSearch = null!;
+        private SearchBox requestsSearch = null!;
+        private SearchBox booksSearch = null!;
+        private SearchBox borrowedSearch = null!;
+        private List<BorrowRequestRow> _pendingRequests = new List<BorrowRequestRow>();
+
+        private int _booksShown;
+        private int _booksTotal;
+        private int _borrowsShown;
+        private int _borrowsTotal;
+        private bool _requestsOnline = true;
+        private Label requestsEmptyLabel = null!;
+
         public int LoggedInAccountId { get; private set; }
         public string LoggedInRole { get; private set; } = string.Empty;
         public string LoggedInFullName { get; private set; } = string.Empty;
         public string LoggedInUsername { get; private set; } = string.Empty;
         public string LoggedInStatus { get; private set; } = string.Empty;
 
-        public admin_dashboard(int accountID, string fullName, string role, string username = "", string status = "")
+        public librarian_dashboard(int accountID, string fullName, string role, string username = "", string status = "")
         {
             InitializeComponent();
 
@@ -79,8 +97,11 @@ namespace oop_project.forms
             ScreenMode.Apply(this);
 
             ApplyAccountDetails();
+            changePasswordButton.Click += (s, e) => ShowChangePasswordDialog();
             ConfigureGrids();
             BuildAttendanceTab();
+            BuildRecordSearches();
+            LayoutRecordSearches();
 
             tabControl1.SelectedIndexChanged += tabControl1_SelectedIndexChanged;
 
@@ -95,7 +116,7 @@ namespace oop_project.forms
             };
         }
 
-        public admin_dashboard()
+        public librarian_dashboard()
         {
             InitializeComponent();
         }
@@ -127,9 +148,9 @@ namespace oop_project.forms
 
 
             valueFullName.Text = LoggedInFullName;
-            valueUsername.Text = LoggedInUsername.Length > 0 ? LoggedInUsername : "—”";
+            valueUsername.Text = LoggedInUsername.Length > 0 ? LoggedInUsername : "\u2014";
             valueRole.Text = ToDisplayCase(LoggedInRole);
-            valueStatus.Text = LoggedInStatus.Length > 0 ? ToDisplayCase(LoggedInStatus) : "—”";
+            valueStatus.Text = LoggedInStatus.Length > 0 ? ToDisplayCase(LoggedInStatus) : "\u2014";
 
             bool isActive = string.Equals(LoggedInStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase);
             valueStatus.ForeColor = isActive ? SuccessText : Color.FromArgb(180, 83, 9);
@@ -158,22 +179,11 @@ namespace oop_project.forms
 
         private void ApplyAccountPermissions()
         {
-            RoundedButton[] buttons =
-            {
-             
-                facultyActivateButton,
-                facultyDeactivateButton,
-                studentActivateButton,
-                studentDeactivateButton
-            };
+            // Activate / deactivate now lives on the ACCESS power icon of every
+            // account row, so there is no stand-alone button left to enable here.
 
-            foreach (RoundedButton button in buttons)
-            {
-                button.Enabled = _canManageAccounts;
-            }
-
-            // Only library staff may change the catalog or the loans. Students and
-            // faculty still see the BOOKS and BORROWED BOOKS tabs, read only.
+            // Only library staff may change the catalog or the borrow records.
+            // Students and faculty still see the BOOKS and BORROWED BOOKS tabs, read only.
             addBookButton.Enabled = _canManageAccounts;
             borrowBookButton.Enabled = _canManageAccounts;
             recordBorrowButton.Enabled = _canManageAccounts;
@@ -207,6 +217,7 @@ namespace oop_project.forms
             CenterColumn(requestsGrid, requestIdColumn);
             CenterColumn(requestsGrid, requestStudentIdColumn);
             CenterColumn(requestsGrid, requestDateColumn);
+            CenterColumn(requestsGrid, requestCopiesColumn);
             CenterColumn(requestsGrid, requestStatusColumn);
 
             CenterColumn(facultyGrid, facultyIdColumn);
@@ -252,7 +263,117 @@ namespace oop_project.forms
             facultyGrid.CellClick += GridActionCellClick;
             studentGrid.CellClick += GridActionCellClick;
 
+            // The STATUS cell of an account row is a second shortcut for the ACCESS
+            // icon: one double click flips the account between ACTIVE and INACTIVE.
+            accountsGrid.CellDoubleClick += GridStatusCellDoubleClick;
+            staffGrid.CellDoubleClick += GridStatusCellDoubleClick;
+            facultyGrid.CellDoubleClick += GridStatusCellDoubleClick;
+            studentGrid.CellDoubleClick += GridStatusCellDoubleClick;
+
+            // The icon columns behave like small buttons, so the pointer turns into a
+            // hand while it hovers over EDIT, DELETE, ACCESS, APPROVE or REJECT.
+            DataGridView[] actionGrids =
+            {
+                accountsGrid,
+                staffGrid,
+                booksGrid,
+                attendanceGrid,
+                facultyGrid,
+                studentGrid,
+                requestsGrid
+            };
+
+            foreach (DataGridView grid in actionGrids)
+            {
+                grid.CellMouseEnter += GridActionCellMouseEnter;
+                grid.CellMouseLeave += GridActionCellMouseLeave;
+            }
+
             BalanceGridWidths();
+        }
+
+        private static void GridActionCellMouseEnter(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (!(sender is DataGridView grid) || e.RowIndex < 0 || e.ColumnIndex < 0)
+            {
+                return;
+            }
+
+            string name = grid.Columns[e.ColumnIndex].Name;
+            bool action = string.Equals(name, EditColumnName, StringComparison.Ordinal) ||
+                          string.Equals(name, DeleteColumnName, StringComparison.Ordinal) ||
+                          string.Equals(name, AccessColumnName, StringComparison.Ordinal) ||
+                          string.Equals(name, RequestApproveColumnName, StringComparison.Ordinal) ||
+                          string.Equals(name, RequestRejectColumnName, StringComparison.Ordinal);
+
+            grid.Cursor = action ? Cursors.Hand : Cursors.Default;
+        }
+
+        private static void GridActionCellMouseLeave(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (sender is DataGridView grid)
+            {
+                grid.Cursor = Cursors.Default;
+            }
+        }
+
+        /// <summary>
+        /// Double-clicking the STATUS cell of an account row activates or deactivates
+        /// that exact record, so the staff never has to select a row first.
+        /// </summary>
+        private void GridStatusCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (!(sender is DataGridView grid) || e.RowIndex < 0 || e.ColumnIndex < 0)
+            {
+                return;
+            }
+
+            DataGridViewColumn? statusColumn = StatusColumnFor(grid);
+
+            if (statusColumn == null || e.ColumnIndex != statusColumn.Index)
+            {
+                return;
+            }
+
+            if (!_canManageAccounts)
+            {
+                MessageBox.Show(
+                    "ONLY LIBRARY STAFF ACCOUNTS CAN ACTIVATE OR DEACTIVATE RECORDS.",
+                    "READ ONLY",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            if (grid.Rows[e.RowIndex].Tag is AccountRow account)
+            {
+                ToggleAccountAccess(grid, account);
+            }
+        }
+
+        private DataGridViewColumn? StatusColumnFor(DataGridView grid)
+        {
+            if (grid == accountsGrid)
+            {
+                return accountStatusColumn;
+            }
+
+            if (grid == staffGrid)
+            {
+                return staffStatusColumn;
+            }
+
+            if (grid == facultyGrid)
+            {
+                return facultyStatusColumn;
+            }
+
+            if (grid == studentGrid)
+            {
+                return studentStatusColumn;
+            }
+
+            return null;
         }
 
         // ------------------------------------------------------- LIBRARY ATTENDANCE
@@ -408,26 +529,56 @@ namespace oop_project.forms
 
         private void LayoutAttendanceTab()
         {
-            if (libraryAttendanceGrid == null || tabPage7 == null)
+            if (libraryAttendanceGrid == null || tabPage7 == null || booksHeading == null)
             {
                 return;
             }
 
-            int width = tabPage7.ClientSize.Width;
-            int height = tabPage7.ClientSize.Height;
+            // The LIBRARY ATTENDANCE tab is built in code, so it borrows the geometry
+            // of the BORROWED BOOKS tab: same heading, subtitle, toolbar and table
+            // bands. That keeps every tab aligned at any window size.
+            int left = attendanceGrid.Left;
+            int right = attendanceGrid.Right;
+            int toolbarTop = recordBorrowButton.Top;
+            int toolbarHeight = Math.Max(32, recordBorrowButton.Height);
+            int buttonWidth = Math.Max(100, (recordBorrowButton.Width * 3) / 4);
 
-            int searchWidth = Math.Max(240, Math.Min(380, width / 3));
-            libraryAttendanceSearch.SetBounds(Math.Max(0, width - 30 - searchWidth), 92, searchWidth, 44);
+            libraryAttendanceHeading.Location = new Point(left, booksHeading.Top);
+            libraryAttendanceSubtitle.Location = new Point(left + 2, booksSubtitle.Top);
 
-            int statusLeft = 380;
+            libraryAttendanceRefreshButton.SetBounds(left, toolbarTop, buttonWidth, toolbarHeight);
+            libraryAttendanceScanButton.SetBounds(
+                libraryAttendanceRefreshButton.Right + 12,
+                toolbarTop,
+                buttonWidth + 60,
+                toolbarHeight);
+
+            int searchWidth = Math.Max(220, Math.Min(380, (attendanceGrid.Width / 3) + 40));
+            libraryAttendanceSearch.SetBounds(right - searchWidth, toolbarTop, searchWidth, toolbarHeight);
+
+            int statusLeft = libraryAttendanceScanButton.Right + 14;
+            int statusWidth = libraryAttendanceSearch.Left - 14 - statusLeft;
+
+            libraryAttendanceStatus.Anchor = AnchorStyles.Top;
+            libraryAttendanceStatus.TextAlign = ContentAlignment.MiddleLeft;
+            libraryAttendanceStatus.Visible = statusWidth >= 80;
             libraryAttendanceStatus.SetBounds(
                 statusLeft,
-                104,
-                Math.Max(120, libraryAttendanceSearch.Left - 16 - statusLeft),
-                20);
+                toolbarTop + ((toolbarHeight - libraryAttendanceStatus.Height) / 2),
+                Math.Max(0, statusWidth),
+                libraryAttendanceStatus.Height);
 
-            libraryAttendanceGrid.SetBounds(30, 156, Math.Max(200, width - 60), Math.Max(120, height - 186));
-            libraryAttendanceEmpty.SetBounds(30, 156, Math.Max(200, width - 60), Math.Max(120, height - 186));
+            libraryAttendanceGrid.SetBounds(
+                left,
+                attendanceGrid.Top,
+                right - left,
+                Math.Max(120, attendanceGrid.Height));
+
+            libraryAttendanceEmpty.SetBounds(
+                libraryAttendanceGrid.Left,
+                libraryAttendanceGrid.Top,
+                libraryAttendanceGrid.Width,
+                libraryAttendanceGrid.Height);
         }
 
         private void OpenAttendanceScanner()
@@ -543,8 +694,8 @@ namespace oop_project.forms
 
         private static bool MatchesAttendance(AttendanceRow visit, string term)
         {
-            // The table shows no ID NUMBER and no GATE column, so the search only
-            // checks the columns that are visible.
+            // The table shows no ID NUMBER column, so the search only checks the
+            // columns that are visible.
             return visit.Name.ToUpperInvariant().Contains(term) ||
                    visit.Role.Contains(term) ||
                    visit.ProgramOrOffice.ToUpperInvariant().Contains(term) ||
@@ -565,6 +716,170 @@ namespace oop_project.forms
                 default:
                     return HeaderGreen;
             }
+        }
+
+        // ------------------------------------------------------------------ SEARCH
+
+        /// <summary>
+        /// Adds one search field to every table tab. Each field filters only its own
+        /// table and keeps the typed term while the tab is refreshed or reopened.
+        /// </summary>
+        private void BuildRecordSearches()
+        {
+            if (accountsSearch != null)
+            {
+                return;
+            }
+
+            accountsSearch = AddRecordSearch(tabPage2, "SEARCH LIBRARIAN ACCOUNTS...", FillAccountGrids);
+            staffSearch = AddRecordSearch(staffTab, "SEARCH STAFF ACCOUNTS...", FillAccountGrids);
+            facultySearch = AddRecordSearch(tabPage5, "SEARCH FACULTY ACCOUNTS...", FillAccountGrids);
+            studentSearch = AddRecordSearch(tabPage6, "SEARCH STUDENT ACCOUNTS...", FillAccountGrids);
+            requestsSearch = AddRecordSearch(requestsTab, "SEARCH REQUESTS...", FillRequestGrid);
+            booksSearch = AddRecordSearch(tabPage3, "SEARCH BOOKS...", RefreshCatalogViews);
+            borrowedSearch = AddRecordSearch(tabPage4, "SEARCH BORROWED BOOKS...", RefreshCatalogViews);
+
+            // BORROW REQUESTS is the only designer tab without an empty state label.
+            requestsEmptyLabel = new Label
+            {
+                Name = "requestsEmptyLabel",
+                Text = "NO PENDING REQUESTS. STUDENT REQUESTS WILL APPEAR HERE.",
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = false,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+
+            requestsTab.Controls.Add(requestsEmptyLabel);
+            requestsEmptyLabel.BringToFront();
+        }
+
+        private static SearchBox AddRecordSearch(TabPage page, string placeholder, Action rebuild)
+        {
+            SearchBox search = new SearchBox
+            {
+                Name = page.Name + "Search",
+                PlaceholderText = placeholder,
+                Height = 44,
+                Width = 360,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            search.SearchTextChanged += (s, e) => rebuild();
+            search.SearchRequested += (s, e) => rebuild();
+
+            page.Controls.Add(search);
+            search.BringToFront();
+
+            return search;
+        }
+
+        /// <summary>
+        /// Places every search field on the right edge of its table toolbar and lets
+        /// the status line fill the free space between the buttons and the field.
+        /// </summary>
+        private void LayoutRecordSearches()
+        {
+            if (accountsSearch == null)
+            {
+                return;
+            }
+
+            LayoutSearchRow(accountsSearch, accountsStatusLabel, accountsRefreshButton, accountsGrid);
+            LayoutSearchRow(staffSearch, staffStatusLabel, staffRefreshButton, staffGrid);
+            LayoutSearchRow(facultySearch, facultyStatusLabel, facultyRefreshButton, facultyGrid);
+            LayoutSearchRow(studentSearch, studentStatusLabel, studentRefreshButton, studentGrid);
+            LayoutSearchRow(requestsSearch, requestsStatusLabel, requestsRefreshButton, requestsGrid);
+            LayoutSearchRow(borrowedSearch, attendanceStatusLabel, attendanceReportButton, attendanceGrid);
+
+            // The BOOKS tab fills the action row with its four summary cards, so its
+            // search field sits in the page header instead of the toolbar.
+            LayoutHeaderSearch(booksSearch, booksGrid, booksHeading);
+            LayoutEmptyPage(requestsEmptyLabel, requestsGrid);
+
+            LayoutAttendanceTab();
+        }
+
+        private static void LayoutEmptyPage(Label? label, DataGridView grid)
+        {
+            if (label == null || label.Parent == null)
+            {
+                return;
+            }
+
+            label.SetBounds(grid.Left, grid.Top, grid.Width, grid.Height);
+        }
+
+        /// <summary>
+        /// Docks one search field to the right edge of its table and lets the status
+        /// line fill the gap between the last toolbar button and the field. The
+        /// positions come from the real controls, so the row stays aligned whatever
+        /// scaling Windows applies to the form.
+        /// </summary>
+        private static void LayoutSearchRow(SearchBox search, Label status, Control toolbarEnd, DataGridView grid)
+        {
+            if (search.Parent == null)
+            {
+                return;
+            }
+
+            int searchWidth = Math.Max(220, Math.Min(380, (grid.Width / 3) + 40));
+            int height = Math.Max(32, toolbarEnd.Height);
+            int top = toolbarEnd.Top;
+
+            search.SetBounds(grid.Right - searchWidth, top, searchWidth, height);
+
+            int statusLeft = toolbarEnd.Right + 14;
+            int statusWidth = search.Left - 14 - statusLeft;
+
+            status.Anchor = AnchorStyles.Top;
+            status.TextAlign = ContentAlignment.MiddleLeft;
+            status.Visible = statusWidth >= 80;
+            status.SetBounds(statusLeft, top + ((height - status.Height) / 2), Math.Max(0, statusWidth), status.Height);
+        }
+
+        private static void LayoutHeaderSearch(SearchBox search, DataGridView grid, Control heading)
+        {
+            if (search.Parent == null)
+            {
+                return;
+            }
+
+            int searchWidth = Math.Max(220, Math.Min(360, grid.Width / 3));
+            int height = Math.Max(32, heading.Height + 8);
+
+            search.SetBounds(grid.Right - searchWidth, Math.Max(4, heading.Top - 2), searchWidth, height);
+        }
+
+        private static string Term(SearchBox? search)
+        {
+            return search == null ? string.Empty : search.SearchText.Trim().ToUpperInvariant();
+        }
+
+        private static bool MatchesTerm(string term, params string?[] values)
+        {
+            if (term.Length == 0)
+            {
+                return true;
+            }
+
+            foreach (string? value in values)
+            {
+                if (!string.IsNullOrWhiteSpace(value) &&
+                    value.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void SetEmptyText(Label label, string term, string noMatch, string empty)
+        {
+            label.Text = term.Length > 0 ? noMatch : empty;
         }
 
         /// <summary>
@@ -593,7 +908,7 @@ namespace oop_project.forms
             BalanceColumn(loanDateColumn, 9F, 95);
             BalanceColumn(loanDaysColumn, 5F, 50);
             BalanceColumn(loanReturnedColumn, 9F, 90);
-            BalanceColumn(loanStatusColumn, 8F, 80);
+            BalanceColumn(loanStatusColumn, 9F, 105);
 
             requestsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BalanceColumn(requestIdColumn, 5F, 50);
@@ -602,6 +917,7 @@ namespace oop_project.forms
             BalanceColumn(requestStudentIdColumn, 10F, 90);
             BalanceColumn(requestProgramColumn, 12F, 95);
             BalanceColumn(requestDateColumn, 14F, 135);
+            BalanceColumn(requestCopiesColumn, 6F, 70);
             BalanceColumn(requestStatusColumn, 9F, 90);
 
             accountsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
@@ -853,11 +1169,24 @@ namespace oop_project.forms
 
         private void RefreshCatalogViews()
         {
+            string booksTerm = Term(booksSearch);
+            string borrowTerm = Term(borrowedSearch);
+
             DisposeBookCoverImages();
             booksGrid.Rows.Clear();
 
+            int booksShown = 0;
+            int booksTotal = 0;
+
             foreach (Book book in _catalog.Books)
             {
+                booksTotal++;
+
+                if (!MatchesTerm(booksTerm, book.Title, book.Author, book.YearText))
+                {
+                    continue;
+                }
+
                 int availableCopies = _catalog.AvailableCopyCount(book);
 
                 int index = booksGrid.Rows.Add(
@@ -872,12 +1201,26 @@ namespace oop_project.forms
                     DeleteGlyph);
 
                 booksGrid.Rows[index].Tag = book;
+                booksShown++;
             }
 
             attendanceGrid.Rows.Clear();
 
+            int borrowsShown = 0;
+            int borrowsTotal = 0;
+
             foreach (BorrowRecord record in _catalog.BorrowRecords)
             {
+                borrowsTotal++;
+
+                if (!MatchesTerm(borrowTerm, record.BookTitle, record.Author, record.BookYearText,
+                                 record.BorrowerName, record.BorrowerIdNumber, record.ProgramText,
+                                 record.InstituteText, record.DateBorrowedText, record.DateReturnedText,
+                                 record.Status))
+                {
+                    continue;
+                }
+
                 int index = attendanceGrid.Rows.Add(
                     record.BorrowId,
                     record.BookTitle,
@@ -898,7 +1241,13 @@ namespace oop_project.forms
                     "BORROWED " + record.DateBorrowedStampText;
                 attendanceGrid.Rows[index].Cells[loanDaysColumn.Index].ToolTipText =
                     record.DaysBorrowedText + " SINCE " + record.DateBorrowedStampText;
+                borrowsShown++;
             }
+
+            _booksShown = booksShown;
+            _booksTotal = booksTotal;
+            _borrowsShown = borrowsShown;
+            _borrowsTotal = borrowsTotal;
 
             ColorBorrowStatuses();
 
@@ -907,11 +1256,19 @@ namespace oop_project.forms
             bookStatBorrowedValue.Text = _catalog.BorrowedBooks.ToString(CultureInfo.InvariantCulture);
             bookStatLoansValue.Text = _catalog.BorrowRecords.Count.ToString(CultureInfo.InvariantCulture);
 
+            SetEmptyText(booksEmptyLabel, booksTerm,
+                "NO BOOK MATCHES THE SEARCH.\r\nTRY ANOTHER TITLE, AUTHOR OR YEAR.",
+                "NO BOOKS IN THE CATALOG YET.\r\nUSE + ADD BOOK TO REGISTER THE FIRST TITLE.");
+            SetEmptyText(attendanceEmptyLabel, borrowTerm,
+                "NO BORROW RECORD MATCHES THE SEARCH.\r\nTRY ANOTHER TITLE, BORROWER, PROGRAM OR STATUS.",
+                "NO BORROW RECORDS YET.\r\nUSE RECORD BORROW TO LOG THE FIRST BORROW.");
+
             booksGrid.ClearSelection();
             attendanceGrid.ClearSelection();
             booksGrid.CurrentCell = null;
             attendanceGrid.CurrentCell = null;
 
+            ApplyCatalogStatus();
             UpdateEmptyStates();
         }
 
@@ -991,16 +1348,26 @@ namespace oop_project.forms
         private void ApplyCatalogStatus()
         {
             bool connected = _catalog.IsConnected;
-            string readOnly = _canManageAccounts ? string.Empty : " â€¢ READ ONLY";
+            string readOnly = _canManageAccounts ? string.Empty : " \u2022 READ ONLY";
+
+            string booksFilter = Term(booksSearch).Length > 0
+                ? " \u2022 SHOWING " + _booksShown.ToString(CultureInfo.InvariantCulture) +
+                  " OF " + _booksTotal.ToString(CultureInfo.InvariantCulture)
+                : string.Empty;
+
+            string borrowFilter = Term(borrowedSearch).Length > 0
+                ? " \u2022 SHOWING " + _borrowsShown.ToString(CultureInfo.InvariantCulture) +
+                  " OF " + _borrowsTotal.ToString(CultureInfo.InvariantCulture)
+                : string.Empty;
 
             booksStatusLabel.Text = connected
-                ? "CATALOG SYNCED WITH MYSQL" + readOnly
-                : "MYSQL OFFLINE â€¢ CHANGES ARE KEPT FOR THIS SESSION ONLY";
+                ? "CATALOG SYNCED WITH MYSQL" + readOnly + booksFilter
+                : "MYSQL OFFLINE \u2022 CHANGES ARE KEPT FOR THIS SESSION ONLY";
             booksStatusLabel.ForeColor = connected ? MutedText : WarningText;
 
             attendanceStatusLabel.Text = connected
-                ? "NO DUE DATE IS SET â€¢ ONE DAY IS ADDED EVERY 24 HOURS." + readOnly
-                : "MYSQL OFFLINE â€¢ CHANGES ARE KEPT FOR THIS SESSION ONLY";
+                ? "ONE DAY IS ADDED EVERY 24 HOURS." + readOnly + borrowFilter
+                : "MYSQL OFFLINE \u2022 CHANGES ARE KEPT FOR THIS SESSION ONLY";
             attendanceStatusLabel.ForeColor = connected ? MutedText : WarningText;
         }
 
@@ -1048,11 +1415,46 @@ namespace oop_project.forms
 
             try
             {
-                List<BorrowRequestRow> pending = _requestDirectory.LoadPending();
-                requestsGrid.Rows.Clear();
+                _pendingRequests = _requestDirectory.LoadPending();
+                _requestsOnline = true;
+            }
+            catch (MySqlException)
+            {
+                _pendingRequests = new List<BorrowRequestRow>();
+                _requestsOnline = false;
+                FillRequestGrid();
+                return;
+            }
 
-                foreach (BorrowRequestRow request in pending)
+            FillRequestGrid();
+        }
+
+        /// <summary>
+        /// Rebuilds the BORROW REQUESTS table from the cached list and applies the
+        /// term typed in the requests search field.
+        /// </summary>
+        private void FillRequestGrid()
+        {
+            if (requestsGrid == null)
+            {
+                return;
+            }
+
+            string term = Term(requestsSearch);
+            int shown = 0;
+
+            requestsGrid.Rows.Clear();
+
+            if (_requestsOnline)
+            {
+                foreach (BorrowRequestRow request in _pendingRequests)
                 {
+                    if (!MatchesTerm(term, request.BookTitle, request.StudentName, request.StudentIdText,
+                                     request.ProgramText, request.RequestDateText, request.Status))
+                    {
+                        continue;
+                    }
+
                     int index = requestsGrid.Rows.Add(
                         request.RequestId,
                         request.BookTitle,
@@ -1060,6 +1462,7 @@ namespace oop_project.forms
                         request.StudentIdText,
                         request.ProgramText,
                         request.RequestDateText,
+                        request.CopiesText,
                         request.Status,
                         "APPROVE",
                         "REJECT");
@@ -1071,23 +1474,54 @@ namespace oop_project.forms
                     row.Cells[RequestApproveColumnName].ToolTipText =
                         "Approve this request and create the borrow record.";
                     row.Cells[RequestRejectColumnName].ToolTipText =
-                        "Reject this request without creating a loan.";
+                        "Reject this request without creating a borrow record.";
+                    shown++;
                 }
-
-                requestsStatusLabel.ForeColor = MutedText;
-                requestsStatusLabel.Text = pending.Count == 0
-                    ? "NO PENDING REQUESTS. STUDENT REQUESTS WILL APPEAR HERE."
-                    : pending.Count.ToString(CultureInfo.InvariantCulture) +
-                      " PENDING REQUEST(S). CLICK APPROVE OR REJECT ON A ROW.";
-
-                ClearGridSelection(requestsGrid);
             }
-            catch (MySqlException)
+
+            if (!_requestsOnline)
             {
-                requestsGrid.Rows.Clear();
-                requestsStatusLabel.Text = "MYSQL OFFLINE â€¢ REQUESTS CANNOT BE LOADED";
+                requestsStatusLabel.Text = "MYSQL OFFLINE \u2022 REQUESTS CANNOT BE LOADED";
                 requestsStatusLabel.ForeColor = WarningText;
             }
+            else if (_pendingRequests.Count == 0)
+            {
+                requestsStatusLabel.Text = "NO PENDING REQUESTS. STUDENT REQUESTS WILL APPEAR HERE.";
+                requestsStatusLabel.ForeColor = MutedText;
+            }
+            else if (shown == 0)
+            {
+                requestsStatusLabel.Text = "NO REQUEST MATCHES \"" + term + "\" \u2022 PRESS THE X IN THE SEARCH BOX.";
+                requestsStatusLabel.ForeColor = WarningText;
+            }
+            else
+            {
+                string countText = shown.ToString(CultureInfo.InvariantCulture);
+
+                if (shown != _pendingRequests.Count)
+                {
+                    countText += " OF " + _pendingRequests.Count.ToString(CultureInfo.InvariantCulture);
+                }
+
+                requestsStatusLabel.Text = countText +
+                    " PENDING REQUEST(S). CLICK APPROVE OR REJECT ON A ROW.";
+                requestsStatusLabel.ForeColor = MutedText;
+            }
+
+            ClearGridSelection(requestsGrid);
+
+            requestsGrid.Visible = shown > 0;
+            requestsEmptyLabel.Visible = _requestsOnline && shown == 0;
+
+            if (requestsEmptyLabel.Visible)
+            {
+                requestsEmptyLabel.Text = term.Length > 0
+                    ? "NO REQUEST MATCHES THE SEARCH.\r\nTRY ANOTHER BOOK, NAME, PROGRAM OR STATUS."
+                    : "NO PENDING REQUESTS.\r\nSTUDENT REQUESTS WILL APPEAR HERE.";
+                requestsEmptyLabel.BringToFront();
+            }
+
+            UpdateEmptyStates();
         }
 
         private void RequestsGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
@@ -1135,9 +1569,11 @@ namespace oop_project.forms
 
         private void ApproveBorrowRequest(BorrowRequestRow request)
         {
+            string copiesText = request.Copies == 1 ? "1 COPY" : request.Copies + " COPIES";
+
             DialogResult answer = MessageBox.Show(
                 "APPROVE REQUEST #" + request.RequestId + "?\n\n" +
-                request.StudentName.ToUpperInvariant() + " WILL BORROW \"" +
+                request.StudentName.ToUpperInvariant() + " WILL BORROW " + copiesText + " OF \"" +
                 request.BookTitle.ToUpperInvariant() + "\".",
                 "APPROVE BORROW REQUEST",
                 MessageBoxButtons.YesNo,
@@ -1150,7 +1586,7 @@ namespace oop_project.forms
 
             try
             {
-                BorrowRecord record = _requestDirectory.Approve(
+                System.Collections.Generic.List<BorrowRecord> records = _requestDirectory.Approve(
                     request, LoggedInAccountId, _catalog, _accountDirectory);
 
                 _catalog.SyncDaysBorrowed();
@@ -1158,8 +1594,9 @@ namespace oop_project.forms
                 ApplyCatalogStatus();
                 LoadBorrowRequests();
 
-                requestsStatusLabel.Text = "REQUEST #" + request.RequestId +
-                                           " APPROVED. LOAN #" + record.BorrowId + " WAS CREATED.";
+                requestsStatusLabel.Text = "REQUEST #" + request.RequestId + " APPROVED. " +
+                                           (records.Count == 1 ? "1 BORROW RECORD" : records.Count + " BORROW RECORDS") +
+                                           " CREATED.";
                 requestsStatusLabel.ForeColor = SuccessText;
             }
             catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
@@ -1586,35 +2023,73 @@ namespace oop_project.forms
                 facultyGrid.Rows.Clear();
                 studentGrid.Rows.Clear();
 
-                accountsStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
-                staffStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
-                facultyStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
-                studentStatusLabel.Text = "MYSQL OFFLINE â€¢ ACCOUNTS CANNOT BE LOADED";
+                accountsStatusLabel.Text = "MYSQL OFFLINE \u2022 ACCOUNTS CANNOT BE LOADED";
+                staffStatusLabel.Text = "MYSQL OFFLINE \u2022 ACCOUNTS CANNOT BE LOADED";
+                facultyStatusLabel.Text = "MYSQL OFFLINE \u2022 ACCOUNTS CANNOT BE LOADED";
+                studentStatusLabel.Text = "MYSQL OFFLINE \u2022 ACCOUNTS CANNOT BE LOADED";
 
                 accountsStatusLabel.ForeColor = WarningText;
                 staffStatusLabel.ForeColor = WarningText;
                 facultyStatusLabel.ForeColor = WarningText;
                 studentStatusLabel.ForeColor = WarningText;
 
+                UpdateEmptyStates();
                 return;
             }
 
             _accountsLoaded = true;
+            FillAccountGrids();
+        }
+
+        /// <summary>
+        /// Rebuilds the four account tables from the cached list, honouring the term
+        /// typed in each tab's search field. Nothing is read from MySQL here, so the
+        /// filter answers instantly while the staff member types.
+        /// </summary>
+        private void FillAccountGrids()
+        {
+            if (accountsGrid == null || !_accountsLoaded)
+            {
+                return;
+            }
 
             accountsGrid.Rows.Clear();
             staffGrid.Rows.Clear();
             facultyGrid.Rows.Clear();
             studentGrid.Rows.Clear();
 
+            string librarianTerm = Term(accountsSearch);
+            string staffTerm = Term(staffSearch);
+            string facultyTerm = Term(facultySearch);
+            string studentTerm = Term(studentSearch);
+
+            accountsGrid.SuspendLayout();
+            staffGrid.SuspendLayout();
+            facultyGrid.SuspendLayout();
+            studentGrid.SuspendLayout();
+
             int librarianCount = 0;
             int staffCount = 0;
             int facultyCount = 0;
             int studentCount = 0;
 
+            int librarianTotal = 0;
+            int staffTotal = 0;
+            int facultyTotal = 0;
+            int studentTotal = 0;
+
             foreach (AccountRow row in _accounts)
             {
                 if (row.IsStudent)
                 {
+                    studentTotal++;
+
+                    if (!MatchesTerm(studentTerm, row.Name, row.Username, row.SchoolId, row.Program,
+                                     row.YearLevel, row.Institute, row.ContactNumber, row.Status))
+                    {
+                        continue;
+                    }
+
                     int index = studentGrid.Rows.Add(
                         row.AccountId,
                         row.Name,
@@ -1634,6 +2109,13 @@ namespace oop_project.forms
                 }
                 else if (row.IsFaculty)
                 {
+                    facultyTotal++;
+
+                    if (!MatchesTerm(facultyTerm, row.Name, row.Username, row.Institute, row.Status))
+                    {
+                        continue;
+                    }
+
                     int index = facultyGrid.Rows.Add(
                         row.AccountId,
                         row.Name,
@@ -1649,11 +2131,18 @@ namespace oop_project.forms
                 }
                 else if (row.IsLibrarian)
                 {
+                    librarianTotal++;
+
+                    if (!MatchesTerm(librarianTerm, row.Name, row.Username, row.Status, row.Role))
+                    {
+                        continue;
+                    }
+
                     int index = accountsGrid.Rows.Add(
                         row.AccountId,
                         row.Name,
                         row.Username,
-                        "â€¢â€¢â€¢â€¢â€¢â€¢",
+                        "\u2022\u2022\u2022\u2022\u2022\u2022",
                         row.Status,
                         row.Role,
                         AccessGlyph,
@@ -1665,11 +2154,18 @@ namespace oop_project.forms
                 }
                 else
                 {
+                    staffTotal++;
+
+                    if (!MatchesTerm(staffTerm, row.Name, row.Username, row.Status, row.Role))
+                    {
+                        continue;
+                    }
+
                     int index = staffGrid.Rows.Add(
                         row.AccountId,
                         row.Name,
                         row.Username,
-                        "â€¢â€¢â€¢â€¢â€¢â€¢",
+                        "\u2022\u2022\u2022\u2022\u2022\u2022",
                         row.Status,
                         row.Role,
                         AccessGlyph,
@@ -1686,36 +2182,66 @@ namespace oop_project.forms
             ApplyAccountStatusColors(facultyGrid, facultyStatusColumn);
             ApplyAccountStatusColors(studentGrid, studentStatusColumn);
 
-            accountsStatusLabel.Text = AccountSummary(librarianCount, "LIBRARIAN ACCOUNT");
-            staffStatusLabel.Text = AccountSummary(staffCount, "STAFF ACCOUNT");
-            facultyStatusLabel.Text = AccountSummary(facultyCount, "FACULTY ACCOUNT");
-            studentStatusLabel.Text = AccountSummary(studentCount, "STUDENT ACCOUNT");
+            accountsStatusLabel.Text = AccountSummary(librarianCount, librarianTotal, "LIBRARIAN ACCOUNT", librarianTerm);
+            staffStatusLabel.Text = AccountSummary(staffCount, staffTotal, "STAFF ACCOUNT", staffTerm);
+            facultyStatusLabel.Text = AccountSummary(facultyCount, facultyTotal, "FACULTY ACCOUNT", facultyTerm);
+            studentStatusLabel.Text = AccountSummary(studentCount, studentTotal, "STUDENT ACCOUNT", studentTerm);
 
-            accountsStatusLabel.ForeColor = MutedText;
-            staffStatusLabel.ForeColor = MutedText;
-            facultyStatusLabel.ForeColor = MutedText;
-            studentStatusLabel.ForeColor = MutedText;
+            accountsStatusLabel.ForeColor = librarianCount == 0 ? WarningText : MutedText;
+            staffStatusLabel.ForeColor = staffCount == 0 ? WarningText : MutedText;
+            facultyStatusLabel.ForeColor = facultyCount == 0 ? WarningText : MutedText;
+            studentStatusLabel.ForeColor = studentCount == 0 ? WarningText : MutedText;
+
+            SetEmptyText(accountsEmptyLabel, librarianTerm,
+                "NO LIBRARIAN ACCOUNT MATCHES THE SEARCH.",
+                "NO LIBRARIAN ACCOUNTS HAVE BEEN REGISTERED YET.");
+            SetEmptyText(staffEmptyLabel, staffTerm,
+                "NO STAFF ACCOUNT MATCHES THE SEARCH.",
+                "NO STAFF ACCOUNTS HAVE BEEN REGISTERED YET.");
+            SetEmptyText(facultyEmptyLabel, facultyTerm,
+                "NO FACULTY ACCOUNT MATCHES THE SEARCH.",
+                "NO FACULTY ACCOUNTS HAVE BEEN REGISTERED YET.");
+            SetEmptyText(studentEmptyLabel, studentTerm,
+                "NO STUDENT ACCOUNT MATCHES THE SEARCH.",
+                "NO STUDENT ACCOUNTS HAVE BEEN REGISTERED YET.");
 
             ClearGridSelection(accountsGrid);
             ClearGridSelection(staffGrid);
             ClearGridSelection(facultyGrid);
             ClearGridSelection(studentGrid);
 
+            accountsGrid.ResumeLayout();
+            staffGrid.ResumeLayout();
+            facultyGrid.ResumeLayout();
+            studentGrid.ResumeLayout();
+
             UpdateEmptyStates();
         }
 
-        private string AccountSummary(int count, string label)
+        private string AccountSummary(int shown, int total, string label, string term)
         {
-            if (count == 0)
+            if (total == 0)
             {
                 return "NO " + label + "S HAVE BEEN REGISTERED YET.";
             }
 
-            string countText = count.ToString(CultureInfo.InvariantCulture) + " " + label + "(S) ON FILE.";
+            if (shown == 0)
+            {
+                return "NO " + label + "S MATCH \"" + term + "\" \u2022 PRESS THE X IN THE SEARCH BOX.";
+            }
+
+            string countText = shown.ToString(CultureInfo.InvariantCulture);
+
+            if (shown != total)
+            {
+                countText += " OF " + total.ToString(CultureInfo.InvariantCulture);
+            }
+
+            countText += " " + label + "(S) ON FILE.";
 
             return _canManageAccounts
-                ? countText + " SELECT A ROW, THEN ACTIVATE OR DEACTIVATE."
-                : countText + " READ ONLY â€¢ ONLY LIBRARY STAFF CAN MANAGE ACCOUNTS.";
+                ? countText + " CLICK THE POWER ICON ON A ROW TO ACTIVATE OR DEACTIVATE."
+                : countText + " READ ONLY \u2022 ONLY LIBRARY STAFF CAN MANAGE ACCOUNTS.";
         }
 
         private static void ApplyAccountStatusColors(DataGridView grid, DataGridViewColumn statusColumn)
@@ -1740,6 +2266,8 @@ namespace oop_project.forms
                 }
 
                 statusCell.Style.Font = StatusCellFont;
+                statusCell.ToolTipText =
+                    "Double-click this cell (or the power icon) to activate or deactivate this account.";
 
                 if (grid.Columns.Contains(AccessColumnName))
                 {
@@ -1921,115 +2449,10 @@ namespace oop_project.forms
         }
 
         // ------------------------------------------------- ACCOUNT MANAGEMENT
-
-        private void accountsActivateButton_Click(object? sender, EventArgs e)
-        {
-            ActivateSelected(accountsGrid);
-        }
-
-        private void accountsDeactivateButton_Click(object? sender, EventArgs e)
-        {
-            DeactivateSelected(accountsGrid);
-        }
-
-        private void staffActivateButton_Click(object? sender, EventArgs e)
-        {
-            ActivateSelected(staffGrid);
-        }
-
-        private void staffDeactivateButton_Click(object? sender, EventArgs e)
-        {
-            DeactivateSelected(staffGrid);
-        }
-
-        private void facultyActivateButton_Click(object? sender, EventArgs e)
-        {
-            ActivateSelected(facultyGrid);
-        }
-
-        private void facultyDeactivateButton_Click(object? sender, EventArgs e)
-        {
-            DeactivateSelected(facultyGrid);
-        }
-
-        private void studentActivateButton_Click(object? sender, EventArgs e)
-        {
-            ActivateSelected(studentGrid);
-        }
-
-        private void studentDeactivateButton_Click(object? sender, EventArgs e)
-        {
-            DeactivateSelected(studentGrid);
-        }
-
-        private void ActivateSelected(DataGridView grid)
-        {
-            AccountRow? row = SelectedAccountRow(grid);
-
-            if (row == null)
-            {
-                return;
-            }
-
-            if (row.IsActive)
-            {
-                MessageBox.Show(
-                    row.Name.ToUpperInvariant() + " IS ALREADY ACTIVE.",
-                    "ACCOUNT ALREADY ACTIVE",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return;
-            }
-
-            UpdateAccountStatus(
-                grid,
-                row,
-                "ACTIVE",
-                "ACTIVATE \"" + row.Name.ToUpperInvariant() + "\"?\nTHEY WILL BE ABLE TO SIGN IN TO THE SYSTEM.");
-        }
-
-        private void DeactivateSelected(DataGridView grid)
-        {
-            AccountRow? row = SelectedAccountRow(grid);
-
-            if (row == null)
-            {
-                return;
-            }
-
-            if (!row.IsActive && string.Equals(row.Status, "INACTIVE", StringComparison.OrdinalIgnoreCase))
-            {
-                MessageBox.Show(
-                    row.Name.ToUpperInvariant() + " IS ALREADY DEACTIVATED.",
-                    "ACCOUNT ALREADY INACTIVE",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return;
-            }
-
-            UpdateAccountStatus(
-                grid,
-                row,
-                "INACTIVE",
-                "DEACTIVATE \"" + row.Name.ToUpperInvariant() + "\"?\nTHEY WILL NO LONGER BE ABLE TO SIGN IN.");
-        }
-
-        private AccountRow? SelectedAccountRow(DataGridView grid)
-        {
-            DataGridViewRow? current = grid.CurrentRow;
-
-            if (current == null || !(current.Tag is AccountRow row))
-            {
-                MessageBox.Show(
-                    "SELECT AN ACCOUNT IN THE TABLE FIRST.",
-                    "NO ACCOUNT SELECTED",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return null;
-            }
-
-            return row;
-        }
+        //
+        // Activate / deactivate is handled per row by the ACCESS power icon
+        // (ToggleAccountAccess). The old ACTIVATE / DEACTIVATE buttons were removed
+        // so the staff acts on the exact record they see instead of the selection.
 
         // Each tab has its own status line, so the result is reported where the
         // staff member clicked instead of jumping to another tab.
@@ -2148,6 +2571,13 @@ namespace oop_project.forms
             bool isStudent = row.IsStudent;
             bool isFaculty = row.IsFaculty;
 
+            // The two middle rows show the profile facts the account actually has.
+            // A student has a program, while a staff member records an office.
+            captionProgramOffice.Text = isStudent ? "PROGRAM / OFFICE" : "OFFICE";
+            valueProgramOffice.Text = ProfileValue(isStudent ? row.Program : row.Office);
+            captionInstitute.Text = "INSTITUTE";
+            valueInstitute.Text = ProfileValue(row.Institute);
+
             bool showRecord = (isStudent || isFaculty) && row.HasProfile;
             recordDivider.Visible = showRecord;
            
@@ -2162,6 +2592,13 @@ namespace oop_project.forms
             {
                
             }
+        }
+
+        // AccountRow uses "-" for an empty value; the profile card shows a dash
+        // instead, so every row stays aligned and readable.
+        private static string ProfileValue(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) || value == "-" ? "\u2014" : value.Trim();
         }
 
         // Only the rows a role actually has are shown, without leaving blank gaps.
@@ -2216,12 +2653,32 @@ namespace oop_project.forms
 
         private void LayoutIdentityBadge()
         {
-            if (identityCard == null || profileRoleBadge == null)
+            if (identityCard == null)
             {
                 return;
             }
 
-            profileRoleBadge.Left = (identityCard.ClientSize.Width - profileRoleBadge.Width) / 2;
+            if (profileRoleBadge != null)
+            {
+                profileRoleBadge.Left = (identityCard.ClientSize.Width - profileRoleBadge.Width) / 2;
+            }
+
+            if (securityCaption != null)
+            {
+                securityCaption.Left = (identityCard.ClientSize.Width - securityCaption.Width) / 2;
+            }
+
+            if (changePasswordButton != null)
+            {
+                changePasswordButton.Left = (identityCard.ClientSize.Width - changePasswordButton.Width) / 2;
+            }
+        }
+
+        private void ShowChangePasswordDialog()
+        {
+            using ChangePasswordDialog dialog =
+                new ChangePasswordDialog(LoggedInAccountId, LoggedInUsername, LoggedInRole);
+            dialog.ShowDialog(this);
         }
 
         private float UiScale
@@ -2260,7 +2717,7 @@ namespace oop_project.forms
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                return "â€”";
+                return "—";
             }
 
             return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.ToLowerInvariant());
@@ -2271,6 +2728,7 @@ namespace oop_project.forms
             base.OnResize(e);
             LayoutHeaderCluster();
             LayoutIdentityBadge();
+            LayoutRecordSearches();
         }
 
         private void logoutButton_Click(object sender, EventArgs e)

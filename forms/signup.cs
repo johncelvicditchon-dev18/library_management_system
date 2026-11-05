@@ -119,6 +119,10 @@ namespace oop_project
             confirm_input.TextChanged += confirm_input_TextChanged;
             confirm_input.Leave += confirm_input_Leave;
 
+            // SHOW / HIDE: the eye inside each password field reveals the typed text.
+            password_toggle.Attach(password_input);
+            confirm_toggle.Attach(confirm_input);
+
             // ROLE DRIVEN FORM: only the fields that belong to the chosen role are shown.
             ApplyRoleFields();
 
@@ -501,12 +505,33 @@ namespace oop_project
             {
                 comboBox.Location = new Point(12, 5);
                 comboBox.Size = new Size(width - 24, 33);
+                return;
             }
-            else
+
+            // A password field keeps room on the right for its eye button.
+            PasswordToggle? toggle = FindToggle(field);
+            int toggleX = width - 36;
+            input.Location = new Point(16, 9);
+            input.Size = new Size(toggle != null ? width - 62 : width - 32, 26);
+
+            if (toggle != null)
             {
-                input.Location = new Point(16, 9);
-                input.Size = new Size(width - 32, 26);
+                toggle.Location = new Point(toggleX, 9);
+                toggle.Size = new Size(26, 26);
             }
+        }
+
+        private static PasswordToggle? FindToggle(FieldPanel field)
+        {
+            foreach (Control child in field.Controls)
+            {
+                if (child is PasswordToggle toggle)
+                {
+                    return toggle;
+                }
+            }
+
+            return null;
         }
 
         // The fields that are shown for the selected role, in reading order.

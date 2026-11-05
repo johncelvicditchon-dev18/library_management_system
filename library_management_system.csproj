@@ -59,11 +59,11 @@
     <Compile Update="forms\welcome.designer.cs">
       <DependentUpon>welcome.cs</DependentUpon>
     </Compile>
-    <Compile Update="forms\admin_dashboard.cs">
+    <Compile Update="forms\librarian_dashboard.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="forms\admin_dashboard.designer.cs">
-      <DependentUpon>admin_dashboard.cs</DependentUpon>
+    <Compile Update="forms\librarian_dashboard.designer.cs">
+      <DependentUpon>librarian_dashboard.cs</DependentUpon>
     </Compile>
     <Compile Update="forms\student_faculty_staff_dashboard.cs">
       <SubType>Form</SubType>
@@ -113,9 +113,21 @@
     <Compile Update="forms\book_description_dialog.designer.cs">
       <DependentUpon>book_description_dialog.cs</DependentUpon>
     </Compile>
+    <Compile Update="forms\request_copies_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\request_copies_dialog.designer.cs">
+      <DependentUpon>request_copies_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\change_password_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\change_password_dialog.designer.cs">
+      <DependentUpon>change_password_dialog.cs</DependentUpon>
+    </Compile>
 
-    <EmbeddedResource Update="forms\admin_dashboard.resx">
-      <DependentUpon>admin_dashboard.cs</DependentUpon>
+    <EmbeddedResource Update="forms\librarian_dashboard.resx">
+      <DependentUpon>librarian_dashboard.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Update="forms\login.resx">
       <DependentUpon>login.cs</DependentUpon>
@@ -152,6 +164,12 @@
     </EmbeddedResource>
     <EmbeddedResource Update="forms\library_report_dialog.resx">
       <DependentUpon>library_report_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\request_copies_dialog.resx">
+      <DependentUpon>request_copies_dialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Update="forms\change_password_dialog.resx">
+      <DependentUpon>change_password_dialog.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
 

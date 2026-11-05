@@ -152,6 +152,7 @@ namespace oop_project
             }
             if (field != null)
             {
+                field.HasError = hasError;
                 field.BorderColor = hasError ? ErrorColor : IdleBorderColor;
                 field.Invalidate();
             }
@@ -169,6 +170,7 @@ namespace oop_project
             }
             if (field != null)
             {
+                field.HasError = false;
                 field.BorderColor = SuccessColor;
                 field.Invalidate();
             }

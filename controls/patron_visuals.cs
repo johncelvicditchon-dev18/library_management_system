@@ -234,7 +234,7 @@ namespace oop_project
 
         private Book? _book;
         private bool _pending;
-        private bool _onLoan;
+        private bool _isBorrowed;
         private int _available;
 
         public Book? Book => _book;
@@ -302,12 +302,12 @@ namespace oop_project
             Controls.Add(_description);
         }
 
-        public void Bind(Book book, int available, bool pending, bool onLoan)
+        public void Bind(Book book, int available, bool pending, bool isBorrowed)
         {
             _book = book;
             _available = available;
             _pending = pending;
-            _onLoan = onLoan;
+            _isBorrowed = isBorrowed;
 
             _cover.CoverBytes = book.CoverImage;
             _title.Text = book.Title.ToUpperInvariant();
@@ -323,19 +323,21 @@ namespace oop_project
                 _request.Text = "REQUEST PENDING";
                 _request.Enabled = false;
             }
-            else if (onLoan)
-            {
-                _availability.Text = "●  ALREADY ON LOAN";
-                _availability.ForeColor = Color.FromArgb(180, 83, 9);
-                _request.Text = "ALREADY BORROWED";
-                _request.Enabled = false;
-            }
             else if (available <= 0)
             {
                 _availability.Text = "●  NO COPY AVAILABLE";
                 _availability.ForeColor = Color.FromArgb(185, 28, 28);
                 _request.Text = "NO COPY AVAILABLE";
                 _request.Enabled = false;
+            }
+            else if (isBorrowed)
+            {
+                // The patron already has a copy, but another copy is on the shelf,
+                // so the title can still be requested again.
+                _availability.Text = "●  AVAILABLE — YOU ALREADY BORROWED A COPY";
+                _availability.ForeColor = Color.FromArgb(180, 83, 9);
+                _request.Text = "REQUEST ANOTHER COPY";
+                _request.Enabled = true;
             }
             else
             {
@@ -349,14 +351,14 @@ namespace oop_project
             Invalidate();
         }
 
-        public void UpdateState(int available, bool pending, bool onLoan)
+        public void UpdateState(int available, bool pending, bool isBorrowed)
         {
             if (_book == null)
             {
                 return;
             }
 
-            Bind(_book, available, pending, onLoan);
+            Bind(_book, available, pending, isBorrowed);
         }
 
         protected override void OnResize(EventArgs e)
@@ -415,7 +417,7 @@ namespace oop_project
     }
 
     /// <summary>
-    /// Small rounded summary block used above the catalog / request / loan lists.
+    /// Small rounded summary block used above the catalog / request / borrow lists.
     /// </summary>
     public sealed class StatCard : Control
     {
@@ -550,6 +552,7 @@ namespace oop_project
             _meta.Font = new Font("Segoe UI", 8.5F);
             _meta.ForeColor = Color.FromArgb(100, 116, 139);
             _meta.Text = "REQUEST #" + request.RequestId.ToString(CultureInfo.InvariantCulture) +
+                         "     •     COPIES: " + request.CopiesText +
                          "     •     AUTHOR: " + request.BookAuthor.ToUpperInvariant() +
                          "     •     YEAR: " + request.BookYearText;
 
@@ -688,7 +691,7 @@ namespace oop_project
     /// One row of MY BORROWED BOOKS: the cover, the title, when it was taken
     /// out, how many days it has run and whether it is back on the shelf.
     /// </summary>
-    public sealed class LoanCard : Panel
+    public sealed class BorrowedBookCard : Panel
     {
         private readonly CoverView _cover = new CoverView();
         private readonly Label _title = new Label();
@@ -700,7 +703,7 @@ namespace oop_project
 
         public BorrowRecord Record { get; }
 
-        public LoanCard(BorrowRecord record, byte[]? coverBytes)
+        public BorrowedBookCard(BorrowRecord record, byte[]? coverBytes)
         {
             Record = record;
 
@@ -725,7 +728,7 @@ namespace oop_project
             _meta.ForeColor = Color.FromArgb(100, 116, 139);
             _meta.Text = "AUTHOR: " + record.Author.ToUpperInvariant() +
                          "     •     YEAR: " + record.BookYearText +
-                         "     •     LOAN #" + record.BorrowId.ToString(CultureInfo.InvariantCulture);
+                         "     •     BORROW RECORD #" + record.BorrowId.ToString(CultureInfo.InvariantCulture);
 
             _borrowed.BackColor = Color.White;
             _borrowed.Font = new Font("Segoe UI", 8.5F);
@@ -747,7 +750,7 @@ namespace oop_project
             _status.FillColor = returned ? Color.FromArgb(241, 245, 249) : Color.FromArgb(220, 252, 231);
             _status.BorderColor = returned ? Color.FromArgb(226, 232, 240) : Color.FromArgb(134, 239, 172);
             _status.TextColor = returned ? Color.FromArgb(100, 116, 139) : Color.FromArgb(4, 120, 87);
-            _status.Text = returned ? "RETURNED" : "ON LOAN";
+            _status.Text = returned ? "RETURNED" : "BORROWED";
             _status.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
 
             Controls.Add(_cover);
@@ -809,15 +812,14 @@ namespace oop_project
     }
 
     /// <summary>
-    /// One row of MY ATTENDANCE: the day, the exact time the librarian scanned
-    /// the patron's QR pass at the library office entrance, and the gate name.
+    /// One row of MY ATTENDANCE: the day and the exact time the librarian scanned
+    /// the patron's QR pass at the library office entrance.
     /// </summary>
     public sealed class AttendanceCard : Panel
     {
         private readonly Label _date = new Label();
         private readonly Label _time = new Label();
         private readonly Label _day = new Label();
-        private readonly Label _gate = new Label();
         private readonly PillBadge _status = new PillBadge();
 
         public AttendanceRow Attendance { get; }
@@ -828,7 +830,7 @@ namespace oop_project
 
             DoubleBuffered = true;
             BackColor = Color.FromArgb(241, 245, 249);
-            Height = 96;
+            Height = 78;
             Margin = new Padding(0, 0, 0, 12);
             Padding = new Padding(24, 14, 20, 14);
 
@@ -850,12 +852,6 @@ namespace oop_project
             _day.ForeColor = Color.FromArgb(100, 116, 139);
             _day.Text = attendance.ScanTime.DayOfWeek.ToString().ToUpperInvariant();
 
-            _gate.AutoEllipsis = true;
-            _gate.BackColor = Color.White;
-            _gate.Font = new Font("Segoe UI", 8.5F);
-            _gate.ForeColor = Color.FromArgb(71, 85, 105);
-            _gate.Text = "GATE: " + attendance.Gate.ToUpperInvariant();
-
             _status.BackColor = Color.White;
             _status.FillColor = Color.FromArgb(220, 252, 231);
             _status.BorderColor = Color.FromArgb(134, 239, 172);
@@ -866,7 +862,6 @@ namespace oop_project
             Controls.Add(_date);
             Controls.Add(_time);
             Controls.Add(_day);
-            Controls.Add(_gate);
             Controls.Add(_status);
         }
 
@@ -886,7 +881,6 @@ namespace oop_project
             _date.SetBounds(left, 12, textWidth, 28);
             _time.SetBounds(left, 42, Math.Max(140, textWidth / 2), 22);
             _day.SetBounds(left + Math.Max(150, textWidth / 2), 42, Math.Max(90, textWidth / 2), 22);
-            _gate.SetBounds(left, 66, textWidth, 20);
 
             _status.Left = Math.Max(left, Width - 20 - _status.Width);
             _status.Top = 16;

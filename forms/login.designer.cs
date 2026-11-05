@@ -36,6 +36,7 @@ namespace oop_project
             passwordLabel = new Label();
             passwordField = new FieldPanel();
             password_input = new TextBox();
+            password_toggle = new PasswordToggle();
             username_error = new Label();
             password_error = new Label();
             login_button = new RoundedButton();
@@ -89,6 +90,7 @@ namespace oop_project
             usernameField.CornerRadius = 10;
             usernameField.FillColor = Color.FromArgb(243, 244, 246);
             usernameField.FocusColor = Color.FromArgb(22, 163, 74);
+            usernameField.HasError = false;
             usernameField.IsFocused = false;
             usernameField.Location = new Point(910, 390);
             usernameField.Name = "usernameField";
@@ -121,9 +123,11 @@ namespace oop_project
             passwordField.BackColor = Color.White;
             passwordField.BorderColor = Color.FromArgb(229, 231, 235);
             passwordField.Controls.Add(password_input);
+            passwordField.Controls.Add(password_toggle);
             passwordField.CornerRadius = 10;
             passwordField.FillColor = Color.FromArgb(243, 244, 246);
             passwordField.FocusColor = Color.FromArgb(22, 163, 74);
+            passwordField.HasError = false;
             passwordField.IsFocused = false;
             passwordField.Location = new Point(910, 496);
             passwordField.Name = "passwordField";
@@ -137,9 +141,19 @@ namespace oop_project
             password_input.Font = new Font("Segoe UI", 12F);
             password_input.Location = new Point(22, 10);
             password_input.Name = "password_input";
-            password_input.Size = new Size(386, 27);
+            password_input.Size = new Size(360, 27);
             password_input.TabIndex = 0;
             password_input.UseSystemPasswordChar = true;
+            // 
+            // password_toggle
+            // 
+            password_toggle.AccessibleName = "Show password";
+            password_toggle.BackColor = Color.FromArgb(243, 244, 246);
+            password_toggle.Location = new Point(394, 10);
+            password_toggle.Name = "password_toggle";
+            password_toggle.Size = new Size(26, 26);
+            password_toggle.TabIndex = 1;
+            password_toggle.TabStop = false;
             // 
             // username_error
             // 
@@ -169,6 +183,7 @@ namespace oop_project
             // 
             login_button.BackColor = Color.Transparent;
             login_button.CornerRadius = 12;
+            login_button.DisabledTextColor = Color.FromArgb(248, 250, 252);
             login_button.FlatAppearance.BorderSize = 0;
             login_button.FlatStyle = FlatStyle.Flat;
             login_button.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
@@ -262,6 +277,7 @@ namespace oop_project
             // 
             closeButton.BackColor = Color.Transparent;
             closeButton.CornerRadius = 12;
+            closeButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             closeButton.FlatAppearance.BorderSize = 0;
             closeButton.FlatStyle = FlatStyle.Flat;
             closeButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
@@ -349,6 +365,7 @@ namespace oop_project
         private FieldPanel passwordField;
         private RoundedButton login_button;
         private TextBox password_input;
+        private PasswordToggle password_toggle;
         private TextBox username_input;
         private Label username_error;
         private Label password_error;

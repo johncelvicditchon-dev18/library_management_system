@@ -201,6 +201,47 @@ namespace oop_project.Models
         }
 
         /// <summary>
+        /// Changes the sign-in password only when the current password matches.
+        /// The comparison uses BINARY so the check is exact, just like the login
+        /// query. Returns false when the current password is wrong.
+        /// </summary>
+        public bool ChangePassword(int accountId, string currentPassword, string newPassword)
+        {
+            if (accountId <= 0)
+            {
+                throw new ArgumentException("A signed in account is required.", nameof(accountId));
+            }
+
+            if (string.IsNullOrEmpty(currentPassword))
+            {
+                throw new ArgumentException("The current password is required.", nameof(currentPassword));
+            }
+
+            if (string.IsNullOrEmpty(newPassword))
+            {
+                throw new ArgumentException("The new password is required.", nameof(newPassword));
+            }
+
+            using (MySqlConnection connection = _database.CreateConnection())
+            {
+                connection.Open();
+
+                const string sql =
+                    "UPDATE `account_table` SET `password` = @newPassword " +
+                    "WHERE `account_id` = @accountId AND BINARY `password` = BINARY @currentPassword;";
+
+                using (MySqlCommand command = new MySqlCommand(sql, connection))
+                {
+                    command.Parameters.AddWithValue("@newPassword", newPassword);
+                    command.Parameters.AddWithValue("@accountId", accountId);
+                    command.Parameters.AddWithValue("@currentPassword", currentPassword);
+
+                    return command.ExecuteNonQuery() == 1;
+                }
+            }
+        }
+
+        /// <summary>
         /// Sets ACTIVE, PENDING, INACTIVE or REJECTED on one account. A role row is
         /// created when the account was registered without one.
         /// </summary>

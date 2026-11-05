@@ -27,6 +27,12 @@ namespace oop_project.Models
         public int ProcessedBy { get; private set; }
         public DateTime? ProcessedDate { get; private set; }
         public int BorrowId { get; private set; }
+        public int Copies { get; private set; }
+
+        public string CopiesText
+        {
+            get { return Copies.ToString(CultureInfo.InvariantCulture); }
+        }
 
         public string RequestDateText
         {
@@ -100,7 +106,8 @@ namespace oop_project.Models
             string note,
             int processedBy,
             DateTime? processedDate,
-            int borrowId)
+            int borrowId,
+            int copies = 1)
         {
             RequestId = requestId < 0 ? 0 : requestId;
             AccountId = accountId < 0 ? 0 : accountId;
@@ -119,6 +126,7 @@ namespace oop_project.Models
             ProcessedBy = processedBy < 0 ? 0 : processedBy;
             ProcessedDate = processedDate;
             BorrowId = borrowId < 0 ? 0 : borrowId;
+            Copies = copies < 1 ? 1 : copies;
         }
     }
 }

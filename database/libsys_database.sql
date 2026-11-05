@@ -280,9 +280,9 @@ CREATE TABLE IF NOT EXISTS `librarian_info_table` (
 --                               day_before_borrow)
 --    borrow_transactions_table (borrow_id, borrower_id, book_id,
 --                               date_borrow, date_return)
---    borrow_requests_table     (request_id, account_id, book_id, request_date,
---                               status, note, processed_by, processed_date,
---                               borrow_id)
+--    borrow_requests_table     (request_id, account_id, book_id, copies_requested,
+--                               request_date, status, note, processed_by,
+--                               processed_date, borrow_id)
 --
 --  The dashboard reads and writes these tables directly:
 --    ADD BOOK       -> INSERT INTO books_table
@@ -366,6 +366,7 @@ CREATE TABLE IF NOT EXISTS `borrow_requests_table` (
     `request_id`     INT(11)      NOT NULL AUTO_INCREMENT,
     `account_id`     INT(11)      NOT NULL,
     `book_id`        INT(11)      NOT NULL,
+    `copies_requested` INT(11)    NOT NULL DEFAULT 1,
     `request_date`   DATETIME     NOT NULL,
     `status`         VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
     `note`           VARCHAR(255) DEFAULT NULL,
@@ -393,14 +394,13 @@ CREATE TABLE IF NOT EXISTS `borrow_requests_table` (
 -- LIBRARY OFFICE ATTENDANCE
 -- One row per accepted QR scan. The scanner reads the ACCOUNT line of the pass,
 -- checks that the account exists and is ACTIVE, then writes the visit with the
--- gate name. The account details shown in MY ATTENDANCE / LIBRARY ATTENDANCE are
--- read back through the account foreign key, so they never go out of date.
+-- server clock. The account details shown in MY ATTENDANCE / LIBRARY ATTENDANCE
+-- are read back through the account foreign key, so they never go out of date.
 CREATE TABLE IF NOT EXISTS `attendance_table` (
     `attendance_id` INT(11)     NOT NULL AUTO_INCREMENT,
     `account_id`    INT(11)     NOT NULL,
     `scan_time`     DATETIME    NOT NULL,
     `role`          VARCHAR(20) NOT NULL,
-    `gate`          VARCHAR(60) NOT NULL DEFAULT 'LIBRARY OFFICE',
     PRIMARY KEY (`attendance_id`),
     KEY `idx_attendance_account` (`account_id`),
     KEY `idx_attendance_time` (`scan_time`),
