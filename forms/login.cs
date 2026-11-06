@@ -19,6 +19,11 @@ namespace oop_project
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = true;
             signup_label.BringToFront();
+
+            // ICONS: user inside the username box, lock inside the password box.
+            usernameField.AttachIcon("\uE77B");
+            passwordField.AttachIcon("\uE72E");
+
             this.ActiveControl = username_input;
 
 

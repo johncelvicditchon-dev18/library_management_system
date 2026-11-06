@@ -12,7 +12,7 @@
 --    faculty_info_table  (faculty_info_id, account_id, institute_id,
 --                         contact_number)
 --    staff_info_table    (staff_info_id, account_id, role_id, office, contact_number)
---    librarian_info_table (librarian_info_id, account_id, role_id)
+--    librarian_info_table (librarian_info_id, account_id, role_id, contact_number)
 --
 --  Every table has its own surrogate primary key, and every link between
 --  the tables is a foreign key (no institute name or program name is
@@ -152,11 +152,13 @@ CREATE TABLE IF NOT EXISTS `staff_info_table` (
 
 -- LIBRARIAN profile: the librarian is the system admin, so the role gets its
 -- own table with the same normalised shape as staff_info_table, but without an
--- office. account_id -> account_table, role_id -> account_role_table.
+-- office. account_id -> account_table, role_id -> account_role_table. The
+-- contact number is editable from the PROFILE tab.
 CREATE TABLE IF NOT EXISTS `librarian_info_table` (
     `librarian_info_id` INT AUTO_INCREMENT PRIMARY KEY,
     `account_id`        INT          NOT NULL,
     `role_id`           INT          NOT NULL,
+    `contact_number`    VARCHAR(20)  NOT NULL DEFAULT '',
     UNIQUE KEY `ux_librarian_account` (`account_id`),
     UNIQUE KEY `ux_librarian_role` (`role_id`),
     CONSTRAINT `fk_librarian_account`
@@ -173,11 +175,12 @@ CREATE TABLE IF NOT EXISTS `librarian_info_table` (
 -- ALTER TABLE `faculty_info_table` DROP COLUMN `program_id`;
 -- ALTER TABLE `librarian_info_table` DROP COLUMN `office`;
 
--- Run this once if the profile tables were created before signup started
--- collecting a contact number for faculty and staff (the app also adds the
--- columns automatically through Authentication.EnsureContactNumberColumns):
+-- Run this once if the profile tables were created before the PROFILE tab
+-- started collecting a contact number (the app also adds the columns
+-- automatically through Authentication.EnsureContactNumberColumns):
 -- ALTER TABLE `faculty_info_table` ADD COLUMN `contact_number` VARCHAR(20) NOT NULL DEFAULT '';
 -- ALTER TABLE `staff_info_table`   ADD COLUMN `contact_number` VARCHAR(20) NOT NULL DEFAULT '';
+-- ALTER TABLE `librarian_info_table` ADD COLUMN `contact_number` VARCHAR(20) NOT NULL DEFAULT '';
 
 -- Run this once if staff_info_table was created before the role link existed:
 -- ALTER TABLE `staff_info_table` ADD COLUMN `role_id` INT NULL AFTER `account_id`;
@@ -409,6 +412,37 @@ CREATE TABLE IF NOT EXISTS `attendance_table` (
         ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
+-- LIBRARY EVALUATION FORM
+-- A public survey opened from the welcome page. One evaluation_table row holds
+-- the submission (role, optional name and time) and one evaluation_answer_table
+-- row holds each 1-5 rating, so answers stay normalised and can be averaged by
+-- section or by question. The form creates these tables itself on first submit.
+CREATE TABLE IF NOT EXISTS `evaluation_table` (
+    `evaluation_id`   INT(11)      NOT NULL AUTO_INCREMENT,
+    `account_id`      INT(11)      DEFAULT NULL,
+    `respondent_role` VARCHAR(20)  NOT NULL,
+    `respondent_name` VARCHAR(150) NOT NULL DEFAULT '',
+    `submitted_at`    DATETIME     NOT NULL,
+    PRIMARY KEY (`evaluation_id`),
+    KEY `idx_evaluation_account` (`account_id`),
+    CONSTRAINT `fk_evaluation_account`
+        FOREIGN KEY (`account_id`) REFERENCES `account_table` (`account_id`)
+        ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `evaluation_answer_table` (
+    `answer_id`     INT(11)  NOT NULL AUTO_INCREMENT,
+    `evaluation_id` INT(11)  NOT NULL,
+    `section_no`    INT(11)  NOT NULL,
+    `question_no`   INT(11)  NOT NULL,
+    `rating`        TINYINT  NOT NULL,
+    PRIMARY KEY (`answer_id`),
+    KEY `idx_answer_evaluation` (`evaluation_id`),
+    CONSTRAINT `fk_answer_evaluation`
+        FOREIGN KEY (`evaluation_id`) REFERENCES `evaluation_table` (`evaluation_id`)
+        ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
 -- Older copies of books_table declared year_published as YEAR(4), which cannot
 -- hold titles such as Noli Me Tangere (1887). Run this once if that is your copy:
 -- ALTER TABLE `books_table` MODIFY `year_published` SMALLINT NULL;
@@ -494,6 +528,24 @@ CREATE TABLE IF NOT EXISTS `attendance_table` (
 --     `username` = 'juan' WHERE `account_id` = 2;
 -- UPDATE `account_role_table` SET `role` = 'STUDENT', `status` = 'ACTIVE'
 -- WHERE `account_id` = 2;
+
+-- EDIT MY INFO (self service PROFILE tab of both dashboards)
+-- The signed in person writes the account name / username and every profile
+-- value that belongs to the role (school id, program, year level, institute,
+-- contact number, address, office). The role, the status and the date created
+-- stay read only, so a patron cannot promote itself.
+-- UPDATE `account_table` SET `name` = '...', `username` = '...'
+-- WHERE `account_id` = 2;
+-- UPDATE `student_info_table`
+-- SET `school_id` = '...', `program_id` = 1, `year_level` = '3RD YEAR',
+--     `institute_id` = 1, `contact_number` = '...', `address` = '...'
+-- WHERE `account_id` = 2;
+-- INSERT INTO `faculty_info_table` (`account_id`, `institute_id`, `contact_number`)
+-- VALUES (3, 1, '...')
+-- ON DUPLICATE KEY UPDATE `institute_id` = 1, `contact_number` = '...';
+-- UPDATE `staff_info_table` SET `office` = '...', `contact_number` = '...'
+-- WHERE `account_id` = 4;
+-- UPDATE `librarian_info_table` SET `contact_number` = '...' WHERE `account_id` = 5;
 
 -- EDIT STUDENT PROFILE (student_info_table; program_id comes from
 -- program_table through ResolveProgramId, institute_id from institute_table)

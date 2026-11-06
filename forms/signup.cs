@@ -123,6 +123,25 @@ namespace oop_project
             password_toggle.Attach(password_input);
             confirm_toggle.Attach(confirm_input);
 
+            // ICONS: one Segoe MDL2 glyph per input, so every box reads at a glance.
+            // The user and the lock are the important ones; the rest repeat their
+            // label in a small pictogram.
+            fullNameField.AttachIcon("\uE77B");
+            roleField.AttachIcon("\uE716");
+            lastNameField.AttachIcon("\uE77B");
+            firstNameField.AttachIcon("\uE77B");
+            middleInitialField.AttachIcon("\uE77B");
+            schoolIdField.AttachIcon("\uE8EC");
+            programField.AttachIcon("\uE8F1");
+            yearLevelField.AttachIcon("\uE787");
+            instituteField.AttachIcon("\uE821");
+            contactField.AttachIcon("\uE717");
+            addressField.AttachIcon("\uE80F");
+            usernameField.AttachIcon("\uE77B");
+            passwordField.AttachIcon("\uE72E");
+            confirmField.AttachIcon("\uE72E");
+            officeField.AttachIcon("\uE821");
+
             // ROLE DRIVEN FORM: only the fields that belong to the chosen role are shown.
             ApplyRoleFields();
 
@@ -501,18 +520,20 @@ namespace oop_project
             }
 
             Control input = field.Controls[0];
+            int iconInset = field.Icon == null ? 0 : 28;
+
             if (input is ComboBox comboBox)
             {
-                comboBox.Location = new Point(12, 5);
-                comboBox.Size = new Size(width - 24, 33);
+                comboBox.Location = new Point(12 + iconInset, 5);
+                comboBox.Size = new Size(width - 24 - iconInset, 33);
                 return;
             }
 
             // A password field keeps room on the right for its eye button.
             PasswordToggle? toggle = FindToggle(field);
             int toggleX = width - 36;
-            input.Location = new Point(16, 9);
-            input.Size = new Size(toggle != null ? width - 62 : width - 32, 26);
+            input.Location = new Point(16 + iconInset, 9);
+            input.Size = new Size((toggle != null ? width - 62 : width - 32) - iconInset, 26);
 
             if (toggle != null)
             {

@@ -68,6 +68,7 @@ namespace oop_project.forms
             avatarBadge = new AvatarBadge();
             securityCaption = new Label();
             changePasswordButton = new RoundedButton();
+            editProfileButton = new RoundedButton();
             tabPage3 = new TabPage();
             booksEmptyLabel = new Label();
             booksGrid = new DataGridView();
@@ -603,6 +604,7 @@ namespace oop_project.forms
             identityCard.Controls.Add(avatarBadge);
             identityCard.Controls.Add(securityCaption);
             identityCard.Controls.Add(changePasswordButton);
+            identityCard.Controls.Add(editProfileButton);
             identityCard.CornerRadius = 20;
             identityCard.Location = new Point(6, 6);
             identityCard.Name = "identityCard";
@@ -710,6 +712,24 @@ namespace oop_project.forms
             changePasswordButton.TabIndex = 8;
             changePasswordButton.Text = "CHANGE PASSWORD";
             changePasswordButton.UseVisualStyleBackColor = false;
+            // 
+            // editProfileButton
+            // 
+            editProfileButton.BackColor = Color.Transparent;
+            editProfileButton.CornerRadius = 11;
+            editProfileButton.FlatAppearance.BorderSize = 0;
+            editProfileButton.FlatStyle = FlatStyle.Flat;
+            editProfileButton.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+            editProfileButton.ForeColor = Color.White;
+            editProfileButton.HoverColor = Color.FromArgb(21, 128, 61);
+            editProfileButton.Location = new Point(91, 494);
+            editProfileButton.Name = "editProfileButton";
+            editProfileButton.NormalColor = Color.FromArgb(22, 163, 74);
+            editProfileButton.PressedColor = Color.FromArgb(20, 83, 45);
+            editProfileButton.Size = new Size(220, 44);
+            editProfileButton.TabIndex = 9;
+            editProfileButton.Text = "EDIT MY INFO";
+            editProfileButton.UseVisualStyleBackColor = false;
             // 
             // tabPage3
             // 
@@ -2279,11 +2299,11 @@ namespace oop_project.forms
         private AvatarBadge avatarBadge;   
         private Label securityCaption;
         private RoundedButton changePasswordButton;
+        private RoundedButton editProfileButton;
         private RoundedCard detailsCard;
         private Label profileFooter;
         private Panel dividerRow5;
-        private Label valueAccountId;
-        private Label captionAccountId;
+  
         private Panel dividerRow4;
         private Label valueStatus;
         private Label captionStatus;

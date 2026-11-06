@@ -12,9 +12,6 @@ namespace oop_project.forms
     /// </summary>
     public partial class ChangePasswordDialog : Form
     {
-        // CS_DROPSHADOW gives the window the soft shadow Windows uses for menus.
-        private const int DropShadowClass = 0x00020000;
-
         private readonly int _accountId;
         private readonly AccountDirectory _accounts = new AccountDirectory();
 
@@ -33,9 +30,7 @@ namespace oop_project.forms
 
             string user = (username ?? string.Empty).Trim().ToUpperInvariant();
             string userRole = (role ?? string.Empty).Trim().ToUpperInvariant();
-            accountLabel.Text = "SIGNED IN AS  @" + (user.Length == 0 ? "ACCOUNT" : user) +
-                                (userRole.Length == 0 ? string.Empty : "   \u2022   " + userRole);
-
+          
             // Each password field gets its own show / hide eye.
             currentToggle.Attach(currentInput);
             newToggle.Attach(newInput);
@@ -128,16 +123,6 @@ namespace oop_project.forms
         {
             base.OnShown(e);
             currentInput.Focus();
-        }
-
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams cp = base.CreateParams;
-                cp.ClassStyle |= DropShadowClass;
-                return cp;
-            }
         }
     }
 }

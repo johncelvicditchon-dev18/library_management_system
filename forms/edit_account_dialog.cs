@@ -172,7 +172,7 @@ namespace oop_project.forms
             _profileNote.Visible = !(isStudent || isFaculty || isStaff);
 
             _profileNote.Text = isLibrarian
-                ? "THE LIBRARIAN ACCOUNT KEEPS NO EXTRA PROFILE DETAILS.\r\nEDIT THE NAME, USERNAME, ROLE AND STATUS ON THE LEFT."
+                ? "THE LIBRARIAN ACCOUNT HAS NO PROGRAM, YEAR LEVEL, INSTITUTE OR OFFICE.\r\nEDIT THE NAME, USERNAME, ROLE AND STATUS ON THE LEFT."
                 : "THIS ACCOUNT HAS NO STUDENT, FACULTY OR STAFF\r\nPROFILE ROW, SO ONLY THE ACCOUNT DETAILS CAN BE EDITED.";
 
             if (isFaculty)

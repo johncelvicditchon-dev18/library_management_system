@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Windows.Forms;
 using library_management_system.forms;
@@ -40,6 +41,10 @@ namespace oop_project.forms
         private bool _accountsLoaded;
         private bool _canManageAccounts;
 
+        // The signed in person's own row, kept after the PROFILE tab loads so the
+        // EDIT MY INFO pop up can be filled without another round trip.
+        private AccountRow? _profileRow;
+
         // LIBRARY ATTENDANCE tab, built in code because the designer tab is empty.
         private DataGridView libraryAttendanceGrid = null!;
         private Label libraryAttendanceHeading = null!;
@@ -51,6 +56,18 @@ namespace oop_project.forms
         private RoundedButton libraryAttendanceScanButton = null!;
         private List<AttendanceRow> _attendanceRows = new List<AttendanceRow>();
         private bool _attendanceLogOnline = true;
+
+        // ANALYTICS tab, built in code: two horizontal bar charts drawn with GDI+
+        // (most visited programs and the borrowers with the most loans).
+        private TabPage analyticsTab = null!;
+        private Panel analyticsHead = null!;
+        private Label analyticsTitle = null!;
+        private Label analyticsSubtitle = null!;
+        private Label analyticsStatus = null!;
+        private RoundedButton analyticsRefreshButton = null!;
+        private Panel programVisitsScroll = null!;
+        private HorizontalBarChart programVisitsChart = null!;
+        private HorizontalBarChart topBorrowersChart = null!;
 
         private DataGridViewImageColumn bookCoverColumn = null!;
 
@@ -98,8 +115,10 @@ namespace oop_project.forms
 
             ApplyAccountDetails();
             changePasswordButton.Click += (s, e) => ShowChangePasswordDialog();
+            editProfileButton.Click += (s, e) => ShowEditProfileDialog();
             ConfigureGrids();
             BuildAttendanceTab();
+            BuildAnalyticsTab();
             BuildRecordSearches();
             LayoutRecordSearches();
 
@@ -132,6 +151,7 @@ namespace oop_project.forms
             LoadProfileRecord();
             LoadBorrowRequests();
             LoadAttendanceLog();
+            LoadAnalytics();
         }
 
         // ENCAPSULATION: one place that pushes the signed in person's details into
@@ -2535,6 +2555,11 @@ namespace oop_project.forms
                 LoadAttendanceLog();
             }
 
+            if (page == analyticsTab)
+            {
+                LoadAnalytics();
+            }
+
             UpdateEmptyStates();
         }
 
@@ -2556,6 +2581,7 @@ namespace oop_project.forms
                     return;
                 }
 
+                _profileRow = row;
                 ApplyProfileRecord(row);
             }
             catch (MySqlException)
@@ -2571,27 +2597,40 @@ namespace oop_project.forms
             bool isStudent = row.IsStudent;
             bool isFaculty = row.IsFaculty;
 
-            // The two middle rows show the profile facts the account actually has.
-            // A student has a program, while a staff member records an office.
-            captionProgramOffice.Text = isStudent ? "PROGRAM / OFFICE" : "OFFICE";
-            valueProgramOffice.Text = ProfileValue(isStudent ? row.Program : row.Office);
-            captionInstitute.Text = "INSTITUTE";
-            valueInstitute.Text = ProfileValue(row.Institute);
+            // The two middle rows show the profile facts the account actually has:
+            // a student has a program, a staff member an office, and the other
+            // roles show the contact number stored in their profile row.
+            if (isStudent)
+            {
+                captionProgramOffice.Text = "PROGRAM";
+                valueProgramOffice.Text = ProfileValue(row.Program);
+            }
+            else if (row.IsStaff)
+            {
+                captionProgramOffice.Text = "OFFICE";
+                valueProgramOffice.Text = ProfileValue(row.Office);
+            }
+            else
+            {
+                captionProgramOffice.Text = "CONTACT NUMBER";
+                valueProgramOffice.Text = ProfileValue(row.ContactNumber);
+            }
+
+            if (row.IsStaff)
+            {
+                captionInstitute.Text = "CONTACT NUMBER";
+                valueInstitute.Text = ProfileValue(row.ContactNumber);
+            }
+            else
+            {
+                captionInstitute.Text = "INSTITUTE";
+                valueInstitute.Text = ProfileValue(row.Institute);
+            }
 
             bool showRecord = (isStudent || isFaculty) && row.HasProfile;
             recordDivider.Visible = showRecord;
-           
 
             HideRecordRows();
-
-            if (isStudent)
-            {
-              
-            }
-            else if (isFaculty)
-            {
-               
-            }
         }
 
         // AccountRow uses "-" for an empty value; the profile card shows a dash
@@ -2672,6 +2711,11 @@ namespace oop_project.forms
             {
                 changePasswordButton.Left = (identityCard.ClientSize.Width - changePasswordButton.Width) / 2;
             }
+
+            if (editProfileButton != null)
+            {
+                editProfileButton.Left = (identityCard.ClientSize.Width - editProfileButton.Width) / 2;
+            }
         }
 
         private void ShowChangePasswordDialog()
@@ -2679,6 +2723,84 @@ namespace oop_project.forms
             using ChangePasswordDialog dialog =
                 new ChangePasswordDialog(LoggedInAccountId, LoggedInUsername, LoggedInRole);
             dialog.ShowDialog(this);
+        }
+
+        // SELF SERVICE: the signed in librarian may update every personal detail of
+        // the account (name, username and the whole librarian profile) without
+        // leaving the dashboard. Role, status and date created stay read only.
+        private void ShowEditProfileDialog()
+        {
+            if (LoggedInAccountId <= 0)
+            {
+                ShowError("YOUR PROFILE COULD NOT BE LOADED. SIGN IN AGAIN AND TRY ONCE MORE.");
+                return;
+            }
+
+            AccountRow? row = _profileRow;
+
+            if (row == null)
+            {
+                try
+                {
+                    row = _accountDirectory.LoadProfile(LoggedInAccountId);
+                }
+                catch (MySqlException ex)
+                {
+                    ShowError("YOUR PROFILE COULD NOT BE LOADED.\n" + ex.Message);
+                    return;
+                }
+            }
+
+            if (row == null)
+            {
+                ShowError("YOUR PROFILE COULD NOT BE LOADED.");
+                return;
+            }
+
+            using (MyProfileDialog dialog = new MyProfileDialog(row))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _accountDirectory.UpdateOwnProfile(
+                        row,
+                        dialog.FullName,
+                        dialog.Username,
+                        dialog.SchoolId,
+                        dialog.Program,
+                        dialog.YearLevel,
+                        dialog.Institute,
+                        dialog.ContactNumber,
+                        dialog.Address,
+                        dialog.Office);
+
+                    // Keep the header, the sign in name and the profile card in
+                    // step with the values that were just saved.
+                    LoggedInFullName = dialog.FullName;
+                    LoggedInUsername = dialog.Username;
+
+                    ApplyAccountDetails();
+                    LoadProfileRecord();
+
+                    Authentication.ShowMessage(
+                        "YOUR INFORMATION HAS BEEN UPDATED.",
+                        "PROFILE UPDATED",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+                {
+                    ShowError(ex.Message);
+                }
+                catch (MySqlException ex)
+                {
+                    ShowError("YOUR INFORMATION COULD NOT BE UPDATED.\n" + ex.Message);
+                }
+            }
         }
 
         private float UiScale
@@ -2729,6 +2851,545 @@ namespace oop_project.forms
             LayoutHeaderCluster();
             LayoutIdentityBadge();
             LayoutRecordSearches();
+        }
+
+        // --------------------------------------------------------------- ANALYTICS
+
+        /// <summary>
+        /// Adds the ANALYTICS tab at the end of the tab bar. Everything is built
+        /// here in code: a header with its own refresh button and two rounded
+        /// cards, each holding a GDI+ horizontal bar chart.
+        /// </summary>
+        private void BuildAnalyticsTab()
+        {
+            analyticsTab = new TabPage
+            {
+                BackColor = Color.White,
+                Padding = new Padding(3),
+                Text = "ANALYTICS",
+                UseVisualStyleBackColor = false
+            };
+
+            analyticsHead = new Panel
+            {
+                BackColor = Color.White,
+                Dock = DockStyle.Top,
+                Height = ScaleValue(86)
+            };
+
+            analyticsTitle = new Label
+            {
+                AutoSize = false,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 23, 42),
+                Location = new Point(2, 2),
+                Size = new Size(520, 30),
+                Text = "LIBRARY ANALYTICS",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            analyticsSubtitle = new Label
+            {
+                AutoEllipsis = true,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 8.75F),
+                ForeColor = MutedText,
+                Location = new Point(2, 32),
+                Size = new Size(760, 22),
+                Text = "LIBRARY VISITS BY PROGRAM AND THE BORROWERS WITH THE MOST BORROWED BOOKS.",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            analyticsStatus = new Label
+            {
+                AutoEllipsis = true,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                ForeColor = MutedText,
+                Location = new Point(2, 56),
+                Size = new Size(500, 18),
+                Text = string.Empty,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            analyticsRefreshButton = new RoundedButton
+            {
+                BackColor = Color.Transparent,
+                CornerRadius = 11,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                ForeColor = Color.White,
+                HoverColor = Color.FromArgb(21, 128, 61),
+                NormalColor = Color.FromArgb(22, 163, 74),
+                PressedColor = Color.FromArgb(20, 83, 45),
+                Size = new Size(130, 44),
+                Text = "REFRESH",
+                UseVisualStyleBackColor = false
+            };
+            analyticsRefreshButton.FlatAppearance.BorderSize = 0;
+            analyticsRefreshButton.Click += (s, e) => LoadAnalytics();
+
+            analyticsHead.Controls.Add(analyticsTitle);
+            analyticsHead.Controls.Add(analyticsSubtitle);
+            analyticsHead.Controls.Add(analyticsStatus);
+            analyticsHead.Controls.Add(analyticsRefreshButton);
+            analyticsHead.Resize += (s, e) => LayoutAnalyticsHead();
+            LayoutAnalyticsHead();
+
+            TableLayoutPanel grid = new TableLayoutPanel
+            {
+                BackColor = Color.White,
+                ColumnCount = 2,
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 6, 0, 0),
+                RowCount = 1
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+
+            programVisitsChart = new HorizontalBarChart
+            {
+                BackColor = Color.White,
+                BarBottomColor = Color.FromArgb(6, 78, 59),
+                BarTopColor = Color.FromArgb(34, 197, 94),
+                Dock = DockStyle.Top,
+                EmptyText = "NO PROGRAMS HAVE BEEN REGISTERED YET.",
+                Subtitle = "ALL PROGRAMS RANKED BY LIBRARY VISITS",
+                Title = "LIBRARY VISITS BY PROGRAM"
+            };
+
+            topBorrowersChart = new HorizontalBarChart
+            {
+                BackColor = Color.White,
+                BarBottomColor = Color.FromArgb(15, 118, 110),
+                BarTopColor = Color.FromArgb(45, 212, 191),
+                Dock = DockStyle.Fill,
+                EmptyText = "NO BORROW RECORDS HAVE BEEN RECORDED YET.",
+                Subtitle = "RANKED BY THE NUMBER OF BOOKS BORROWED",
+                Title = "TOP LIBRARY BOOK BORROWERS"
+            };
+
+            RoundedCard programCard = new RoundedCard
+            {
+                BackColor = Color.White,
+                BorderColor = Color.FromArgb(226, 232, 240),
+                CornerRadius = 16,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 9, 0),
+                Padding = new Padding(1)
+            };
+
+            // The program list is complete, so its chart scrolls inside the card
+            // when there are more programs than the card can show at once.
+            programVisitsScroll = new Panel
+            {
+                AutoScroll = true,
+                BackColor = Color.White,
+                Dock = DockStyle.Fill
+            };
+            programVisitsScroll.Controls.Add(programVisitsChart);
+            programVisitsScroll.Resize += (s, e) => SizeProgramVisitsChart();
+            programCard.Controls.Add(programVisitsScroll);
+
+            RoundedCard borrowerCard = new RoundedCard
+            {
+                BackColor = Color.White,
+                BorderColor = Color.FromArgb(226, 232, 240),
+                CornerRadius = 16,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(9, 0, 0, 0),
+                Padding = new Padding(1)
+            };
+            borrowerCard.Controls.Add(topBorrowersChart);
+
+            grid.Controls.Add(programCard, 0, 0);
+            grid.Controls.Add(borrowerCard, 1, 0);
+
+            analyticsTab.Controls.Add(grid);
+            analyticsTab.Controls.Add(analyticsHead);
+            tabControl1.TabPages.Add(analyticsTab);
+        }
+
+        private void LayoutAnalyticsHead()
+        {
+            if (analyticsHead == null || analyticsRefreshButton == null ||
+                analyticsTitle == null || analyticsSubtitle == null || analyticsStatus == null)
+            {
+                return;
+            }
+
+            int right = analyticsHead.ClientSize.Width;
+
+            analyticsRefreshButton.Left = Math.Max(0, right - analyticsRefreshButton.Width - 2);
+            analyticsRefreshButton.Top = 10;
+
+            int textWidth = Math.Max(240, analyticsRefreshButton.Left - 16);
+
+            analyticsTitle.Width = textWidth;
+            analyticsSubtitle.Width = textWidth;
+            analyticsStatus.Width = textWidth;
+        }
+
+        private void LoadAnalytics()
+        {
+            if (programVisitsChart == null || topBorrowersChart == null || analyticsStatus == null)
+            {
+                return;
+            }
+
+            analyticsRefreshButton.Enabled = false;
+
+            try
+            {
+                List<ChartItem> programs = LoadProgramVisitChart();
+                List<ChartItem> borrowers = LoadTopBorrowerChart();
+
+                programVisitsChart.SetData(programs);
+                topBorrowersChart.SetData(borrowers);
+                SizeProgramVisitsChart();
+
+                analyticsStatus.Text = "UPDATED " +
+                                       DateTime.Now.ToString("hh:mm tt", CultureInfo.InvariantCulture) +
+                                       "   \u2022   " + programs.Count + " PROGRAMS" +
+                                       "   \u2022   " + borrowers.Count + " BORROWERS";
+                analyticsStatus.ForeColor = SuccessText;
+            }
+            catch (MySqlException)
+            {
+                programVisitsChart.SetData(new List<ChartItem>());
+                topBorrowersChart.SetData(new List<ChartItem>());
+                SizeProgramVisitsChart();
+                analyticsStatus.Text = "MYSQL OFFLINE \u2022 THE CHARTS CANNOT BE LOADED";
+                analyticsStatus.ForeColor = WarningText;
+            }
+            finally
+            {
+                analyticsRefreshButton.Enabled = true;
+            }
+        }
+
+        /// <summary>
+        /// Gives the program chart enough height to show every program, so the
+        /// card scrolls instead of dropping the programs that do not fit.
+        /// </summary>
+        private void SizeProgramVisitsChart()
+        {
+            if (programVisitsScroll == null || programVisitsChart == null)
+            {
+                return;
+            }
+
+            // 18 top padding + 58 title/subtitle + 28 axis + 18 bottom padding.
+            int rows = Math.Max(1, programVisitsChart.ItemCount);
+            int preferredHeight = 122 + (rows * 34);
+
+            programVisitsChart.Height = Math.Max(programVisitsScroll.ClientSize.Height, preferredHeight);
+        }
+
+        /// <summary>
+        /// SQL #1: lists every program in program_table and counts the library
+        /// visits of its students. LEFT JOINs keep a program with zero visits in
+        /// the list, and no LIMIT is used because all programs are shown.
+        /// </summary>
+        private static List<ChartItem> LoadProgramVisitChart()
+        {
+            const string sql =
+                "SELECT p.`program_name`, COUNT(a.`attendance_id`) AS `visits` " +
+                "FROM `program_table` p " +
+                "LEFT JOIN `student_info_table` s ON s.`program_id` = p.`program_id` " +
+                "LEFT JOIN `attendance_table` a ON a.`account_id` = s.`account_id` " +
+                "GROUP BY p.`program_id`, p.`program_name` " +
+                "ORDER BY `visits` DESC, p.`program_name` ASC;";
+
+            List<ChartItem> items = new List<ChartItem>();
+
+            using (MySqlConnection connection = Authentication.OpenConnection())
+            {
+                connection.Open();
+
+                using (MySqlCommand command = new MySqlCommand(sql, connection))
+                using (MySqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string label = reader.IsDBNull(0)
+                            ? "UNASSIGNED PROGRAM"
+                            : (Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? string.Empty).Trim();
+
+                        int value = reader.IsDBNull(1)
+                            ? 0
+                            : Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture);
+
+                        if (label.Length > 0)
+                        {
+                            items.Add(new ChartItem(label.ToUpperInvariant(), value));
+                        }
+                    }
+                }
+            }
+
+            return items;
+        }
+
+        /// <summary>
+        /// SQL #2: ranks borrowers by the number of borrow_transactions_table rows
+        /// linked to them, so the person who borrowed the most books comes first.
+        /// </summary>
+        private static List<ChartItem> LoadTopBorrowerChart()
+        {
+            const string sql =
+                "SELECT b.`borrower_name`, COUNT(t.`borrow_id`) AS `total` " +
+                "FROM `borrowers_table` b " +
+                "INNER JOIN `borrow_transactions_table` t ON t.`borrower_id` = b.`borrower_id` " +
+                "GROUP BY b.`borrower_id`, b.`borrower_name` " +
+                "ORDER BY `total` DESC, b.`borrower_name` ASC " +
+                "LIMIT 10;";
+
+            List<ChartItem> items = new List<ChartItem>();
+
+            using (MySqlConnection connection = Authentication.OpenConnection())
+            {
+                connection.Open();
+
+                using (MySqlCommand command = new MySqlCommand(sql, connection))
+                using (MySqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string label = reader.IsDBNull(0)
+                            ? "UNKNOWN BORROWER"
+                            : (Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) ?? string.Empty).Trim();
+
+                        int value = reader.IsDBNull(1)
+                            ? 0
+                            : Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture);
+
+                        if (label.Length > 0)
+                        {
+                            items.Add(new ChartItem(label.ToUpperInvariant(), value));
+                        }
+                    }
+                }
+            }
+
+            return items;
+        }
+
+        private sealed class ChartItem
+        {
+            public ChartItem(string label, int value)
+            {
+                Label = label;
+                Value = value;
+            }
+
+            public string Label { get; }
+            public int Value { get; }
+        }
+
+        /// <summary>
+        /// Professional horizontal bar chart drawn with GDI+ (no external chart
+        /// package): title, subtitle, grid, rounded track and a gradient bar for
+        /// every row, with the value printed at the end of the bar.
+        /// </summary>
+        private sealed class HorizontalBarChart : Control
+        {
+            private List<ChartItem> _items = new List<ChartItem>();
+
+            public HorizontalBarChart()
+            {
+                SetStyle(ControlStyles.UserPaint |
+                         ControlStyles.AllPaintingInWmPaint |
+                         ControlStyles.OptimizedDoubleBuffer |
+                         ControlStyles.ResizeRedraw, true);
+
+                BackColor = Color.White;
+                Font = new Font("Segoe UI", 9F);
+                Padding = new Padding(22, 18, 22, 18);
+            }
+
+            public string Title { get; set; } = string.Empty;
+            public string Subtitle { get; set; } = string.Empty;
+            public string EmptyText { get; set; } = "NO DATA TO DISPLAY YET.";
+            public Color BarTopColor { get; set; } = Color.FromArgb(34, 197, 94);
+            public Color BarBottomColor { get; set; } = Color.FromArgb(6, 78, 59);
+
+            public void SetData(List<ChartItem> items)
+            {
+                _items = items ?? new List<ChartItem>();
+                Invalidate();
+            }
+
+            public int ItemCount
+            {
+                get { return _items.Count; }
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Graphics graphics = e.Graphics;
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                graphics.Clear(BackColor);
+
+                int left = Padding.Left + 6;
+                int top = Padding.Top;
+
+                using Font titleFont = new Font("Segoe UI", 11.5F, FontStyle.Bold);
+                using Font subtitleFont = new Font("Segoe UI", 8.25F);
+                using Font labelFont = new Font("Segoe UI", 8.75F);
+                using Font tickFont = new Font("Segoe UI", 7.75F);
+                using Font valueFont = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+
+                TextRenderer.DrawText(graphics, Title, titleFont,
+                    new Rectangle(left, top, Math.Max(40, Width - left - Padding.Right), 24),
+                    Color.FromArgb(15, 23, 42),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+                TextRenderer.DrawText(graphics, Subtitle, subtitleFont,
+                    new Rectangle(left, top + 26, Math.Max(40, Width - left - Padding.Right), 18),
+                    Color.FromArgb(100, 116, 139),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+                int chartTop = top + 58;
+                int axisHeight = 28;
+                int chartBottom = Height - Padding.Bottom - axisHeight;
+
+                if (_items.Count == 0)
+                {
+                    TextRenderer.DrawText(graphics, EmptyText, subtitleFont,
+                        new Rectangle(left, chartTop, Math.Max(40, Width - left - Padding.Right), Math.Max(24, chartBottom - chartTop)),
+                        Color.FromArgb(148, 163, 184),
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+                    return;
+                }
+
+                if (chartBottom - chartTop < 80)
+                {
+                    return;
+                }
+
+                int labelWidth = Math.Max(140, (int)Math.Round((Width - left - Padding.Right) * 0.38));
+                int plotLeft = left + labelWidth;
+                int plotRight = Width - Padding.Right - 46;
+
+                if (plotRight - plotLeft < 80)
+                {
+                    plotLeft = left + Math.Max(70, labelWidth / 2);
+                    plotRight = Width - Padding.Right - 30;
+                }
+
+                int maxValue = 1;
+                foreach (ChartItem item in _items)
+                {
+                    maxValue = Math.Max(maxValue, item.Value);
+                }
+
+                int niceMax = NiceMaximum(maxValue);
+                int rowHeight = Math.Min(46, Math.Max(22, (chartBottom - chartTop) / _items.Count));
+                int blockHeight = rowHeight * _items.Count;
+                int rowsTop = chartTop + Math.Max(0, (chartBottom - chartTop - blockHeight) / 2);
+
+                // Alternating row wash first, so the grid lines stay visible.
+                for (int index = 0; index < _items.Count; index++)
+                {
+                    if ((index % 2) == 1)
+                    {
+                        using SolidBrush wash = new SolidBrush(Color.FromArgb(248, 250, 252));
+                        graphics.FillRectangle(wash, new Rectangle(left - 2, rowsTop + (index * rowHeight),
+                            Math.Max(1, Width - left - Padding.Right + 2), rowHeight));
+                    }
+                }
+
+                using (Pen gridPen = new Pen(Color.FromArgb(229, 231, 235), 1f))
+                using (Pen baselinePen = new Pen(Color.FromArgb(203, 213, 225), 1.2f))
+                {
+                    const int steps = 4;
+
+                    for (int step = 0; step <= steps; step++)
+                    {
+                        int x = plotLeft + (int)Math.Round((plotRight - plotLeft) * step / (double)steps);
+                        graphics.DrawLine(gridPen, x, rowsTop - 4, x, rowsTop + blockHeight);
+
+                        string tick = ((long)Math.Round(niceMax * step / (double)steps))
+                            .ToString(CultureInfo.InvariantCulture);
+
+                        TextRenderer.DrawText(graphics, tick, tickFont,
+                            new Rectangle(x - 30, rowsTop + blockHeight + 4, 60, 16),
+                            Color.FromArgb(148, 163, 184),
+                            TextFormatFlags.HorizontalCenter | TextFormatFlags.Top);
+                    }
+
+                    graphics.DrawLine(baselinePen, plotLeft, rowsTop + blockHeight, plotRight, rowsTop + blockHeight);
+                }
+
+                int barHeight = Math.Min(24, Math.Max(12, rowHeight - 12));
+
+                for (int index = 0; index < _items.Count; index++)
+                {
+                    ChartItem item = _items[index];
+                    int rowTop = rowsTop + (index * rowHeight);
+                    int barTop = rowTop + ((rowHeight - barHeight) / 2);
+
+                    string caption = (index + 1).ToString(CultureInfo.InvariantCulture) + ".  " + item.Label;
+
+                    TextRenderer.DrawText(graphics, caption, labelFont,
+                        new Rectangle(left, rowTop, Math.Max(40, labelWidth - 14), rowHeight),
+                        Color.FromArgb(51, 65, 85),
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+                    using (GraphicsPath trackPath = oop_project.DrawHelper.CreateRoundedPath(
+                               new Rectangle(plotLeft, barTop, Math.Max(1, plotRight - plotLeft), barHeight),
+                               Math.Max(2, barHeight / 2)))
+                    using (SolidBrush trackBrush = new SolidBrush(Color.FromArgb(241, 245, 249)))
+                    {
+                        graphics.FillPath(trackBrush, trackPath);
+                    }
+
+                    int barWidth = (int)Math.Round((plotRight - plotLeft) * (item.Value / (double)niceMax));
+
+                    if (barWidth > 0)
+                    {
+                        barWidth = Math.Max(barHeight, barWidth);
+
+                        using GraphicsPath barPath = oop_project.DrawHelper.CreateRoundedPath(
+                            new Rectangle(plotLeft, barTop, barWidth, barHeight),
+                            Math.Max(2, barHeight / 2));
+
+                        using LinearGradientBrush barBrush = new LinearGradientBrush(
+                            new Rectangle(plotLeft, barTop, Math.Max(1, barWidth), Math.Max(1, barHeight)),
+                            BarTopColor, BarBottomColor, LinearGradientMode.Vertical);
+
+                        graphics.FillPath(barBrush, barPath);
+                    }
+
+                    string valueText = item.Value.ToString(CultureInfo.InvariantCulture);
+                    int valueLeft = plotLeft + barWidth + 8;
+                    int valueWidth = Math.Max(24, Width - Padding.Right - valueLeft);
+
+                    if (valueLeft >= Width - Padding.Right - 4)
+                    {
+                        valueLeft = plotLeft + Math.Max(8, barWidth - 34);
+                    }
+
+                    TextRenderer.DrawText(graphics, valueText, valueFont,
+                        new Rectangle(valueLeft, rowTop, valueWidth, rowHeight),
+                        Color.FromArgb(6, 78, 59),
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                }
+            }
+
+            private static int NiceMaximum(int maximum)
+            {
+                if (maximum <= 4)
+                {
+                    return 4;
+                }
+
+                int step = (int)Math.Ceiling(maximum / 4.0);
+                return step * 4;
+            }
         }
 
         private void logoutButton_Click(object sender, EventArgs e)

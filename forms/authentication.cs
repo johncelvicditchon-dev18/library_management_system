@@ -29,15 +29,16 @@ namespace oop_project
             return _database.CreateConnection();
         }
 
-        // SCHEMA: faculty_info_table and staff_info_table now keep the contact
-        // number collected by signup. A database created with the older schema
-        // gets the columns added automatically, so the account query and the
-        // profile inserts always find them. The names are internal constants,
-        // never typed by the user.
+        // SCHEMA: faculty_info_table, staff_info_table and librarian_info_table
+        // keep the contact number collected by the PROFILE tab. A database created
+        // with the older schema gets the columns added automatically, so the
+        // account query and the profile saves always find them. The names are
+        // internal constants, never typed by the user.
         public static void EnsureContactNumberColumns(MySqlConnection conn)
         {
             EnsureColumn(conn, "faculty_info_table", "contact_number", "VARCHAR(20) NOT NULL DEFAULT ''");
             EnsureColumn(conn, "staff_info_table", "contact_number", "VARCHAR(20) NOT NULL DEFAULT ''");
+            EnsureColumn(conn, "librarian_info_table", "contact_number", "VARCHAR(20) NOT NULL DEFAULT ''");
         }
 
         // PROFILE CLEANUP: signup no longer asks a FACULTY member for a program
@@ -60,6 +61,18 @@ namespace oop_project
             {
                 check.Parameters.AddWithValue("@table", table);
                 check.Parameters.AddWithValue("@column", column);
+                return Convert.ToInt64(check.ExecuteScalar()) > 0;
+            }
+        }
+
+        private static bool TableExists(MySqlConnection conn, string table)
+        {
+            const string checkQuery = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES " +
+                                      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @table;";
+
+            using (MySqlCommand check = new MySqlCommand(checkQuery, conn))
+            {
+                check.Parameters.AddWithValue("@table", table);
                 return Convert.ToInt64(check.ExecuteScalar()) > 0;
             }
         }
@@ -115,7 +128,7 @@ namespace oop_project
 
         private static void EnsureColumn(MySqlConnection conn, string table, string column, string definition)
         {
-            if (ColumnExists(conn, table, column))
+            if (!TableExists(conn, table) || ColumnExists(conn, table, column))
             {
                 return;
             }

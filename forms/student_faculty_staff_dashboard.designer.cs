@@ -32,8 +32,8 @@ namespace oop_project.forms
             profileHead = new Panel();
             profileSubtitle = new Label();
             profileTitle = new Label();
-            profileRefresh = new RoundedButton();
             changePasswordButton = new RoundedButton();
+            editProfileButton = new RoundedButton();
             profileColumns = new TableLayoutPanel();
             profileIdentityCard = new Panel();
             _schoolIdValue = new Label();
@@ -308,8 +308,8 @@ namespace oop_project.forms
             // 
             profileHead.Controls.Add(profileSubtitle);
             profileHead.Controls.Add(profileTitle);
-            profileHead.Controls.Add(profileRefresh);
             profileHead.Controls.Add(changePasswordButton);
+            profileHead.Controls.Add(editProfileButton);
             profileHead.Dock = DockStyle.Fill;
             profileHead.Location = new Point(3, 3);
             profileHead.Name = "profileHead";
@@ -337,24 +337,6 @@ namespace oop_project.forms
             profileTitle.TabIndex = 1;
             profileTitle.Text = "MY PROFILE";
             // 
-            // profileRefresh
-            // 
-            profileRefresh.BackColor = Color.Transparent;
-            profileRefresh.CornerRadius = 11;
-            profileRefresh.FlatAppearance.BorderSize = 0;
-            profileRefresh.FlatStyle = FlatStyle.Flat;
-            profileRefresh.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            profileRefresh.ForeColor = Color.White;
-            profileRefresh.HoverColor = Color.FromArgb(21, 128, 61);
-            profileRefresh.Location = new Point(28, 10);
-            profileRefresh.Name = "profileRefresh";
-            profileRefresh.NormalColor = Color.FromArgb(22, 163, 74);
-            profileRefresh.PressedColor = Color.FromArgb(20, 83, 45);
-            profileRefresh.Size = new Size(114, 44);
-            profileRefresh.TabIndex = 2;
-            profileRefresh.Text = "REFRESH";
-            profileRefresh.UseVisualStyleBackColor = false;
-            // 
             // changePasswordButton
             // 
             changePasswordButton.BackColor = Color.Transparent;
@@ -372,6 +354,24 @@ namespace oop_project.forms
             changePasswordButton.TabIndex = 3;
             changePasswordButton.Text = "CHANGE PASSWORD";
             changePasswordButton.UseVisualStyleBackColor = false;
+            // 
+            // editProfileButton
+            // 
+            editProfileButton.BackColor = Color.Transparent;
+            editProfileButton.CornerRadius = 11;
+            editProfileButton.FlatAppearance.BorderSize = 0;
+            editProfileButton.FlatStyle = FlatStyle.Flat;
+            editProfileButton.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            editProfileButton.ForeColor = Color.White;
+            editProfileButton.HoverColor = Color.FromArgb(21, 128, 61);
+            editProfileButton.Location = new Point(316, 10);
+            editProfileButton.Name = "editProfileButton";
+            editProfileButton.NormalColor = Color.FromArgb(22, 163, 74);
+            editProfileButton.PressedColor = Color.FromArgb(20, 83, 45);
+            editProfileButton.Size = new Size(148, 44);
+            editProfileButton.TabIndex = 4;
+            editProfileButton.Text = "EDIT MY INFO";
+            editProfileButton.UseVisualStyleBackColor = false;
             // 
             // profileColumns
             // 
@@ -1711,8 +1711,8 @@ namespace oop_project.forms
         private Panel profileHead;
         private Label profileSubtitle;
         private Label profileTitle;
-        private RoundedButton profileRefresh;
         private RoundedButton changePasswordButton;
+        private RoundedButton editProfileButton;
         private TableLayoutPanel profileColumns;
         private Panel profileIdentityCard;
         private Label _schoolIdValue;

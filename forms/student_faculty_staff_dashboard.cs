@@ -41,9 +41,9 @@ namespace oop_project.forms
         private readonly AttendanceDirectory _attendanceDirectory = new AttendanceDirectory();
 
         private readonly int _accountId;
-        private readonly string _fullName;
+        private string _fullName;
         private readonly string _role;
-        private readonly string _username;
+        private string _username;
         private readonly string _status;
 
         private AccountRow? _profile;
@@ -132,14 +132,13 @@ namespace oop_project.forms
             WirePageHead(requestsHead, _requestsSearch, requestsRefresh);
             WirePageHead(borrowedHead, _borrowedSearch, borrowedRefresh);
             WirePageHead(attendanceHead, _attendanceSearch, attendanceRefresh, attendanceSubtitle);
-            WirePageHead(profileHead, null, profileRefresh, profileSubtitle);
 
             catalogRefresh.Click += (s, e) => { LoadCatalogData(); LoadRequests(); LoadBorrowedBooks(); };
             requestsRefresh.Click += (s, e) => LoadRequests();
             borrowedRefresh.Click += (s, e) => { LoadCatalogData(); LoadBorrowedBooks(); };
             attendanceRefresh.Click += (s, e) => LoadAttendance();
-            profileRefresh.Click += (s, e) => LoadProfile();
             changePasswordButton.Click += (s, e) => ShowChangePasswordDialog();
+            editProfileButton.Click += (s, e) => ShowEditProfileDialog();
             profileHead.Resize += (s, e) => LayoutProfileActions();
             LayoutProfileActions();
 
@@ -278,25 +277,102 @@ namespace oop_project.forms
             }
         }
 
-        // The PROFILE header carries two actions, so CHANGE PASSWORD sits just
-        // left of REFRESH and the subtitle stops before both buttons.
+        // The PROFILE header carries two actions, so EDIT MY INFO and CHANGE
+        // PASSWORD sit on the right edge and the subtitle stops before them.
         private void LayoutProfileActions()
         {
             int right = profileHead.ClientSize.Width;
 
-            profileRefresh.Left = Math.Max(0, right - profileRefresh.Width);
-            profileRefresh.Top = 10;
-
-            changePasswordButton.Left = Math.Max(0, profileRefresh.Left - 12 - changePasswordButton.Width);
+            changePasswordButton.Left = Math.Max(0, right - changePasswordButton.Width);
             changePasswordButton.Top = 10;
 
-            profileSubtitle.Width = Math.Max(160, changePasswordButton.Left - 16);
+            editProfileButton.Left = Math.Max(0, changePasswordButton.Left - 12 - editProfileButton.Width);
+            editProfileButton.Top = 10;
+
+            profileSubtitle.Width = Math.Max(160, editProfileButton.Left - 16);
         }
 
         private void ShowChangePasswordDialog()
         {
             using ChangePasswordDialog dialog = new ChangePasswordDialog(_accountId, _username, _role);
             dialog.ShowDialog(this);
+        }
+
+        // SELF SERVICE: every patron may update the personal details behind the
+        // signed in account (name, username and the whole role profile). The role,
+        // status and date created stay read only because the library staff owns them.
+        private void ShowEditProfileDialog()
+        {
+            if (_accountId <= 0)
+            {
+                Authentication.ShowError("MY PROFILE", "YOUR PROFILE COULD NOT BE LOADED.\nSIGN IN AGAIN AND TRY ONCE MORE.");
+                return;
+            }
+
+            AccountRow? row = _profile;
+
+            if (row == null)
+            {
+                try
+                {
+                    row = _directory.LoadProfile(_accountId);
+                }
+                catch (MySqlException ex)
+                {
+                    Authentication.ShowError("MY PROFILE", "YOUR PROFILE COULD NOT BE LOADED.\n" + ex.Message);
+                    return;
+                }
+            }
+
+            if (row == null)
+            {
+                Authentication.ShowError("MY PROFILE", "YOUR PROFILE COULD NOT BE LOADED.");
+                return;
+            }
+
+            using MyProfileDialog dialog = new MyProfileDialog(row);
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            try
+            {
+                _directory.UpdateOwnProfile(
+                    row,
+                    dialog.FullName,
+                    dialog.Username,
+                    dialog.SchoolId,
+                    dialog.Program,
+                    dialog.YearLevel,
+                    dialog.Institute,
+                    dialog.ContactNumber,
+                    dialog.Address,
+                    dialog.Office);
+
+                // The portal chrome, the QR pass and the profile card all read from
+                // these values, so they are refreshed before the next paint.
+                _fullName = dialog.FullName;
+                _username = dialog.Username;
+
+                ApplyIdentity();
+                LoadProfile();
+
+                Authentication.ShowMessage(
+                    "YOUR INFORMATION HAS BEEN UPDATED.",
+                    "PROFILE UPDATED",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+            {
+                Authentication.ShowError("MY PROFILE", ex.Message);
+            }
+            catch (MySqlException ex)
+            {
+                Authentication.ShowError("MY PROFILE", "YOUR INFORMATION COULD NOT BE UPDATED.\n" + ex.Message);
+            }
         }
 
         private void LayoutHeaderCluster()

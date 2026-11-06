@@ -30,6 +30,7 @@ namespace oop_project
         {
             card = new RoundedCard();
             qr_scanner_button = new RoundedButton();
+            evaluation_button = new RoundedButton();
             eyebrowChip = new PillBadge();
             tcgcLogoBadge = new TcgcLogoBadge();
             logoDivider = new Panel();
@@ -52,6 +53,7 @@ namespace oop_project
             card.BackColor = Color.White;
             card.BorderColor = Color.FromArgb(238, 242, 247);
             card.Controls.Add(qr_scanner_button);
+            card.Controls.Add(evaluation_button);
             card.Controls.Add(eyebrowChip);
             card.Controls.Add(tcgcLogoBadge);
             card.Controls.Add(logoDivider);
@@ -85,8 +87,30 @@ namespace oop_project
             qr_scanner_button.Size = new Size(260, 35);
             qr_scanner_button.TabIndex = 12;
             qr_scanner_button.Text = "QR CODE SCANNER";
+            qr_scanner_button.IconGlyph = "\uED14";
+            qr_scanner_button.IconFallbackGlyph = "\uE8FE";
             qr_scanner_button.UseVisualStyleBackColor = false;
             qr_scanner_button.Click += roundedButton1_Click;
+            // 
+            // evaluation_button
+            // 
+            evaluation_button.BackColor = Color.Transparent;
+            evaluation_button.CornerRadius = 1;
+            evaluation_button.FlatAppearance.BorderSize = 0;
+            evaluation_button.FlatStyle = FlatStyle.Flat;
+            evaluation_button.Font = new Font("Segoe UI", 11F);
+            evaluation_button.ForeColor = Color.White;
+            evaluation_button.HoverColor = Color.FromArgb(21, 128, 61);
+            evaluation_button.Location = new Point(388, 432);
+            evaluation_button.Name = "evaluation_button";
+            evaluation_button.NormalColor = Color.FromArgb(22, 163, 74);
+            evaluation_button.PressedColor = Color.FromArgb(20, 83, 45);
+            evaluation_button.Size = new Size(260, 35);
+            evaluation_button.TabIndex = 13;
+            evaluation_button.Text = "LIBRARY EVALUATION";
+            evaluation_button.IconGlyph = "\uE73E";
+            evaluation_button.UseVisualStyleBackColor = false;
+            evaluation_button.Click += evaluation_button_Click;
             // 
             // eyebrowChip
             // 
@@ -275,6 +299,7 @@ namespace oop_project
         private Label creditLabel;
         private WelcomeBackdrop backdrop;
         private RoundedButton qr_scanner_button;
+        private RoundedButton evaluation_button;
         private Label subtitleLabel;
     }
 }

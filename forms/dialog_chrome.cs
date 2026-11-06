@@ -109,8 +109,8 @@ namespace oop_project.forms
         /// Applies the runtime title, subtitle and size to the chrome that the
         /// designer file created with its default geometry.
         /// </summary>
-        public static void ApplyParameters(Form form, string title, string subtitle, int width, int height,
-            Panel contentPanel, Panel footerDivider, Label titleLabel, Label subtitleLabel,
+        public static void ApplyParameters(Form form, string title, string? subtitle, int width, int height,
+            Panel contentPanel, Panel footerDivider, Label titleLabel, Label? subtitleLabel,
             Control closeButton, RoundedButton primary, RoundedButton secondary)
         {
             form.ClientSize = new Size(width, height);
@@ -126,9 +126,13 @@ namespace oop_project.forms
             titleLabel.Size = new Size(width - 130, 32);
             titleLabel.Text = (title ?? string.Empty).ToUpperInvariant();
 
-            subtitleLabel.Location = new Point(SideMargin + 2, 60);
-            subtitleLabel.Size = new Size(width - 140, 22);
-            subtitleLabel.Text = subtitle ?? string.Empty;
+            // Pop ups that keep only a heading pass null here.
+            if (subtitleLabel != null)
+            {
+                subtitleLabel.Location = new Point(SideMargin + 2, 60);
+                subtitleLabel.Size = new Size(width - 140, 22);
+                subtitleLabel.Text = subtitle ?? string.Empty;
+            }
 
             closeButton.Location = new Point(width - SideMargin - 34, 20);
 

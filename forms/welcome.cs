@@ -1,4 +1,5 @@
 using library_management_system.forms;
+using oop_project.forms;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -189,13 +190,19 @@ namespace oop_project
             start_button.CornerRadius = S(15);
             start_button.Bounds = new Rectangle(center - S(160), S(366), S(320), S(56));
 
-            // Keep the scanner button exactly centred under PROCEED TO SIGN IN,
-            // including when the window is maximised or the DPI changes.
-            int qrWidth = S(260);
-            int qrHeight = S(35);
-            int qrTop = S(366) + S(56) + S(10);
+            // QR CODE SCANNER and LIBRARY EVALUATION share one row under the
+            // PROCEED TO SIGN IN button, and stay centred at any window size.
+            int buttonWidth = S(260);
+            int buttonHeight = S(35);
+            int buttonGap = S(14);
+            int pairWidth = (buttonWidth * 2) + buttonGap;
+            int buttonTop = S(366) + S(56) + S(10);
+            int buttonLeft = center - (pairWidth / 2);
+
             qr_scanner_button.CornerRadius = S(1);
-            qr_scanner_button.Bounds = new Rectangle(center - qrWidth / 2, qrTop, qrWidth, qrHeight);
+            evaluation_button.CornerRadius = S(1);
+            qr_scanner_button.Bounds = new Rectangle(buttonLeft, buttonTop, buttonWidth, buttonHeight);
+            evaluation_button.Bounds = new Rectangle(buttonLeft + buttonWidth + buttonGap, buttonTop, buttonWidth, buttonHeight);
 
             footerDivider.Bounds = new Rectangle(center - S(170), S(470), S(340), 1);
             footerLabel.Bounds = new Rectangle(margin, S(482), contentWidth, S(18));
@@ -239,6 +246,16 @@ namespace oop_project
             using (qr_code_scanner qr_form = new qr_code_scanner())
             {
                 qr_form.ShowDialog(this);
+            }
+        }
+
+        private void evaluation_button_Click(object sender, EventArgs e)
+        {
+            // The evaluation is open to students, faculty and staff before they
+            // sign in, so it opens directly from the welcome page.
+            using (EvaluationForm form = new EvaluationForm())
+            {
+                form.ShowDialog(this);
             }
         }
     }

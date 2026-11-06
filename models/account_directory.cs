@@ -110,7 +110,8 @@ namespace oop_project.Models
             "IFNULL(p.`program_name`, ''), " +
             "IFNULL(s.`year_level`, ''), " +
             "IFNULL(COALESCE(i.`institute_code`, fi.`institute_code`), ''), " +
-            "IFNULL(COALESCE(s.`contact_number`, f.`contact_number`, st.`contact_number`), ''), IFNULL(s.`address`, ''), " +
+            "IFNULL(COALESCE(s.`contact_number`, f.`contact_number`, st.`contact_number`, li.`contact_number`), ''), " +
+            "IFNULL(s.`address`, ''), " +
             "IFNULL(st.`office`, '') " +
             "FROM `account_table` a " +
             "LEFT JOIN `account_role_table` r ON r.`account_id` = a.`account_id` " +
@@ -119,7 +120,8 @@ namespace oop_project.Models
             "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` " +
             "LEFT JOIN `faculty_info_table` f ON f.`account_id` = a.`account_id` " +
             "LEFT JOIN `institute_table` fi ON fi.`institute_id` = f.`institute_id` " +
-            "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` ";
+            "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` " +
+            "LEFT JOIN `librarian_info_table` li ON li.`account_id` = a.`account_id` ";
 
         private readonly IDatabaseConnection _database = new MySqlDatabaseConnection();
 
@@ -446,6 +448,150 @@ namespace oop_project.Models
         }
 
         /// <summary>
+        /// SELF SERVICE update used by the EDIT MY INFO button of the PROFILE tab.
+        /// The signed in person edits every detail that belongs to the account:
+        /// the name and username of account_table and the profile values of the
+        /// student / faculty / staff / librarian profile row. The role, the
+        /// status and the date created are never written here, so a patron cannot
+        /// promote their own account.
+        /// </summary>
+        public void UpdateOwnProfile(
+            AccountRow row,
+            string name,
+            string username,
+            string schoolId,
+            string program,
+            string yearLevel,
+            string institute,
+            string contactNumber,
+            string address,
+            string office)
+        {
+            if (row == null)
+            {
+                throw new ArgumentNullException(nameof(row));
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Name is required.", nameof(name));
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username is required.", nameof(username));
+            }
+
+            if (row.HasProfile && row.IsStudent)
+            {
+                if (string.IsNullOrWhiteSpace(schoolId))
+                {
+                    throw new ArgumentException("School ID is required for a student account.", nameof(schoolId));
+                }
+
+                if (string.IsNullOrWhiteSpace(program))
+                {
+                    throw new ArgumentException("Program is required for a student account.", nameof(program));
+                }
+            }
+
+            if (row.IsStaff && string.IsNullOrWhiteSpace(office))
+            {
+                throw new ArgumentException("Office is required for a staff account.", nameof(office));
+            }
+
+            if ((row.HasProfile && row.IsStudent) || row.IsFaculty)
+            {
+                if (string.IsNullOrWhiteSpace(institute))
+                {
+                    throw new ArgumentException("Institute is required.", nameof(institute));
+                }
+            }
+
+            try
+            {
+                using (MySqlConnection connection = _database.CreateConnection())
+                {
+                    connection.Open();
+
+                    using (MySqlTransaction transaction = connection.BeginTransaction())
+                    {
+                        const string accountSql =
+                            "UPDATE `account_table` SET `name` = @name, `username` = @username " +
+                            "WHERE `account_id` = @accountId;";
+
+                        using (MySqlCommand accountCommand = new MySqlCommand(accountSql, connection, transaction))
+                        {
+                            accountCommand.Parameters.AddWithValue("@name", name.Trim());
+                            accountCommand.Parameters.AddWithValue("@username", username.Trim());
+                            accountCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+                            accountCommand.ExecuteNonQuery();
+                        }
+
+                        if (row.HasProfile && row.IsStudent)
+                        {
+                            long instituteId = ResolveInstituteId(connection, transaction, institute);
+                            long programId = ResolveProgramId(connection, transaction, program, instituteId);
+
+                            const string studentSql =
+                                "UPDATE `student_info_table` SET `school_id` = @schoolId, `program_id` = @programId, " +
+                                "`year_level` = @yearLevel, `institute_id` = @instituteId, `contact_number` = @contact, " +
+                                "`address` = @address WHERE `account_id` = @accountId;";
+
+                            using (MySqlCommand studentCommand = new MySqlCommand(studentSql, connection, transaction))
+                            {
+                                studentCommand.Parameters.AddWithValue("@schoolId", schoolId.Trim());
+                                studentCommand.Parameters.AddWithValue("@programId", programId);
+                                studentCommand.Parameters.AddWithValue("@yearLevel", Limit(yearLevel, 20));
+                                studentCommand.Parameters.AddWithValue("@instituteId", instituteId);
+                                studentCommand.Parameters.AddWithValue("@contact", Limit(contactNumber, 20));
+                                studentCommand.Parameters.AddWithValue("@address", Limit(address, 255));
+                                studentCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+                                studentCommand.ExecuteNonQuery();
+                            }
+                        }
+                        else if (row.IsFaculty)
+                        {
+                            long instituteId = ResolveInstituteId(connection, transaction, institute);
+
+                            // NORMALISATION: the faculty profile is created on the
+                            // first save when an older account never had one.
+                            const string facultySql =
+                                "INSERT INTO `faculty_info_table` (`account_id`, `institute_id`, `contact_number`) " +
+                                "VALUES (@accountId, @instituteId, @contact) " +
+                                "ON DUPLICATE KEY UPDATE `institute_id` = @instituteId, `contact_number` = @contact;";
+
+                            using (MySqlCommand facultyCommand = new MySqlCommand(facultySql, connection, transaction))
+                            {
+                                facultyCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+                                facultyCommand.Parameters.AddWithValue("@instituteId", instituteId);
+                                facultyCommand.Parameters.AddWithValue("@contact", Limit(contactNumber, 20));
+                                facultyCommand.ExecuteNonQuery();
+                            }
+                        }
+                        else if (row.IsStaff)
+                        {
+                            SaveOfficeProfile(connection, transaction, "staff_info_table", row.AccountId, office);
+                            SaveProfileContact(connection, transaction, "staff_info_table", row.AccountId, contactNumber);
+                        }
+                        else if (row.IsLibrarian)
+                        {
+                            EnsureLibrarianProfile(connection, transaction, row.AccountId);
+                            SaveProfileContact(connection, transaction, "librarian_info_table", row.AccountId, contactNumber);
+                        }
+
+                        transaction.Commit();
+                    }
+                }
+            }
+            catch (MySqlException ex) when (ex.Number == 1062)
+            {
+                throw new InvalidOperationException(
+                    "THAT USERNAME OR SCHOOL ID IS ALREADY USED BY ANOTHER ACCOUNT.", ex);
+            }
+        }
+
+        /// <summary>
         /// DELETE one account. The role row and the student / faculty / staff /
         /// librarian profile rows are removed with it through the ON DELETE CASCADE
         /// foreign keys.
@@ -565,6 +711,26 @@ namespace oop_project.Models
                 command.Parameters.AddWithValue("@accountId", accountId);
                 command.Parameters.AddWithValue("@roleId", roleId);
                 command.Parameters.AddWithValue("@office", Limit(office, 120));
+                command.ExecuteNonQuery();
+            }
+        }
+
+        // SELF SERVICE: the contact number of a staff or librarian profile row is
+        // written after the row itself exists, so a single UPDATE is enough.
+        private static void SaveProfileContact(
+            MySqlConnection connection,
+            MySqlTransaction transaction,
+            string table,
+            int accountId,
+            string contactNumber)
+        {
+            string sql = "UPDATE `" + table + "` SET `contact_number` = @contact " +
+                         "WHERE `account_id` = @accountId;";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@contact", Limit(contactNumber, 20));
+                command.Parameters.AddWithValue("@accountId", accountId);
                 command.ExecuteNonQuery();
             }
         }

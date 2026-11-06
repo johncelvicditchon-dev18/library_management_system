@@ -125,6 +125,18 @@
     <Compile Update="forms\change_password_dialog.designer.cs">
       <DependentUpon>change_password_dialog.cs</DependentUpon>
     </Compile>
+    <Compile Update="forms\my_profile_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\my_profile_dialog.designer.cs">
+      <DependentUpon>my_profile_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\evaluation_form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\evaluation_form.designer.cs">
+      <DependentUpon>evaluation_form.cs</DependentUpon>
+    </Compile>
 
     <EmbeddedResource Update="forms\librarian_dashboard.resx">
       <DependentUpon>librarian_dashboard.cs</DependentUpon>

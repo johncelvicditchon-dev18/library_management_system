@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.Windows.Forms;
 
 namespace oop_project
@@ -343,15 +344,82 @@ namespace oop_project
         }
     }
 
+    /// <summary>
+    /// Small icon drawn inside a <see cref="FieldPanel"/>. The glyph comes from
+    /// the Segoe MDL2 Assets font that Windows already ships with.
+    /// </summary>
+    [ToolboxItem(true)]
+    [Description("Small Segoe MDL2 Assets icon drawn inside a rounded field.")]
+    public sealed class FieldIcon : Control
+    {
+        private string _glyph = string.Empty;
+        private Color _iconColor = Color.FromArgb(100, 116, 139);
+
+        public FieldIcon()
+        {
+            SetStyle(ControlStyles.UserPaint |
+                     ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw, true);
+            SetStyle(ControlStyles.Selectable, false);
+
+            Font = new Font("Segoe MDL2 Assets", 11F);
+            TabStop = false;
+            Size = new Size(24, 24);
+            Cursor = Cursors.Default;
+        }
+
+        /// <summary>The Segoe MDL2 Assets character, e.g. \uE77B for the user icon.</summary>
+        public string Glyph
+        {
+            get { return _glyph; }
+            set
+            {
+                _glyph = value ?? string.Empty;
+                Invalidate();
+            }
+        }
+
+        public Color IconColor
+        {
+            get { return _iconColor; }
+            set
+            {
+                _iconColor = value;
+                Invalidate();
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            TextRenderer.DrawText(
+                e.Graphics,
+                _glyph,
+                Font,
+                ClientRectangle,
+                _iconColor,
+                TextFormatFlags.HorizontalCenter |
+                TextFormatFlags.VerticalCenter |
+                TextFormatFlags.NoPadding);
+        }
+    }
+
     public sealed class FieldPanel : Panel
     {
         private bool _focused;
         private bool _hasError;
+        private FieldIcon? _icon;
 
         public Color FillColor { get; set; } = Color.FromArgb(243, 244, 246);
         public Color BorderColor { get; set; } = Color.FromArgb(229, 231, 235);
         public Color FocusColor { get; set; } = Color.FromArgb(22, 163, 74);
         public int CornerRadius { get; set; } = 10;
+
+        /// <summary>The icon attached to this field, or null when it has none.</summary>
+        public FieldIcon? Icon
+        {
+            get { return _icon; }
+        }
 
         // An invalid field keeps its red border even while the cursor sits in it,
         // so the inline warning and the field always agree.
@@ -390,6 +458,63 @@ namespace oop_project
             BackColor = Color.White;
         }
 
+        /// <summary>
+        /// Puts a Segoe MDL2 Assets glyph at the left of the rounded box and moves
+        /// the text box / dropdown beside it. The eye button of a password field
+        /// keeps its place on the right.
+        /// </summary>
+        public void AttachIcon(string glyph)
+        {
+            if (_icon != null || string.IsNullOrEmpty(glyph))
+            {
+                return;
+            }
+
+            _icon = new FieldIcon
+            {
+                Glyph = glyph,
+                IconColor = Color.FromArgb(100, 116, 139),
+                BackColor = FillColor,
+                Location = new Point(14, Math.Max(0, (Height - 24) / 2)),
+                Size = new Size(24, 24),
+                TabStop = false
+            };
+
+            Controls.Add(_icon);
+
+            Control? input = null;
+
+            foreach (Control child in Controls)
+            {
+                if (child is TextBox || child is ComboBox)
+                {
+                    input = child;
+                    break;
+                }
+            }
+
+            if (input == null)
+            {
+                return;
+            }
+
+            _icon.Click += (s, e) => input.Focus();
+
+            int left = input is ComboBox ? 40 : 44;
+            int rightLimit = Width - 16;
+
+            foreach (Control child in Controls)
+            {
+                if (child is PasswordToggle toggle)
+                {
+                    rightLimit = Math.Min(rightLimit, toggle.Left - 12);
+                }
+            }
+
+            input.Left = left;
+            input.Width = Math.Max(40, rightLimit - left);
+        }
+
         protected override void OnPaintBackground(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -422,6 +547,17 @@ namespace oop_project
         // Text colour used when the button is disabled. Kept as a property so a
         // light button (such as the copy stepper) stays readable when it greys out.
         public Color DisabledTextColor { get; set; } = Color.FromArgb(248, 250, 252);
+
+        // Optional glyph drawn before the text (Segoe Fluent Icons / MDL2 Assets).
+        // The fallback glyph is used on Windows 10, where Segoe Fluent Icons is
+        // not installed and the primary glyph may be missing.
+        public string IconGlyph { get; set; } = string.Empty;
+        public string IconFallbackGlyph { get; set; } = string.Empty;
+        public float IconSize { get; set; } = 16f;
+
+        private static bool _iconFontResolved;
+        private static bool _fluentIconsAvailable;
+        private static string _iconFontFamily = "Segoe MDL2 Assets";
 
         public RoundedButton()
         {
@@ -462,15 +598,91 @@ namespace oop_project
             using var sheen = new Pen(Color.FromArgb(46, 255, 255, 255), 1f);
             g.DrawPath(sheen, innerPath);
 
+            if (string.IsNullOrEmpty(IconGlyph))
+            {
+                TextRenderer.DrawText(
+                    g,
+                    Text,
+                    Font,
+                    rect,
+                    Enabled ? ForeColor : DisabledTextColor,
+                    TextFormatFlags.HorizontalCenter |
+                    TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.EndEllipsis);
+            }
+            else
+            {
+                PaintIcon(g);
+            }
+        }
+
+        private void PaintIcon(Graphics g)
+        {
+            ResolveIconFont();
+
+            string glyph = _fluentIconsAvailable || string.IsNullOrEmpty(IconFallbackGlyph)
+                ? IconGlyph
+                : IconFallbackGlyph;
+
+            using Font iconFont = new Font(_iconFontFamily, IconSize, FontStyle.Regular, GraphicsUnit.Pixel);
+
+            Size iconSize = TextRenderer.MeasureText(g, glyph, iconFont, Size.Empty, TextFormatFlags.NoPadding);
+            Size textSize = TextRenderer.MeasureText(g, Text, Font, Size.Empty, TextFormatFlags.NoPadding);
+
+            int gap = 8;
+            int totalWidth = iconSize.Width + gap + textSize.Width;
+            int left = Math.Max(6, (Width - totalWidth) / 2);
+
+            Color color = Enabled ? ForeColor : DisabledTextColor;
+
+            TextRenderer.DrawText(
+                g,
+                glyph,
+                iconFont,
+                new Rectangle(left, 0, iconSize.Width, Height),
+                color,
+                TextFormatFlags.NoPadding |
+                TextFormatFlags.VerticalCenter |
+                TextFormatFlags.Left);
+
             TextRenderer.DrawText(
                 g,
                 Text,
                 Font,
-                rect,
-                Enabled ? ForeColor : DisabledTextColor,
-                TextFormatFlags.HorizontalCenter |
+                new Rectangle(left + iconSize.Width + gap, 0, Math.Max(0, Width - left - iconSize.Width - gap - 6), Height),
+                color,
+                TextFormatFlags.Left |
                 TextFormatFlags.VerticalCenter |
                 TextFormatFlags.EndEllipsis);
+        }
+
+        private static void ResolveIconFont()
+        {
+            if (_iconFontResolved)
+            {
+                return;
+            }
+
+            _iconFontResolved = true;
+
+            try
+            {
+                using InstalledFontCollection fonts = new InstalledFontCollection();
+
+                foreach (FontFamily family in fonts.Families)
+                {
+                    if (string.Equals(family.Name, "Segoe Fluent Icons", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _fluentIconsAvailable = true;
+                        _iconFontFamily = "Segoe Fluent Icons";
+                        return;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Fall back to the MDL2 Assets font that ships with Windows 10.
+            }
         }
 
         private static Color Blend(Color from, Color to, float amount)
