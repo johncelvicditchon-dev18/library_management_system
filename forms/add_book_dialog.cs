@@ -23,6 +23,7 @@ namespace oop_project.forms
                 "Register a new title and attach its picture.", 640, 780,
                 _contentPanel, _footerDivider, _titleLabel, _subtitleLabel,
                 _closeButton, _primaryButton, _secondaryButton);
+            DialogChrome.ApplyCompactHeader(this, _titleLabel, _subtitleLabel, _closeButton);
 
             // The date stamp is runtime data, so it is filled after the designer
             // has created the label.
@@ -179,19 +180,9 @@ namespace oop_project.forms
             }
         }
 
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams parameters = base.CreateParams;
-                DialogChrome.ApplyDropShadow(parameters);
-                return parameters;
-            }
-        }
-
         protected override void OnPaintBackground(PaintEventArgs e)
         {
-            DialogChrome.PaintBackground(this, e);
+            DialogChrome.PaintCompactBackground(this, e);
         }
     }
 }

@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using System.IO;
 using System.Windows.Forms;
 using library_management_system.forms;
 using MySql.Data.MySqlClient;
 using oop_project.Models;
+using oop_project.Reports;
 
 namespace oop_project.forms
 {
@@ -19,6 +21,20 @@ namespace oop_project.forms
         private static readonly Color DangerText = Color.FromArgb(185, 28, 28);
 
         private static readonly Font StatusCellFont = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+
+        // ANALYTICS: the programs offered by the school, grouped by institute.
+        // They are merged into the LIBRARY VISITS BY PROGRAM chart, so a program
+        // that has no attendance record yet is still listed with 0 visits.
+        private static readonly Dictionary<string, string[]> FallbackPrograms =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                  { "ICS", new[] { "BSCS" } },
+                { "IAS", new[] { "AB COMM", "AB ENGLISH", "AB POLSCI" } },
+                { "ICJE", new[] { "BS-CRIM", "BSISM" } },
+                { "IBFS", new[] { "BSBA-FM", "BSBA-HRM", "BSBA-MM", "BSOA" } },
+                { "IHS", new[] { "BS-MIDWIFERY" } },
+                { "ITE", new[] { "BEED", "BSED-ENGLISH", "BSED-FILIPINO", "BSED-MATH", "BSED-SOCSTUD" } }
+            };
 
         // The EDIT / DELETE column of every table shows one Segoe MDL2 Assets glyph,
         // so the two options are icons instead of words.
@@ -54,12 +70,12 @@ namespace oop_project.forms
         private SearchBox libraryAttendanceSearch = null!;
         private RoundedButton libraryAttendanceRefreshButton = null!;
         private RoundedButton libraryAttendanceScanButton = null!;
+        private RoundedButton libraryAttendanceReportButton = null!;
         private List<AttendanceRow> _attendanceRows = new List<AttendanceRow>();
         private bool _attendanceLogOnline = true;
 
-        // ANALYTICS tab, built in code: two horizontal bar charts drawn with GDI+
-        // (most visited programs and the borrowers with the most loans).
-        private TabPage analyticsTab = null!;
+        // ANALYTICS tab: the page itself is declared in the designer so it appears in
+        // Visual Studio's View Designer. The two GDI+ charts are built in code.
         private Panel analyticsHead = null!;
         private Label analyticsTitle = null!;
         private Label analyticsSubtitle = null!;
@@ -68,6 +84,39 @@ namespace oop_project.forms
         private Panel programVisitsScroll = null!;
         private HorizontalBarChart programVisitsChart = null!;
         private HorizontalBarChart topBorrowersChart = null!;
+
+        // ANALYTICS: EVALUATION FORM FEEDBACK block. The KPI cards summarise who
+        // answered the survey and the three charts show the respondent split and
+        // the ratings the students, faculty and staff gave.
+        private readonly EvaluationDirectory _evaluationDirectory = new EvaluationDirectory();
+        private StatCard evalTotalCard = null!;
+        private StatCard evalStudentCard = null!;
+        private StatCard evalFacultyCard = null!;
+        private StatCard evalStaffCard = null!;
+        private StatCard evalAverageCard = null!;
+        private DonutChart evaluationRoleChart = null!;
+        private HorizontalBarChart evaluationSectionChart = null!;
+        private HorizontalBarChart evaluationRatingChart = null!;
+
+        // ANALYTICS: the SEMESTER strip. The librarian opens one semester at a time,
+        // closes it when the term ends and starts the next one; the combo lets the
+        // charts show either one semester or every semester together.
+        private ComboBox evaluationPeriodBox = null!;
+        private RoundedButton evaluationPeriodButton = null!;
+        private RoundedButton evaluationNewPeriodButton = null!;
+        private RoundedButton evaluationRespondentsButton = null!;
+        private Label evaluationPeriodStatus = null!;
+        private List<EvaluationPeriod> _evaluationPeriods = new List<EvaluationPeriod>();
+        private bool _fillingEvaluationPeriods;
+
+        private static readonly string[] EvaluationSectionLabels =
+        {
+            "FACILITIES",
+            "RESOURCES",
+            "SERVICES",
+            "ACCESSIBILITY",
+            "OVERALL SATISFACTION"
+        };
 
         private DataGridViewImageColumn bookCoverColumn = null!;
 
@@ -465,6 +514,22 @@ namespace oop_project.forms
 
             libraryAttendanceScanButton.Click += (s, e) => OpenAttendanceScanner();
 
+            libraryAttendanceReportButton = new RoundedButton
+            {
+                Text = "EXPORT PDF",
+                Location = new Point(372, 92),
+                Size = new Size(150, 44),
+                CornerRadius = 12,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                NormalColor = Color.FromArgb(194, 65, 12),
+                HoverColor = Color.FromArgb(154, 52, 18),
+                PressedColor = Color.FromArgb(120, 45, 15),
+                ForeColor = Color.White,
+                UseVisualStyleBackColor = false
+            };
+
+            libraryAttendanceReportButton.Click += (s, e) => ExportAttendancePdf();
+
             libraryAttendanceSearch = new SearchBox
             {
                 PlaceholderText = "SEARCH ATTENDANCE...",
@@ -512,6 +577,7 @@ namespace oop_project.forms
             tabPage7.Controls.Add(libraryAttendanceGrid);
             tabPage7.Controls.Add(libraryAttendanceStatus);
             tabPage7.Controls.Add(libraryAttendanceSearch);
+            tabPage7.Controls.Add(libraryAttendanceReportButton);
             tabPage7.Controls.Add(libraryAttendanceScanButton);
             tabPage7.Controls.Add(libraryAttendanceRefreshButton);
             tabPage7.Controls.Add(libraryAttendanceSubtitle);
@@ -549,7 +615,8 @@ namespace oop_project.forms
 
         private void LayoutAttendanceTab()
         {
-            if (libraryAttendanceGrid == null || tabPage7 == null || booksHeading == null)
+            if (libraryAttendanceGrid == null || tabPage7 == null || booksHeading == null ||
+                libraryAttendanceReportButton == null)
             {
                 return;
             }
@@ -573,10 +640,16 @@ namespace oop_project.forms
                 buttonWidth + 60,
                 toolbarHeight);
 
+            libraryAttendanceReportButton.SetBounds(
+                libraryAttendanceScanButton.Right + 12,
+                toolbarTop,
+                buttonWidth + 24,
+                toolbarHeight);
+
             int searchWidth = Math.Max(220, Math.Min(380, (attendanceGrid.Width / 3) + 40));
             libraryAttendanceSearch.SetBounds(right - searchWidth, toolbarTop, searchWidth, toolbarHeight);
 
-            int statusLeft = libraryAttendanceScanButton.Right + 14;
+            int statusLeft = libraryAttendanceReportButton.Right + 14;
             int statusWidth = libraryAttendanceSearch.Left - 14 - statusLeft;
 
             libraryAttendanceStatus.Anchor = AnchorStyles.Top;
@@ -611,6 +684,45 @@ namespace oop_project.forms
             // A scan writes straight into attendance_table, so the table is read
             // again as soon as the scanner closes.
             LoadAttendanceLog();
+        }
+
+        /// <summary>
+        /// LIBRARY ATTENDANCE tab: writes the scan log to a PDF that follows the
+        /// Learning Resource Center form. Every row is printed in full, so names,
+        /// programs and institutes never wrap or get cut.
+        /// </summary>
+        private void ExportAttendancePdf()
+        {
+            using (SaveFileDialog dialog = new SaveFileDialog())
+            {
+                dialog.Filter = "PDF file (*.pdf)|*.pdf";
+                dialog.FileName = "library-attendance-" +
+                                  DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".pdf";
+                dialog.Title = "EXPORT LIBRARY ATTENDANCE AS PDF";
+                dialog.OverwritePrompt = true;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                try
+                {
+                    AttendancePdfExporter.Export(_attendanceRows, dialog.FileName);
+
+                    DialogChrome.ShowAlert(
+                        "LIBRARY ATTENDANCE EXPORTED TO:\n" + dialog.FileName,
+                        "PDF SAVED",
+                        MessageBoxIcon.Information);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    DialogChrome.ShowAlert(
+                        "THE PDF COULD NOT BE SAVED.\n" + ex.Message,
+                        "EXPORT FAILED",
+                        MessageBoxIcon.Error);
+                }
+            }
         }
 
         private void LoadAttendanceLog()
@@ -919,15 +1031,16 @@ namespace oop_project.forms
 
             attendanceGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BalanceColumn(loanIdColumn, 4F, 44);
-            BalanceColumn(loanTitleColumn, 18F, 150);
-            BalanceColumn(year, 7F, 65);
-            BalanceColumn(loanCopyColumn, 10F, 105);
-            BalanceColumn(program_, 10F, 90);
-            BalanceColumn(institute, 11F, 120);
-            BalanceColumn(studentid, 10F, 95);
-            BalanceColumn(loanDateColumn, 9F, 95);
+            BalanceColumn(loanTitleColumn, 16F, 150);
+            BalanceColumn(year, 6F, 65);
+            BalanceColumn(loanCopyColumn, 8F, 95);
+            BalanceColumn(loanBorrowerColumn, 15F, 140);
+            BalanceColumn(program_, 9F, 90);
+            BalanceColumn(institute, 10F, 110);
+            BalanceColumn(studentid, 9F, 95);
+            BalanceColumn(loanDateColumn, 8F, 95);
             BalanceColumn(loanDaysColumn, 5F, 50);
-            BalanceColumn(loanReturnedColumn, 9F, 90);
+            BalanceColumn(loanReturnedColumn, 8F, 90);
             BalanceColumn(loanStatusColumn, 9F, 105);
 
             requestsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
@@ -1229,38 +1342,54 @@ namespace oop_project.forms
             int borrowsShown = 0;
             int borrowsTotal = 0;
 
-            foreach (BorrowRecord record in _catalog.BorrowRecords)
+            // One line per borrower + title + borrow date: the copies of a request all
+            // stay as separate rows in borrow_transactions_table, but the table reports
+            // the number of copies in BORROWED COPY instead of repeating the loan.
+            foreach (BorrowedBookGroup group in BorrowedBookGroup.BuildGroups(_catalog.BorrowRecords))
             {
                 borrowsTotal++;
 
-                if (!MatchesTerm(borrowTerm, record.BookTitle, record.Author, record.BookYearText,
-                                 record.BorrowerName, record.BorrowerIdNumber, record.ProgramText,
-                                 record.InstituteText, record.DateBorrowedText, record.DateReturnedText,
-                                 record.Status))
+                if (!MatchesTerm(borrowTerm, group.BookTitle, group.Author, group.BookYearText,
+                                 group.BorrowerName, group.BorrowerIdNumber, group.ProgramText,
+                                 group.InstituteText, group.DateBorrowedText, group.DateReturnedText,
+                                 group.Status))
                 {
                     continue;
                 }
 
                 int index = attendanceGrid.Rows.Add(
-                    record.BorrowId,
-                    record.BookTitle,
-                    record.BookYearText,
-                    record.BorrowedCopyText,
-                    record.ProgramText,
-                    record.InstituteText,
-                    record.BorrowerIdNumber,
-                    record.DateBorrowedText,
-                    record.DaysBorrowedText,
-                    record.DateReturnedText,
-                    record.Status,
+                    group.BorrowIdText,
+                    group.BookTitle,
+                    group.BookYearText,
+                    group.BorrowerIdNumber,
+                    group.BorrowerName,
+                    group.ProgramText,
+                    group.InstituteText,
+                    group.CopyCountText,
+                    group.DateBorrowedText,
+                    group.DateReturnedText,
+                    group.DaysBorrowedText,
+                    group.Status,
                     EditGlyph,
                     DeleteGlyph);
 
-                attendanceGrid.Rows[index].Tag = record;
-                attendanceGrid.Rows[index].Cells[loanDateColumn.Index].ToolTipText =
-                    "BORROWED " + record.DateBorrowedStampText;
-                attendanceGrid.Rows[index].Cells[loanDaysColumn.Index].ToolTipText =
-                    record.DaysBorrowedText + " SINCE " + record.DateBorrowedStampText;
+                DataGridViewRow row = attendanceGrid.Rows[index];
+                row.Tag = group;
+                row.Cells[loanBorrowerColumn.Index].ToolTipText =
+                    "BORROWER: " + group.BorrowerName + " (" + group.BorrowerIdNumber + ")";
+                row.Cells[loanIdColumn.Index].ToolTipText = group.CopyCount > 1
+                    ? group.CopyCount + " COPY RECORDS: " + group.BorrowIdListText
+                    : "BORROW RECORD " + group.BorrowIdListText;
+                row.Cells[loanCopyColumn.Index].ToolTipText = group.CopyCount == 1
+                    ? "1 COPY OF \"" + group.BookTitle + "\""
+                    : group.CopyCount + " COPIES OF \"" + group.BookTitle + "\"";
+                row.Cells[loanDateColumn.Index].ToolTipText =
+                    "BORROWED " + group.DateBorrowedStampText;
+                row.Cells[loanDaysColumn.Index].ToolTipText =
+                    group.DaysBorrowedText + " SINCE " + group.DateBorrowedStampText;
+                row.Cells[loanStatusColumn.Index].ToolTipText = group.CopyCount > 1
+                    ? group.OpenCount + " OF " + group.CopyCount + " COPIES STILL BORROWED"
+                    : "STATUS: " + group.Status;
                 borrowsShown++;
             }
 
@@ -1721,20 +1850,20 @@ namespace oop_project.forms
 
             if (grid == attendanceGrid)
             {
-                BorrowRecord? record = row.Tag as BorrowRecord;
+                BorrowedBookGroup? group = row.Tag as BorrowedBookGroup;
 
-                if (record == null)
+                if (group == null)
                 {
                     return;
                 }
 
                 if (edit)
                 {
-                    EditBorrowRecord(record);
+                    EditBorrowRecord(group);
                 }
                 else
                 {
-                    DeleteBorrowRecord(record);
+                    DeleteBorrowRecord(group);
                 }
 
                 return;
@@ -1858,9 +1987,9 @@ namespace oop_project.forms
             }
         }
 
-        private void EditBorrowRecord(BorrowRecord record)
+        private void EditBorrowRecord(BorrowedBookGroup group)
         {
-            using (EditBorrowRecordDialog dialog = new EditBorrowRecordDialog(record, _catalog.Books))
+            using (EditBorrowRecordDialog dialog = new EditBorrowRecordDialog(group.FirstRecord, _catalog.Books))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
@@ -1877,7 +2006,8 @@ namespace oop_project.forms
                 try
                 {
                     // The pop up collected the borrowers_table attributes; the model
-                    // validates them before the two tables are updated.
+                    // validates them before the two tables are updated. A grouped row
+                    // edits every copy together so the line stays one group.
                     Borrower borrower = new Borrower(
                         dialog.BorrowerName,
                         dialog.BorrowerIdNumber,
@@ -1885,13 +2015,19 @@ namespace oop_project.forms
                         dialog.BorrowerYearLevel,
                         dialog.BorrowerInstitute);
 
-                    _catalog.UpdateBorrowRecord(record, book, borrower, dialog.DateBorrowed, dialog.ReturnedOn);
+                    foreach (BorrowRecord record in group.Records)
+                    {
+                        _catalog.UpdateBorrowRecord(record, book, borrower, dialog.DateBorrowed, dialog.ReturnedOn);
+                    }
+
                     _catalog.SyncDaysBorrowed();
                     RefreshCatalogViews();
                     ApplyCatalogStatus();
                     ShowCatalogWarning();
 
-                    attendanceStatusLabel.Text = "BORROW RECORD #" + record.BorrowId + " WAS UPDATED.";
+                    attendanceStatusLabel.Text = group.CopyCount > 1
+                        ? group.CopyCount + " COPY LOAN RECORDS WERE UPDATED."
+                        : "BORROW RECORD #" + group.FirstRecord.BorrowId + " WAS UPDATED.";
                     attendanceStatusLabel.ForeColor = SuccessText;
                 }
                 catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
@@ -1905,11 +2041,17 @@ namespace oop_project.forms
             }
         }
 
-        private void DeleteBorrowRecord(BorrowRecord record)
+        private void DeleteBorrowRecord(BorrowedBookGroup group)
         {
+            string copies = group.CopyCount == 1
+                ? "BORROW RECORD #" + group.FirstRecord.BorrowId
+                : group.CopyCount + " COPY RECORDS (" + group.BorrowIdListText + ")";
+
             DialogResult answer = MessageBox.Show(
-                "DELETE BORROW RECORD #" + record.BorrowId + " (" + record.BorrowerName.ToUpperInvariant() + ")?\n" +
-                "THE BOOK COUNTS AS AVAILABLE AGAIN. THIS CANNOT BE UNDONE.",
+                "DELETE " + copies + " OF \"" + group.BookTitle.ToUpperInvariant() + "\" (" +
+                group.BorrowerName.ToUpperInvariant() + ")?\n" +
+                "THE " + (group.CopyCount == 1 ? "BOOK COUNTS" : "BOOKS COUNT") +
+                " AS AVAILABLE AGAIN. THIS CANNOT BE UNDONE.",
                 "CONFIRM DELETE RECORD",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
@@ -1921,13 +2063,19 @@ namespace oop_project.forms
 
             try
             {
-                _catalog.DeleteBorrowRecord(record);
+                foreach (BorrowRecord record in group.Records)
+                {
+                    _catalog.DeleteBorrowRecord(record);
+                }
+
                 _catalog.SyncDaysBorrowed();
                 RefreshCatalogViews();
                 ApplyCatalogStatus();
                 ShowCatalogWarning();
 
-                attendanceStatusLabel.Text = "BORROW RECORD #" + record.BorrowId + " WAS DELETED.";
+                attendanceStatusLabel.Text = group.CopyCount > 1
+                    ? group.CopyCount + " COPY LOAN RECORDS WERE DELETED."
+                    : "BORROW RECORD #" + group.FirstRecord.BorrowId + " WAS DELETED.";
                 attendanceStatusLabel.ForeColor = DangerText;
             }
             catch (MySqlException ex)
@@ -2397,7 +2545,7 @@ namespace oop_project.forms
 
         private void markReturnedButton_Click(object? sender, EventArgs e)
         {
-            if (attendanceGrid.CurrentRow == null || !(attendanceGrid.CurrentRow.Tag is BorrowRecord record))
+            if (attendanceGrid.CurrentRow == null || !(attendanceGrid.CurrentRow.Tag is BorrowedBookGroup group))
             {
                 MessageBox.Show(
                     "SELECT A BORROW RECORD IN THE TABLE FIRST.",
@@ -2407,7 +2555,9 @@ namespace oop_project.forms
                 return;
             }
 
-            if (record.DateReturned.HasValue)
+            List<BorrowRecord> openCopies = group.OpenRecords;
+
+            if (openCopies.Count == 0)
             {
                 MessageBox.Show(
                     "THAT RECORD IS ALREADY MARKED AS RETURNED.",
@@ -2417,8 +2567,12 @@ namespace oop_project.forms
                 return;
             }
 
+            string copiesText = openCopies.Count == 1
+                ? "1 COPY"
+                : openCopies.Count + " COPIES";
+
             DialogResult answer = MessageBox.Show(
-                "MARK \"" + record.BookTitle.ToUpperInvariant() + "\" AS RETURNED TODAY?",
+                "MARK " + copiesText + " OF \"" + group.BookTitle.ToUpperInvariant() + "\" AS RETURNED TODAY?",
                 "CONFIRM RETURN",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
@@ -2428,7 +2582,11 @@ namespace oop_project.forms
                 return;
             }
 
-            _catalog.MarkReturned(record);
+            foreach (BorrowRecord record in openCopies)
+            {
+                _catalog.MarkReturned(record);
+            }
+
             _catalog.SyncDaysBorrowed();
             RefreshCatalogViews();
             ApplyCatalogStatus();
@@ -2437,9 +2595,88 @@ namespace oop_project.forms
 
         private void generateReportButton_Click(object? sender, EventArgs e)
         {
-            using (LibraryReportDialog dialog = new LibraryReportDialog(_catalog, LoggedInFullName))
+            ExportBooksPdf();
+        }
+
+        /// <summary>
+        /// BOOKS tab: writes the catalog to a PDF that follows the Learning Resource
+        /// Center form instead of opening the old preview window.
+        /// </summary>
+        private void ExportBooksPdf()
+        {
+            using (SaveFileDialog dialog = new SaveFileDialog())
             {
-                dialog.ShowDialog(this);
+                dialog.Filter = "PDF file (*.pdf)|*.pdf";
+                dialog.FileName = "books-report-" +
+                                  DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".pdf";
+                dialog.Title = "EXPORT BOOKS AS PDF";
+                dialog.OverwritePrompt = true;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                try
+                {
+                    BooksPdfExporter.Export(_catalog.Books, dialog.FileName);
+
+                    DialogChrome.ShowAlert(
+                        "BOOKS EXPORTED TO:\n" + dialog.FileName,
+                        "PDF SAVED",
+                        MessageBoxIcon.Information);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    DialogChrome.ShowAlert(
+                        "THE PDF COULD NOT BE SAVED.\n" + ex.Message,
+                        "EXPORT FAILED",
+                        MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void attendanceReportButton_Click(object? sender, EventArgs e)
+        {
+            ExportBorrowedBooksPdf();
+        }
+
+        /// <summary>
+        /// BORROWED BOOKS tab: writes the borrow groups to a PDF that follows the
+        /// Learning Resource Center form instead of opening the old preview window.
+        /// </summary>
+        private void ExportBorrowedBooksPdf()
+        {
+            using (SaveFileDialog dialog = new SaveFileDialog())
+            {
+                dialog.Filter = "PDF file (*.pdf)|*.pdf";
+                dialog.FileName = "borrowed-books-" +
+                                  DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".pdf";
+                dialog.Title = "EXPORT BORROWED BOOKS AS PDF";
+                dialog.OverwritePrompt = true;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                try
+                {
+                    List<BorrowedBookGroup> groups = BorrowedBookGroup.BuildGroups(_catalog.BorrowRecords);
+                    BorrowedBooksPdfExporter.Export(groups, dialog.FileName);
+
+                    DialogChrome.ShowAlert(
+                        "BORROWED BOOKS EXPORTED TO:\n" + dialog.FileName,
+                        "PDF SAVED",
+                        MessageBoxIcon.Information);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    DialogChrome.ShowAlert(
+                        "THE PDF COULD NOT BE SAVED.\n" + ex.Message,
+                        "EXPORT FAILED",
+                        MessageBoxIcon.Error);
+                }
             }
         }
 
@@ -2643,15 +2880,15 @@ namespace oop_project.forms
         // Only the rows a role actually has are shown, without leaving blank gaps.
         private void StackRecordRows(Label[] captions, Label[] values)
         {
-            
+
         }
-      
+
 
         private void HideRecordRows()
         {
             Label[] labels =
             {
-              
+
             };
 
             foreach (Label label in labels)
@@ -2856,19 +3093,26 @@ namespace oop_project.forms
         // --------------------------------------------------------------- ANALYTICS
 
         /// <summary>
-        /// Adds the ANALYTICS tab at the end of the tab bar. Everything is built
-        /// here in code: a header with its own refresh button and two rounded
-        /// cards, each holding a GDI+ horizontal bar chart.
+        /// Fills the ANALYTICS tab declared in the designer. The page is visible in
+        /// Visual Studio's View Designer; the header, the refresh button and the two
+        /// GDI+ horizontal bar charts are created here because they are custom drawn.
         /// </summary>
         private void BuildAnalyticsTab()
         {
-            analyticsTab = new TabPage
+            // Fallback for a host that did not run the designer: create the page when
+            // it is missing. Normal runs already have analyticsTab from InitializeComponent.
+            if (analyticsTab == null)
             {
-                BackColor = Color.White,
-                Padding = new Padding(3),
-                Text = "ANALYTICS",
-                UseVisualStyleBackColor = false
-            };
+                analyticsTab = new TabPage
+                {
+                    BackColor = Color.White,
+                    Padding = new Padding(3),
+                    Text = "ANALYTICS",
+                    UseVisualStyleBackColor = false
+                };
+
+                tabControl1.TabPages.Add(analyticsTab);
+            }
 
             analyticsHead = new Panel
             {
@@ -2897,7 +3141,7 @@ namespace oop_project.forms
                 ForeColor = MutedText,
                 Location = new Point(2, 32),
                 Size = new Size(760, 22),
-                Text = "LIBRARY VISITS BY PROGRAM AND THE BORROWERS WITH THE MOST BORROWED BOOKS.",
+                Text = "LIBRARY VISITS, TOP BORROWERS AND THE EVALUATION FORM FEEDBACK FROM STUDENTS, FACULTY AND STAFF.",
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
@@ -2937,16 +3181,73 @@ namespace oop_project.forms
             analyticsHead.Resize += (s, e) => LayoutAnalyticsHead();
             LayoutAnalyticsHead();
 
-            TableLayoutPanel grid = new TableLayoutPanel
+            // The page scrolls: the KPI strip, the two original charts and the
+            // evaluation feedback block need more height than a laptop screen.
+            Panel analyticsScroll = new Panel
+            {
+                AutoScroll = true,
+                BackColor = Color.White,
+                Dock = DockStyle.Fill
+            };
+
+            TableLayoutPanel body = new TableLayoutPanel
+            {
+                AutoSize = false,
+                BackColor = Color.White,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Height = 936,
+                Padding = new Padding(0, 6, 0, 16),
+                RowCount = 4
+            };
+
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 88F));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 366F));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 386F));
+
+            // ------------------------------------------------- EVALUATION KPIs
+            // One summary card per respondent group, so the librarian can see at a
+            // glance whether students, faculty or staff actually answer the form.
+            TableLayoutPanel kpiStrip = new TableLayoutPanel
+            {
+                BackColor = Color.White,
+                ColumnCount = 5,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                RowCount = 1
+            };
+
+            for (int index = 0; index < 5; index++)
+            {
+                kpiStrip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+            }
+
+            evalTotalCard = CreateEvaluationCard("EVALUATION RESPONSES", HeaderGreen);
+            evalStudentCard = CreateEvaluationCard("STUDENT RESPONDENTS", Color.FromArgb(22, 163, 74));
+            evalFacultyCard = CreateEvaluationCard("FACULTY RESPONDENTS", Color.FromArgb(37, 99, 235));
+            evalStaffCard = CreateEvaluationCard("STAFF RESPONDENTS", Color.FromArgb(194, 65, 12));
+            evalAverageCard = CreateEvaluationCard("OVERALL AVERAGE (OUT OF 5)", Color.FromArgb(147, 51, 234));
+
+            kpiStrip.Controls.Add(evalTotalCard, 0, 0);
+            kpiStrip.Controls.Add(evalStudentCard, 1, 0);
+            kpiStrip.Controls.Add(evalFacultyCard, 2, 0);
+            kpiStrip.Controls.Add(evalStaffCard, 3, 0);
+            kpiStrip.Controls.Add(evalAverageCard, 4, 0);
+
+            // ------------------------------------------- VISITS / BORROWERS ROW
+            TableLayoutPanel chartsRow = new TableLayoutPanel
             {
                 BackColor = Color.White,
                 ColumnCount = 2,
                 Dock = DockStyle.Fill,
-                Padding = new Padding(0, 6, 0, 0),
+                Margin = new Padding(0, 0, 0, 10),
                 RowCount = 1
             };
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+
+            chartsRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            chartsRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
             programVisitsChart = new HorizontalBarChart
             {
@@ -2966,7 +3267,7 @@ namespace oop_project.forms
                 BarTopColor = Color.FromArgb(45, 212, 191),
                 Dock = DockStyle.Fill,
                 EmptyText = "NO BORROW RECORDS HAVE BEEN RECORDED YET.",
-                Subtitle = "RANKED BY THE NUMBER OF BOOKS BORROWED",
+                Subtitle = "STUDENT BORROWERS RANKED BY THE NUMBER OF BOOKS BORROWED",
                 Title = "TOP LIBRARY BOOK BORROWERS"
             };
 
@@ -2992,23 +3293,218 @@ namespace oop_project.forms
             programVisitsScroll.Resize += (s, e) => SizeProgramVisitsChart();
             programCard.Controls.Add(programVisitsScroll);
 
-            RoundedCard borrowerCard = new RoundedCard
+            RoundedCard borrowerCard = CreateAnalyticsCard(topBorrowersChart, new Padding(9, 0, 0, 0));
+
+            chartsRow.Controls.Add(programCard, 0, 0);
+            chartsRow.Controls.Add(borrowerCard, 1, 0);
+
+            // --------------------------------------------- EVALUATION BLOCK HEAD
+            Panel evaluationHead = new Panel
+            {
+                BackColor = Color.White,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 0, 4)
+            };
+
+            Label evaluationTitle = new Label
+            {
+                AutoSize = false,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 11.5F, FontStyle.Bold),
+                ForeColor = HeaderGreen,
+                Location = new Point(2, 8),
+                Size = new Size(600, 24),
+                Text = "EVALUATION FORM FEEDBACK",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            // The second line of the evaluation header is the live semester state:
+            // which period is selected, whether it is open and how many answers it
+            // holds. The three controls on the right run that period.
+            evaluationPeriodStatus = new Label
+            {
+                AutoEllipsis = true,
+                AutoSize = false,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Location = new Point(2, 34),
+                Size = new Size(520, 20),
+                Text = "NO EVALUATION PERIOD HAS BEEN OPENED YET.",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            evaluationPeriodBox = new ComboBox
+            {
+                BackColor = Color.FromArgb(248, 250, 252),
+                DrawMode = DrawMode.OwnerDrawFixed,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                DropDownWidth = 400,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.25F),
+                ForeColor = Color.FromArgb(30, 41, 59),
+                ItemHeight = 24,
+                Size = new Size(400, 32)
+            };
+            evaluationPeriodBox.DrawItem += EvaluationPeriodBoxDrawItem;
+            evaluationPeriodBox.SelectedIndexChanged += (s, e) => EvaluationPeriodChanged();
+
+            evaluationPeriodButton = new RoundedButton
+            {
+                BackColor = Color.Transparent,
+                CornerRadius = 10,
+                DisabledTextColor = Color.FromArgb(100, 116, 139),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                ForeColor = Color.White,
+                HoverColor = Color.FromArgb(21, 128, 61),
+                NormalColor = Color.FromArgb(22, 163, 74),
+                PressedColor = Color.FromArgb(20, 83, 45),
+                Size = new Size(158, 34),
+                Text = "OPEN EVALUATION",
+                UseVisualStyleBackColor = false
+            };
+            evaluationPeriodButton.FlatAppearance.BorderSize = 0;
+            evaluationPeriodButton.Click += (s, e) => ToggleEvaluationPeriod();
+
+            evaluationNewPeriodButton = new RoundedButton
+            {
+                BackColor = Color.Transparent,
+                CornerRadius = 10,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                ForeColor = Color.White,
+                HoverColor = Color.FromArgb(51, 65, 85),
+                NormalColor = Color.FromArgb(71, 85, 105),
+                PressedColor = Color.FromArgb(30, 41, 59),
+                Size = new Size(136, 34),
+                Text = "ADD SEMESTER",
+                UseVisualStyleBackColor = false
+            };
+            evaluationNewPeriodButton.FlatAppearance.BorderSize = 0;
+            evaluationNewPeriodButton.Click += (s, e) => ShowAddSemesterDialog();
+
+            // RESPONDENTS opens the list of people who answered the selected term.
+            evaluationRespondentsButton = new RoundedButton
+            {
+                BackColor = Color.Transparent,
+                CornerRadius = 10,
+                DisabledTextColor = Color.FromArgb(148, 163, 184),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                ForeColor = Color.White,
+                HoverColor = Color.FromArgb(4, 60, 45),
+                NormalColor = Color.FromArgb(6, 78, 59),
+                PressedColor = Color.FromArgb(3, 45, 34),
+                Size = new Size(128, 34),
+                Text = "RESPONDENTS",
+                UseVisualStyleBackColor = false
+            };
+            evaluationRespondentsButton.FlatAppearance.BorderSize = 0;
+            evaluationRespondentsButton.Click += (s, e) => ShowEvaluationRespondents();
+
+            evaluationHead.Controls.Add(evaluationTitle);
+            evaluationHead.Controls.Add(evaluationPeriodStatus);
+            evaluationHead.Controls.Add(evaluationPeriodBox);
+            evaluationHead.Controls.Add(evaluationPeriodButton);
+            evaluationHead.Controls.Add(evaluationNewPeriodButton);
+            evaluationHead.Controls.Add(evaluationRespondentsButton);
+
+            evaluationHead.Resize += (s, e) => LayoutEvaluationHead(evaluationHead, evaluationTitle);
+            LayoutEvaluationHead(evaluationHead, evaluationTitle);
+
+            // ------------------------------------------------ FEEDBACK CHARTS
+            TableLayoutPanel feedbackRow = new TableLayoutPanel
+            {
+                BackColor = Color.White,
+                ColumnCount = 3,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                RowCount = 1
+            };
+
+            feedbackRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34F));
+            feedbackRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
+            feedbackRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
+
+            evaluationRoleChart = new DonutChart
+            {
+                BackColor = Color.White,
+                CenterCaption = "RESPONSES",
+                EmptyText = "NO EVALUATION RESPONSES HAVE BEEN SUBMITTED YET.",
+                Subtitle = "STUDENT, FACULTY AND STAFF SUBMISSIONS",
+                Title = "RESPONSES BY RESPONDENT"
+            };
+
+            evaluationSectionChart = new HorizontalBarChart
+            {
+                AxisSteps = 5,
+                BackColor = Color.White,
+                BarBottomColor = Color.FromArgb(30, 64, 175),
+                BarTopColor = Color.FromArgb(96, 165, 250),
+                EmptyText = "NO EVALUATION ANSWERS HAVE BEEN SUBMITTED YET.",
+                MaximumValue = 5,
+                Subtitle = "MEAN SCORE PER SECTION (5 = EXCELLENT)",
+                Title = "AVERAGE RATING",
+                ValueDecimals = 2
+            };
+
+            evaluationRatingChart = new HorizontalBarChart
+            {
+                AxisSteps = 5,
+                BackColor = Color.White,
+                BarBottomColor = Color.FromArgb(154, 52, 18),
+                BarTopColor = Color.FromArgb(251, 146, 60),
+                EmptyText = "NO EVALUATION ANSWERS HAVE BEEN SUBMITTED YET.",
+                Subtitle = "EVERY RATING GIVEN, FROM 5 (EXCELLENT) TO 1 (POOR)",
+                Title = "FEEDBACK RATING DISTRIBUTION"
+            };
+
+            feedbackRow.Controls.Add(
+                CreateAnalyticsCard(evaluationRoleChart, new Padding(0, 0, 9, 0)), 0, 0);
+            feedbackRow.Controls.Add(
+                CreateAnalyticsCard(evaluationSectionChart, new Padding(0, 0, 9, 0)), 1, 0);
+            feedbackRow.Controls.Add(
+                CreateAnalyticsCard(evaluationRatingChart, new Padding(0, 0, 0, 0)), 2, 0);
+
+            body.Controls.Add(kpiStrip, 0, 0);
+            body.Controls.Add(chartsRow, 0, 1);
+            body.Controls.Add(evaluationHead, 0, 2);
+            body.Controls.Add(feedbackRow, 0, 3);
+
+            analyticsScroll.Controls.Add(body);
+            analyticsTab.Controls.Add(analyticsScroll);
+            analyticsTab.Controls.Add(analyticsHead);
+        }
+
+        private static RoundedCard CreateAnalyticsCard(Control content, Padding margin)
+        {
+            RoundedCard card = new RoundedCard
             {
                 BackColor = Color.White,
                 BorderColor = Color.FromArgb(226, 232, 240),
                 CornerRadius = 16,
                 Dock = DockStyle.Fill,
-                Margin = new Padding(9, 0, 0, 0),
+                Margin = margin,
                 Padding = new Padding(1)
             };
-            borrowerCard.Controls.Add(topBorrowersChart);
 
-            grid.Controls.Add(programCard, 0, 0);
-            grid.Controls.Add(borrowerCard, 1, 0);
+            content.Dock = DockStyle.Fill;
+            card.Controls.Add(content);
 
-            analyticsTab.Controls.Add(grid);
-            analyticsTab.Controls.Add(analyticsHead);
-            tabControl1.TabPages.Add(analyticsTab);
+            return card;
+        }
+
+        private static StatCard CreateEvaluationCard(string caption, Color accent)
+        {
+            return new StatCard
+            {
+                AccentColor = accent,
+                Caption = caption,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 10, 0),
+                Value = "\u2014"
+            };
         }
 
         private void LayoutAnalyticsHead()
@@ -3031,6 +3527,453 @@ namespace oop_project.forms
             analyticsStatus.Width = textWidth;
         }
 
+        // ------------------------------------------------------ EVALUATION PERIOD
+
+        /// <summary>
+        /// Places the semester strip on the right of the EVALUATION FORM FEEDBACK
+        /// header: the period combo first, then OPEN/CLOSE and NEW SEMESTER, all on
+        /// one line so the feedback block stays open and uncluttered.
+        /// </summary>
+        private void LayoutEvaluationHead(Panel head, Label title)
+        {
+            if (head == null || title == null || evaluationPeriodBox == null ||
+                evaluationPeriodButton == null || evaluationNewPeriodButton == null ||
+                evaluationRespondentsButton == null)
+            {
+                return;
+            }
+
+            const int gap = 8;
+            const int top = 15;
+
+            int right = Math.Max(0, head.ClientSize.Width - 2);
+
+            evaluationRespondentsButton.Left = Math.Max(0, right - evaluationRespondentsButton.Width);
+            evaluationNewPeriodButton.Left = Math.Max(
+                0, evaluationRespondentsButton.Left - gap - evaluationNewPeriodButton.Width);
+            evaluationPeriodButton.Left = Math.Max(
+                0, evaluationNewPeriodButton.Left - gap - evaluationPeriodButton.Width);
+            evaluationPeriodBox.Left = Math.Max(
+                0, evaluationPeriodButton.Left - gap - evaluationPeriodBox.Width);
+
+            evaluationRespondentsButton.Top = top;
+            evaluationNewPeriodButton.Top = top;
+            evaluationPeriodButton.Top = top;
+
+            // The flat combo is a little shorter than the 34 px buttons, so it is
+            // centred against them instead of sitting flush with their top edge.
+            evaluationPeriodBox.Top = top + Math.Max(0, (34 - evaluationPeriodBox.Height) / 2);
+
+            int textWidth = Math.Max(220, evaluationPeriodBox.Left - 12);
+
+            title.Width = textWidth;
+
+            if (evaluationPeriodStatus != null)
+            {
+                evaluationPeriodStatus.Width = textWidth;
+            }
+        }
+
+        /// <summary>
+        /// Draws a semester entry with a left inset, because a flat combo otherwise
+        /// puts the text right against its border. The larger font and the padding
+        /// keep the whole "1ST SEMESTER 2026-2027" readable in the closed box.
+        /// </summary>
+        private void EvaluationPeriodBoxDrawItem(object? sender, DrawItemEventArgs e)
+        {
+            if (!(sender is ComboBox box))
+            {
+                return;
+            }
+
+            bool selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            bool disabled = (e.State & DrawItemState.Disabled) == DrawItemState.Disabled;
+
+            Color fill = selected && !disabled ? SystemColors.Highlight : box.BackColor;
+
+            using (SolidBrush background = new SolidBrush(fill))
+            {
+                e.Graphics.FillRectangle(background, e.Bounds);
+            }
+
+            if (e.Index >= 0 && e.Index < box.Items.Count)
+            {
+                string text = Convert.ToString(box.Items[e.Index], CultureInfo.InvariantCulture) ?? string.Empty;
+
+                Color foreColor = disabled
+                    ? Color.FromArgb(148, 163, 184)
+                    : selected ? SystemColors.HighlightText : box.ForeColor;
+
+                Rectangle bounds = new Rectangle(
+                    e.Bounds.X + 10,
+                    e.Bounds.Y,
+                    Math.Max(0, e.Bounds.Width - 12),
+                    e.Bounds.Height);
+
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    text,
+                    box.Font,
+                    bounds,
+                    foreColor,
+                    TextFormatFlags.Left |
+                    TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.EndEllipsis |
+                    TextFormatFlags.NoPrefix);
+            }
+
+            if ((e.State & DrawItemState.Focus) == DrawItemState.Focus)
+            {
+                e.DrawFocusRectangle();
+            }
+        }
+
+        /// <summary>
+        /// Fills the PERIOD combo from evaluation_period_table with exactly the
+        /// semesters the librarian created, for example "1ST SEMESTER 2026-2027".
+        /// The open semester is picked by default so opening ANALYTICS always lands
+        /// on the live term, while a closed semester can still be picked to review
+        /// its old answers.
+        /// </summary>
+        private void LoadEvaluationPeriods(bool keepSelection)
+        {
+            if (evaluationPeriodBox == null)
+            {
+                return;
+            }
+
+            int? previous = SelectedEvaluationPeriodId();
+            _evaluationPeriods = _evaluationDirectory.LoadPeriods();
+
+            _fillingEvaluationPeriods = true;
+
+            try
+            {
+                evaluationPeriodBox.Items.Clear();
+
+                foreach (EvaluationPeriod period in _evaluationPeriods)
+                {
+                    evaluationPeriodBox.Items.Add(
+                        period.Title + (period.IsOpen ? "  -  OPEN" : "  -  CLOSED"));
+                }
+
+                // Only real semesters are listed, so there is no combined view: every
+                // figure on the page belongs to one semester at a time.
+                int index = -1;
+
+                if (_evaluationPeriods.Count > 0)
+                {
+                    if (keepSelection && previous.HasValue)
+                    {
+                        index = _evaluationPeriods.FindIndex(period => period.PeriodId == previous.Value);
+                    }
+
+                    if (index < 0)
+                    {
+                        index = _evaluationPeriods.FindIndex(period => period.IsOpen);
+                    }
+
+                    if (index < 0)
+                    {
+                        index = 0;
+                    }
+                }
+
+                evaluationPeriodBox.SelectedIndex = index;
+                evaluationPeriodBox.Enabled = _evaluationPeriods.Count > 0;
+            }
+            finally
+            {
+                _fillingEvaluationPeriods = false;
+            }
+
+            UpdateEvaluationPeriodLabels(null);
+        }
+
+        private EvaluationPeriod? SelectedEvaluationPeriod()
+        {
+            int index = evaluationPeriodBox == null ? -1 : evaluationPeriodBox.SelectedIndex;
+
+            return index >= 0 && index < _evaluationPeriods.Count
+                ? _evaluationPeriods[index]
+                : null;
+        }
+
+        private int? SelectedEvaluationPeriodId()
+        {
+            EvaluationPeriod? period = SelectedEvaluationPeriod();
+
+            return period == null ? (int?)null : period.PeriodId;
+        }
+
+        private void EvaluationPeriodChanged()
+        {
+            if (_fillingEvaluationPeriods)
+            {
+                return;
+            }
+
+            LoadEvaluationFeedback();
+        }
+
+        /// <summary>Reads the feedback figures for the semester picked in the combo.</summary>
+        private void LoadEvaluationFeedback()
+        {
+            int? periodId = SelectedEvaluationPeriodId();
+
+            if (!periodId.HasValue)
+            {
+                // No semester has been created yet, so there is nothing to summarise.
+                ResetEvaluationSummary();
+                UpdateEvaluationPeriodLabels(null);
+                return;
+            }
+
+            try
+            {
+                EvaluationSummary summary = _evaluationDirectory.LoadSummary(periodId.Value);
+                ApplyEvaluationSummary(summary);
+            }
+            catch (MySqlException)
+            {
+                ResetEvaluationSummary();
+                UpdateEvaluationPeriodLabels(null);
+            }
+        }
+
+        private void ToggleEvaluationPeriod()
+        {
+            EvaluationPeriod? period = SelectedEvaluationPeriod();
+
+            if (period == null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (period.IsOpen)
+                {
+                    if (!ConfirmPeriodChange(
+                        "CLOSE THE EVALUATION FOR\n" + period.Title + "?\n\n" +
+                        "STUDENTS, FACULTY AND STAFF WILL NO LONGER BE ABLE TO SUBMIT ANSWERS.",
+                        "CLOSE EVALUATION"))
+                    {
+                        return;
+                    }
+
+                    _evaluationDirectory.ClosePeriod(period.PeriodId);
+                }
+                else
+                {
+                    if (!ConfirmPeriodChange(
+                        "OPEN THE EVALUATION FOR\n" + period.Title + "?\n\n" +
+                        "IF ANOTHER SEMESTER IS STILL OPEN IT WILL BE CLOSED FIRST.",
+                        "OPEN EVALUATION"))
+                    {
+                        return;
+                    }
+
+                    _evaluationDirectory.OpenPeriod(period.Semester, period.SchoolYear);
+                }
+            }
+            catch (MySqlException ex)
+            {
+                MessageBox.Show(
+                    this,
+                    "THE SEMESTER COULD NOT BE UPDATED.\n" + ex.Message,
+                    "EVALUATION PERIOD",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            LoadEvaluationPeriods(true);
+            LoadEvaluationFeedback();
+        }
+
+        /// <summary>
+        /// Opens the ADD SEMESTER pop up, prefilled with the term that matches
+        /// today, so the librarian types (or just confirms) the semester the
+        /// students are allowed to evaluate. Adding it opens it straight away.
+        /// </summary>
+        private void ShowAddSemesterDialog()
+        {
+            (string Semester, string SchoolYear) suggested = CurrentSemesterTerm(DateTime.Now);
+
+            using (AddSemesterDialog dialog = new AddSemesterDialog(suggested.Semester, suggested.SchoolYear))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                ApplyNewSemester(dialog.Semester, dialog.SchoolYear);
+            }
+        }
+
+        /// <summary>
+        /// Saves the semester chosen in the pop up. Because OpenPeriod closes any
+        /// other open semester, this is also what takes the vote away from the
+        /// previous term: students can answer only while a semester stays open.
+        /// </summary>
+        private void ApplyNewSemester(string semester, string schoolYear)
+        {
+            try
+            {
+                _evaluationDirectory.OpenPeriod(semester, schoolYear);
+            }
+            catch (MySqlException ex)
+            {
+                MessageBox.Show(
+                    this,
+                    "THE SEMESTER COULD NOT BE OPENED.\n" + ex.Message,
+                    "EVALUATION PERIOD",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            // A brand new semester is opened, so the charts jump to it instead of
+            // staying on the semester the librarian was reviewing.
+            LoadEvaluationPeriods(false);
+            LoadEvaluationFeedback();
+        }
+
+        /// <summary>
+        /// Opens the RESPONDENTS window for the semester in the combo, so the
+        /// librarian can see who answered and which institute and program they come
+        /// from. The rows are read here, so the window only has to show them.
+        /// </summary>
+        private void ShowEvaluationRespondents()
+        {
+            EvaluationPeriod? period = SelectedEvaluationPeriod();
+
+            if (period == null)
+            {
+                return;
+            }
+
+            try
+            {
+                List<EvaluationRespondent> respondents = _evaluationDirectory.LoadRespondents(period.PeriodId);
+
+                using (EvaluationRespondentsDialog dialog =
+                    new EvaluationRespondentsDialog(period.Title, respondents))
+                {
+                    dialog.ShowDialog(this);
+                }
+            }
+            catch (MySqlException ex)
+            {
+                MessageBox.Show(
+                    this,
+                    "THE RESPONDENTS COULD NOT BE LOADED.\n" + ex.Message,
+                    "EVALUATION RESPONDENTS",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private bool ConfirmPeriodChange(string message, string caption)
+        {
+            return MessageBox.Show(
+                this,
+                message,
+                caption,
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+        }
+
+        private void UpdateEvaluationPeriodLabels(EvaluationSummary? summary)
+        {
+            if (evaluationPeriodStatus == null || evaluationPeriodButton == null ||
+                evaluationRespondentsButton == null)
+            {
+                return;
+            }
+
+            EvaluationPeriod? period = SelectedEvaluationPeriod();
+            string text;
+            Color color;
+
+            if (period == null)
+            {
+                // Nothing selected means no semester exists yet, because the combo
+                // only ever lists semesters the librarian created.
+                text = "NO EVALUATION PERIOD YET  \u2022  PRESS ADD SEMESTER TO OPEN THE FIRST ONE.";
+                color = WarningText;
+            }
+            else
+            {
+                // The combo right beside the label already names the semester, so the
+                // strip only has to say whether it collects answers and how many.
+                text = period.IsOpen ? "EVALUATION OPEN" : "EVALUATION CLOSED";
+                color = period.IsOpen ? SuccessText : WarningText;
+            }
+
+            if (summary != null)
+            {
+                text += "  \u2022  " +
+                        summary.TotalResponses.ToString("N0", CultureInfo.CurrentCulture) +
+                        (summary.TotalResponses == 1 ? " RESPONSE" : " RESPONSES");
+            }
+
+            evaluationPeriodStatus.Text = text;
+            evaluationPeriodStatus.ForeColor = color;
+
+            evaluationPeriodButton.Enabled = period != null;
+            evaluationPeriodButton.Text = period == null
+                ? "OPEN / CLOSE"
+                : period.IsOpen ? "CLOSE EVALUATION" : "OPEN EVALUATION";
+
+            evaluationRespondentsButton.Enabled = period != null;
+
+            // Closing a period is the amber action; opening keeps the library green.
+            if (period != null && period.IsOpen)
+            {
+                evaluationPeriodButton.NormalColor = Color.FromArgb(217, 119, 6);
+                evaluationPeriodButton.HoverColor = Color.FromArgb(180, 83, 9);
+                evaluationPeriodButton.PressedColor = Color.FromArgb(146, 64, 14);
+            }
+            else
+            {
+                evaluationPeriodButton.NormalColor = Color.FromArgb(22, 163, 74);
+                evaluationPeriodButton.HoverColor = Color.FromArgb(21, 128, 61);
+                evaluationPeriodButton.PressedColor = Color.FromArgb(20, 83, 45);
+            }
+
+            evaluationPeriodButton.Invalidate();
+        }
+
+        /// <summary>
+        /// The semester for a date. A school year starts in June: the first semester
+        /// runs June to October, the second November to March, and April and May are
+        /// the summer term.
+        /// </summary>
+        private static (string Semester, string SchoolYear) CurrentSemesterTerm(DateTime date)
+        {
+            int year = date.Year;
+
+            if (date.Month >= 6 && date.Month <= 10)
+            {
+                return ("1ST SEMESTER", year + "-" + (year + 1));
+            }
+
+            if (date.Month >= 11)
+            {
+                return ("2ND SEMESTER", year + "-" + (year + 1));
+            }
+
+            if (date.Month <= 3)
+            {
+                return ("2ND SEMESTER", (year - 1) + "-" + year);
+            }
+
+            return ("SUMMER", (year - 1) + "-" + year);
+        }
+
         private void LoadAnalytics()
         {
             if (programVisitsChart == null || topBorrowersChart == null || analyticsStatus == null)
@@ -3049,16 +3992,56 @@ namespace oop_project.forms
                 topBorrowersChart.SetData(borrowers);
                 SizeProgramVisitsChart();
 
-                analyticsStatus.Text = "UPDATED " +
-                                       DateTime.Now.ToString("hh:mm tt", CultureInfo.InvariantCulture) +
-                                       "   \u2022   " + programs.Count + " PROGRAMS" +
-                                       "   \u2022   " + borrowers.Count + " BORROWERS";
-                analyticsStatus.ForeColor = SuccessText;
+                // The survey lives in its own tables, so a missing or unreadable
+                // evaluation schema only empties the feedback block instead of
+                // hiding the visits and borrower charts that loaded fine.
+                EvaluationSummary? feedback = null;
+                int? feedbackPeriod = null;
+
+                try
+                {
+                    // The semester strip is refreshed first, then the feedback is read
+                    // for the semester the combo is showing. Before any semester is
+                    // created there is nothing to summarise.
+                    LoadEvaluationPeriods(true);
+                    feedbackPeriod = SelectedEvaluationPeriodId();
+
+                    if (feedbackPeriod.HasValue)
+                    {
+                        feedback = _evaluationDirectory.LoadSummary(feedbackPeriod.Value);
+                    }
+                }
+                catch (MySqlException)
+                {
+                    feedback = null;
+                }
+
+                string status = "UPDATED " +
+                                DateTime.Now.ToString("hh:mm tt", CultureInfo.InvariantCulture) +
+                                "   \u2022   " + programs.Count + " PROGRAMS" +
+                                "   \u2022   " + borrowers.Count + " BORROWERS";
+
+                if (feedback != null)
+                {
+                    ApplyEvaluationSummary(feedback);
+                    status += "   \u2022   " + feedback.TotalResponses + " EVALUATION RESPONSES";
+                }
+                else
+                {
+                    ResetEvaluationSummary();
+                    status += feedbackPeriod.HasValue
+                        ? "   \u2022   EVALUATION FEEDBACK UNAVAILABLE"
+                        : "   \u2022   NO EVALUATION SEMESTER YET";
+                }
+
+                analyticsStatus.Text = status;
+                analyticsStatus.ForeColor = feedback != null ? SuccessText : WarningText;
             }
             catch (MySqlException)
             {
                 programVisitsChart.SetData(new List<ChartItem>());
                 topBorrowersChart.SetData(new List<ChartItem>());
+                ResetEvaluationSummary();
                 SizeProgramVisitsChart();
                 analyticsStatus.Text = "MYSQL OFFLINE \u2022 THE CHARTS CANNOT BE LOADED";
                 analyticsStatus.ForeColor = WarningText;
@@ -3067,6 +4050,117 @@ namespace oop_project.forms
             {
                 analyticsRefreshButton.Enabled = true;
             }
+        }
+
+        /// <summary>
+        /// Pushes one evaluation snapshot into the KPI cards and the three
+        /// feedback charts. The respondent split comes from evaluation_table and
+        /// the scores from evaluation_answer_table, so the charts always match the
+        /// answers the students, faculty and staff actually submitted.
+        /// </summary>
+        private void ApplyEvaluationSummary(EvaluationSummary summary)
+        {
+            if (summary == null)
+            {
+                return;
+            }
+
+            if (evalTotalCard != null)
+            {
+                evalTotalCard.Value = summary.TotalResponses.ToString("N0", CultureInfo.CurrentCulture);
+            }
+
+            if (evalStudentCard != null)
+            {
+                evalStudentCard.Value = summary.StudentResponses.ToString("N0", CultureInfo.CurrentCulture);
+            }
+
+            if (evalFacultyCard != null)
+            {
+                evalFacultyCard.Value = summary.FacultyResponses.ToString("N0", CultureInfo.CurrentCulture);
+            }
+
+            if (evalStaffCard != null)
+            {
+                evalStaffCard.Value = summary.StaffResponses.ToString("N0", CultureInfo.CurrentCulture);
+            }
+
+            if (evalAverageCard != null)
+            {
+                evalAverageCard.Value = summary.TotalAnswers == 0
+                    ? "\u2014"
+                    : summary.OverallAverage.ToString("0.00", CultureInfo.CurrentCulture);
+            }
+
+            if (evaluationRoleChart != null)
+            {
+                List<ChartItem> roles = new List<ChartItem>();
+
+                if (summary.StudentResponses > 0)
+                {
+                    roles.Add(new ChartItem("STUDENT", summary.StudentResponses));
+                }
+
+                if (summary.FacultyResponses > 0)
+                {
+                    roles.Add(new ChartItem("FACULTY", summary.FacultyResponses));
+                }
+
+                if (summary.StaffResponses > 0)
+                {
+                    roles.Add(new ChartItem("STAFF", summary.StaffResponses));
+                }
+
+                if (summary.OtherResponses > 0)
+                {
+                    roles.Add(new ChartItem("OTHER", summary.OtherResponses));
+                }
+
+                evaluationRoleChart.SetData(roles);
+            }
+
+            if (evaluationSectionChart != null)
+            {
+                List<ChartItem> sections = new List<ChartItem>();
+
+                for (int section = 0; section < EvaluationDirectory.SectionCount; section++)
+                {
+                    if (summary.SectionAnswerCounts[section] <= 0)
+                    {
+                        continue;
+                    }
+
+                    sections.Add(new ChartItem(
+                        EvaluationSectionLabels[section],
+                        summary.SectionAverages[section]));
+                }
+
+                evaluationSectionChart.SetData(sections);
+            }
+
+            if (evaluationRatingChart != null)
+            {
+                List<ChartItem> ratings = new List<ChartItem>();
+
+                if (summary.TotalAnswers > 0)
+                {
+                    ratings.Add(new ChartItem("5  \u2022  EXCELLENT", summary.RatingCounts[5]));
+                    ratings.Add(new ChartItem("4  \u2022  VERY GOOD", summary.RatingCounts[4]));
+                    ratings.Add(new ChartItem("3  \u2022  GOOD", summary.RatingCounts[3]));
+                    ratings.Add(new ChartItem("2  \u2022  FAIR", summary.RatingCounts[2]));
+                    ratings.Add(new ChartItem("1  \u2022  POOR", summary.RatingCounts[1]));
+                }
+
+                evaluationRatingChart.SetData(ratings);
+            }
+
+            // The header strip shows the period, its state and how many answers it holds.
+            UpdateEvaluationPeriodLabels(summary);
+        }
+
+        private void ResetEvaluationSummary()
+        {
+            ApplyEvaluationSummary(new EvaluationSummary());
         }
 
         /// <summary>
@@ -3089,8 +4183,10 @@ namespace oop_project.forms
 
         /// <summary>
         /// SQL #1: lists every program in program_table and counts the library
-        /// visits of its students. LEFT JOINs keep a program with zero visits in
-        /// the list, and no LIMIT is used because all programs are shown.
+        /// visits of its STUDENTS only (attendance rows whose stored role is
+        /// STUDENT). LEFT JOINs keep a program with zero visits in the list, and
+        /// the school's built-in program list is merged in as well, so every known
+        /// program is shown even before anyone enrolls in it.
         /// </summary>
         private static List<ChartItem> LoadProgramVisitChart()
         {
@@ -3098,11 +4194,11 @@ namespace oop_project.forms
                 "SELECT p.`program_name`, COUNT(a.`attendance_id`) AS `visits` " +
                 "FROM `program_table` p " +
                 "LEFT JOIN `student_info_table` s ON s.`program_id` = p.`program_id` " +
-                "LEFT JOIN `attendance_table` a ON a.`account_id` = s.`account_id` " +
+                "LEFT JOIN `attendance_table` a ON a.`account_id` = s.`account_id` AND a.`role` = 'STUDENT' " +
                 "GROUP BY p.`program_id`, p.`program_name` " +
                 "ORDER BY `visits` DESC, p.`program_name` ASC;";
 
-            List<ChartItem> items = new List<ChartItem>();
+            Dictionary<string, int> visits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             using (MySqlConnection connection = Authentication.OpenConnection())
             {
@@ -3121,13 +4217,46 @@ namespace oop_project.forms
                             ? 0
                             : Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture);
 
-                        if (label.Length > 0)
+                        if (label.Length == 0)
                         {
-                            items.Add(new ChartItem(label.ToUpperInvariant(), value));
+                            continue;
                         }
+
+                        int current;
+                        visits.TryGetValue(label, out current);
+                        visits[label] = current + value;
                     }
                 }
             }
+
+            // A program that has no row in program_table yet (a fresh install)
+            // still appears with 0 visits, so the list is complete from day one.
+            foreach (KeyValuePair<string, string[]> group in FallbackPrograms)
+            {
+                foreach (string program in group.Value)
+                {
+                    if (!visits.ContainsKey(program))
+                    {
+                        visits[program] = 0;
+                    }
+                }
+            }
+
+            List<ChartItem> items = new List<ChartItem>();
+
+            foreach (KeyValuePair<string, int> entry in visits)
+            {
+                items.Add(new ChartItem(entry.Key.ToUpperInvariant(), entry.Value));
+            }
+
+            items.Sort(delegate (ChartItem left, ChartItem right)
+            {
+                int byValue = right.Value.CompareTo(left.Value);
+
+                return byValue != 0
+                    ? byValue
+                    : string.Compare(left.Label, right.Label, StringComparison.OrdinalIgnoreCase);
+            });
 
             return items;
         }
@@ -3135,6 +4264,8 @@ namespace oop_project.forms
         /// <summary>
         /// SQL #2: ranks borrowers by the number of borrow_transactions_table rows
         /// linked to them, so the person who borrowed the most books comes first.
+        /// The INNER JOIN on student_info_table keeps STUDENT records only, and the
+        /// HAVING clause removes anyone with 0 borrowed books.
         /// </summary>
         private static List<ChartItem> LoadTopBorrowerChart()
         {
@@ -3142,7 +4273,9 @@ namespace oop_project.forms
                 "SELECT b.`borrower_name`, COUNT(t.`borrow_id`) AS `total` " +
                 "FROM `borrowers_table` b " +
                 "INNER JOIN `borrow_transactions_table` t ON t.`borrower_id` = b.`borrower_id` " +
+                "INNER JOIN `student_info_table` s ON s.`school_id` = b.`id_number` " +
                 "GROUP BY b.`borrower_id`, b.`borrower_name` " +
+                "HAVING COUNT(t.`borrow_id`) > 0 " +
                 "ORDER BY `total` DESC, b.`borrower_name` ASC " +
                 "LIMIT 10;";
 
@@ -3165,7 +4298,7 @@ namespace oop_project.forms
                             ? 0
                             : Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture);
 
-                        if (label.Length > 0)
+                        if (label.Length > 0 && value > 0)
                         {
                             items.Add(new ChartItem(label.ToUpperInvariant(), value));
                         }
@@ -3178,14 +4311,17 @@ namespace oop_project.forms
 
         private sealed class ChartItem
         {
-            public ChartItem(string label, int value)
+            public ChartItem(string label, double value)
             {
                 Label = label;
                 Value = value;
             }
 
             public string Label { get; }
-            public int Value { get; }
+
+            // A double keeps whole counts (visits, borrowers, responses) and the
+            // 1-5 section means in the same item type.
+            public double Value { get; }
         }
 
         /// <summary>
@@ -3214,6 +4350,12 @@ namespace oop_project.forms
             public string EmptyText { get; set; } = "NO DATA TO DISPLAY YET.";
             public Color BarTopColor { get; set; } = Color.FromArgb(34, 197, 94);
             public Color BarBottomColor { get; set; } = Color.FromArgb(6, 78, 59);
+
+            // A fixed maximum keeps the 1-5 rating scale honest (the axis always
+            // runs from 0 to 5), while a step count of 5 keeps its ticks whole.
+            public double MaximumValue { get; set; }
+            public int AxisSteps { get; set; } = 4;
+            public int ValueDecimals { get; set; }
 
             public void SetData(List<ChartItem> items)
             {
@@ -3280,13 +4422,13 @@ namespace oop_project.forms
                     plotRight = Width - Padding.Right - 30;
                 }
 
-                int maxValue = 1;
+                double maxValue = 1;
                 foreach (ChartItem item in _items)
                 {
                     maxValue = Math.Max(maxValue, item.Value);
                 }
 
-                int niceMax = NiceMaximum(maxValue);
+                double niceMax = MaximumValue > 0 ? MaximumValue : NiceMaximum(maxValue);
                 int rowHeight = Math.Min(46, Math.Max(22, (chartBottom - chartTop) / _items.Count));
                 int blockHeight = rowHeight * _items.Count;
                 int rowsTop = chartTop + Math.Max(0, (chartBottom - chartTop - blockHeight) / 2);
@@ -3305,15 +4447,17 @@ namespace oop_project.forms
                 using (Pen gridPen = new Pen(Color.FromArgb(229, 231, 235), 1f))
                 using (Pen baselinePen = new Pen(Color.FromArgb(203, 213, 225), 1.2f))
                 {
-                    const int steps = 4;
+                    int steps = Math.Max(1, AxisSteps);
 
                     for (int step = 0; step <= steps; step++)
                     {
                         int x = plotLeft + (int)Math.Round((plotRight - plotLeft) * step / (double)steps);
                         graphics.DrawLine(gridPen, x, rowsTop - 4, x, rowsTop + blockHeight);
 
-                        string tick = ((long)Math.Round(niceMax * step / (double)steps))
-                            .ToString(CultureInfo.InvariantCulture);
+                        double tickValue = niceMax * step / steps;
+                        string tick = Math.Abs(tickValue - Math.Round(tickValue)) < 0.001
+                            ? ((long)Math.Round(tickValue)).ToString(CultureInfo.InvariantCulture)
+                            : tickValue.ToString("0.#", CultureInfo.InvariantCulture);
 
                         TextRenderer.DrawText(graphics, tick, tickFont,
                             new Rectangle(x - 30, rowsTop + blockHeight + 4, 60, 16),
@@ -3364,7 +4508,7 @@ namespace oop_project.forms
                         graphics.FillPath(barBrush, barPath);
                     }
 
-                    string valueText = item.Value.ToString(CultureInfo.InvariantCulture);
+                    string valueText = FormatValue(item.Value);
                     int valueLeft = plotLeft + barWidth + 8;
                     int valueWidth = Math.Max(24, Width - Padding.Right - valueLeft);
 
@@ -3380,15 +4524,222 @@ namespace oop_project.forms
                 }
             }
 
-            private static int NiceMaximum(int maximum)
+            private string FormatValue(double value)
+            {
+                if (ValueDecimals <= 0)
+                {
+                    return ((long)Math.Round(value)).ToString(CultureInfo.InvariantCulture);
+                }
+
+                return value.ToString("0." + new string('0', Math.Min(4, ValueDecimals)),
+                    CultureInfo.InvariantCulture);
+            }
+
+            private static double NiceMaximum(double maximum)
             {
                 if (maximum <= 4)
                 {
                     return 4;
                 }
 
-                int step = (int)Math.Ceiling(maximum / 4.0);
+                double step = Math.Ceiling(maximum / 4.0);
                 return step * 4;
+            }
+        }
+
+        /// <summary>
+        /// Donut chart drawn with GDI+ for the EVALUATION RESPONSES BY RESPONDENT
+        /// card. The ring is split in proportion to each respondent group and the
+        /// legend prints the count and percentage next to a colour dot, so the
+        /// student / faculty / staff split can be read without a tooltip.
+        /// </summary>
+        private sealed class DonutChart : Control
+        {
+            private static readonly Color[] DefaultPalette =
+            {
+                Color.FromArgb(22, 163, 74),
+                Color.FromArgb(37, 99, 235),
+                Color.FromArgb(234, 88, 12),
+                Color.FromArgb(147, 51, 234),
+                Color.FromArgb(100, 116, 139)
+            };
+
+            private List<ChartItem> _items = new List<ChartItem>();
+
+            public DonutChart()
+            {
+                SetStyle(ControlStyles.UserPaint |
+                         ControlStyles.AllPaintingInWmPaint |
+                         ControlStyles.OptimizedDoubleBuffer |
+                         ControlStyles.ResizeRedraw, true);
+
+                BackColor = Color.White;
+                Font = new Font("Segoe UI", 9F);
+                Padding = new Padding(22, 18, 22, 18);
+            }
+
+            public string Title { get; set; } = string.Empty;
+            public string Subtitle { get; set; } = string.Empty;
+            public string EmptyText { get; set; } = "NO DATA TO DISPLAY YET.";
+            public string CenterCaption { get; set; } = "TOTAL";
+            public Color[] Palette { get; set; } = DefaultPalette;
+
+            public void SetData(List<ChartItem> items)
+            {
+                _items = items ?? new List<ChartItem>();
+                Invalidate();
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Graphics graphics = e.Graphics;
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                graphics.Clear(BackColor);
+
+                int left = Padding.Left + 6;
+                int top = Padding.Top;
+
+                using Font titleFont = new Font("Segoe UI", 11.5F, FontStyle.Bold);
+                using Font subtitleFont = new Font("Segoe UI", 8.25F);
+                using Font legendFont = new Font("Segoe UI", 8.5F);
+                using Font legendValueFont = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+                using Font totalFont = new Font("Segoe UI", 17F, FontStyle.Bold);
+                using Font totalCaptionFont = new Font("Segoe UI", 6.75F, FontStyle.Bold);
+
+                TextRenderer.DrawText(graphics, Title, titleFont,
+                    new Rectangle(left, top, Math.Max(40, Width - left - Padding.Right), 24),
+                    Color.FromArgb(15, 23, 42),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+                TextRenderer.DrawText(graphics, Subtitle, subtitleFont,
+                    new Rectangle(left, top + 26, Math.Max(40, Width - left - Padding.Right), 18),
+                    Color.FromArgb(100, 116, 139),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+                int chartTop = top + 58;
+                int chartHeight = Height - Padding.Bottom - chartTop;
+
+                double total = 0;
+
+                foreach (ChartItem item in _items)
+                {
+                    total += Math.Max(0, item.Value);
+                }
+
+                if (_items.Count == 0 || total <= 0 || chartHeight < 90)
+                {
+                    TextRenderer.DrawText(graphics, EmptyText, subtitleFont,
+                        new Rectangle(left, chartTop, Math.Max(40, Width - left - Padding.Right),
+                            Math.Max(24, chartHeight)),
+                        Color.FromArgb(148, 163, 184),
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+                    return;
+                }
+
+                int availableWidth = Width - left - Padding.Right;
+                int donutSize = Math.Min(chartHeight, Math.Max(90, (int)(availableWidth * 0.46)));
+                int donutLeft = left + 4;
+
+                Rectangle donut = new Rectangle(
+                    donutLeft,
+                    chartTop + ((chartHeight - donutSize) / 2),
+                    donutSize,
+                    donutSize);
+
+                // On a very narrow window there is no room for the ring and the
+                // legend side by side, so the legend is drawn on its own instead
+                // of letting the two overlap.
+                bool showRing = Width - Padding.Right - (donut.Right + 16) >= 110;
+
+                if (showRing)
+                {
+                    float startAngle = -90F;
+
+                    for (int index = 0; index < _items.Count; index++)
+                    {
+                        ChartItem item = _items[index];
+                        double slice = Math.Max(0, item.Value);
+
+                        if (slice <= 0)
+                        {
+                            continue;
+                        }
+
+                        float sweep = (float)(slice / total * 360.0);
+
+                        using (SolidBrush brush = new SolidBrush(Palette[index % Palette.Length]))
+                        {
+                            graphics.FillPie(brush, donut, startAngle, sweep);
+                        }
+
+                        startAngle += sweep;
+                    }
+
+                    int innerSize = Math.Max(40, (int)(donutSize * 0.58));
+                    Rectangle inner = new Rectangle(
+                        donut.Left + ((donutSize - innerSize) / 2),
+                        donut.Top + ((donutSize - innerSize) / 2),
+                        innerSize,
+                        innerSize);
+
+                    using (SolidBrush hole = new SolidBrush(BackColor))
+                    {
+                        graphics.FillEllipse(hole, inner);
+                    }
+
+                    using (Pen ring = new Pen(Color.FromArgb(241, 245, 249), 1.4f))
+                    {
+                        graphics.DrawEllipse(ring, donut);
+                    }
+
+                    string totalText = ((long)Math.Round(total)).ToString(CultureInfo.InvariantCulture);
+
+                    TextRenderer.DrawText(graphics, totalText, totalFont,
+                        new Rectangle(inner.Left - 8, inner.Top + (innerSize / 2) - 26, innerSize + 16, 32),
+                        Color.FromArgb(15, 23, 42),
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+
+                    TextRenderer.DrawText(graphics, CenterCaption, totalCaptionFont,
+                        new Rectangle(inner.Left - 8, inner.Top + (innerSize / 2) + 6, innerSize + 16, 18),
+                        Color.FromArgb(100, 116, 139),
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.NoPadding);
+                }
+
+                int legendLeft = showRing ? donut.Right + 16 : left;
+                int legendWidth = showRing ? Width - Padding.Right - legendLeft : availableWidth;
+
+                int rowHeight = Math.Min(38, Math.Max(26, chartHeight / Math.Max(1, _items.Count)));
+                int legendTop = chartTop + Math.Max(0, (chartHeight - (rowHeight * _items.Count)) / 2);
+
+                for (int index = 0; index < _items.Count; index++)
+                {
+                    ChartItem item = _items[index];
+                    Color color = Palette[index % Palette.Length];
+                    int rowTop = legendTop + (index * rowHeight);
+
+                    using (GraphicsPath dot = oop_project.DrawHelper.CreateRoundedPath(
+                               new Rectangle(legendLeft, rowTop + 4, 10, 10), 3))
+                    using (SolidBrush dotBrush = new SolidBrush(color))
+                    {
+                        graphics.FillPath(dotBrush, dot);
+                    }
+
+                    string caption = item.Label;
+                    double percent = total <= 0 ? 0 : (Math.Max(0, item.Value) / total) * 100.0;
+                    string value = ((long)Math.Round(item.Value)).ToString(CultureInfo.InvariantCulture) +
+                                   "  \u2022  " + percent.ToString("0", CultureInfo.InvariantCulture) + "%";
+
+                    TextRenderer.DrawText(graphics, caption, legendFont,
+                        new Rectangle(legendLeft + 16, rowTop, Math.Max(20, legendWidth - 16), 18),
+                        Color.FromArgb(51, 65, 85),
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+                    TextRenderer.DrawText(graphics, value, legendValueFont,
+                        new Rectangle(legendLeft + 16, rowTop + 16, Math.Max(20, legendWidth - 16), 18),
+                        Color.FromArgb(100, 116, 139),
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                }
             }
         }
 

@@ -47,6 +47,7 @@ namespace oop_project.forms
                 "Record the loan and the borrower details in one step.", 900, 700,
                 _contentPanel, _footerDivider, _titleLabel, _subtitleLabel,
                 _closeButton, _primaryButton, _secondaryButton);
+            DialogChrome.ApplyCompactHeader(this, _titleLabel, _subtitleLabel, _closeButton);
 
             _dateField.DateBox.MinDate = DateTime.Today.AddYears(-1);
             _dateField.DateBox.MaxDate = DateTime.Today.AddDays(1).AddSeconds(-1);
@@ -263,19 +264,9 @@ namespace oop_project.forms
             }
         }
 
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams parameters = base.CreateParams;
-                DialogChrome.ApplyDropShadow(parameters);
-                return parameters;
-            }
-        }
-
         protected override void OnPaintBackground(PaintEventArgs e)
         {
-            DialogChrome.PaintBackground(this, e);
+            DialogChrome.PaintCompactBackground(this, e);
         }
     }
 }

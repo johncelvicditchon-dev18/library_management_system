@@ -198,11 +198,15 @@ namespace oop_project.forms
             _logout.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             _logout.BackColor = Color.Transparent;
             _logout.CornerRadius = 11;
+            _logout.DisabledTextColor = Color.FromArgb(248, 250, 252);
             _logout.FlatAppearance.BorderSize = 0;
             _logout.FlatStyle = FlatStyle.Flat;
             _logout.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             _logout.ForeColor = Color.White;
             _logout.HoverColor = Color.FromArgb(194, 65, 12);
+            _logout.IconFallbackGlyph = "";
+            _logout.IconGlyph = "";
+            _logout.IconSize = 16F;
             _logout.Location = new Point(2036, 30);
             _logout.Name = "_logout";
             _logout.NormalColor = Color.FromArgb(234, 88, 12);
@@ -341,11 +345,15 @@ namespace oop_project.forms
             // 
             changePasswordButton.BackColor = Color.Transparent;
             changePasswordButton.CornerRadius = 11;
+            changePasswordButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             changePasswordButton.FlatAppearance.BorderSize = 0;
             changePasswordButton.FlatStyle = FlatStyle.Flat;
             changePasswordButton.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             changePasswordButton.ForeColor = Color.FromArgb(51, 65, 85);
             changePasswordButton.HoverColor = Color.FromArgb(226, 232, 240);
+            changePasswordButton.IconFallbackGlyph = "";
+            changePasswordButton.IconGlyph = "";
+            changePasswordButton.IconSize = 16F;
             changePasswordButton.Location = new Point(126, 10);
             changePasswordButton.Name = "changePasswordButton";
             changePasswordButton.NormalColor = Color.FromArgb(241, 245, 249);
@@ -359,11 +367,15 @@ namespace oop_project.forms
             // 
             editProfileButton.BackColor = Color.Transparent;
             editProfileButton.CornerRadius = 11;
+            editProfileButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             editProfileButton.FlatAppearance.BorderSize = 0;
             editProfileButton.FlatStyle = FlatStyle.Flat;
             editProfileButton.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             editProfileButton.ForeColor = Color.White;
             editProfileButton.HoverColor = Color.FromArgb(21, 128, 61);
+            editProfileButton.IconFallbackGlyph = "";
+            editProfileButton.IconGlyph = "";
+            editProfileButton.IconSize = 16F;
             editProfileButton.Location = new Point(316, 10);
             editProfileButton.Name = "editProfileButton";
             editProfileButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -425,7 +437,7 @@ namespace oop_project.forms
             _schoolIdValue.Name = "_schoolIdValue";
             _schoolIdValue.Size = new Size(232, 22);
             _schoolIdValue.TabIndex = 0;
-            _schoolIdValue.Text = "�";
+            _schoolIdValue.Text = "-";
             _schoolIdValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // idNumberCaption
@@ -452,7 +464,7 @@ namespace oop_project.forms
             _programValue.Name = "_programValue";
             _programValue.Size = new Size(232, 22);
             _programValue.TabIndex = 2;
-            _programValue.Text = "�";
+            _programValue.Text = "-";
             _programValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // programCaption
@@ -479,7 +491,7 @@ namespace oop_project.forms
             _yearValue.Name = "_yearValue";
             _yearValue.Size = new Size(232, 22);
             _yearValue.TabIndex = 4;
-            _yearValue.Text = "�";
+            _yearValue.Text = "-";
             _yearValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // yearCaption
@@ -506,7 +518,7 @@ namespace oop_project.forms
             _instituteValue.Name = "_instituteValue";
             _instituteValue.Size = new Size(232, 22);
             _instituteValue.TabIndex = 6;
-            _instituteValue.Text = "�";
+            _instituteValue.Text = "-";
             _instituteValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // instituteCaption
@@ -533,7 +545,7 @@ namespace oop_project.forms
             _contactValue.Name = "_contactValue";
             _contactValue.Size = new Size(232, 22);
             _contactValue.TabIndex = 8;
-            _contactValue.Text = "�";
+            _contactValue.Text = "-";
             _contactValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // contactCaption
@@ -560,7 +572,7 @@ namespace oop_project.forms
             _addressValue.Name = "_addressValue";
             _addressValue.Size = new Size(232, 22);
             _addressValue.TabIndex = 10;
-            _addressValue.Text = "�";
+            _addressValue.Text = "-";
             _addressValue.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // addressCaption
@@ -857,11 +869,15 @@ namespace oop_project.forms
             // 
             attendanceRefresh.BackColor = Color.Transparent;
             attendanceRefresh.CornerRadius = 11;
+            attendanceRefresh.DisabledTextColor = Color.FromArgb(248, 250, 252);
             attendanceRefresh.FlatAppearance.BorderSize = 0;
             attendanceRefresh.FlatStyle = FlatStyle.Flat;
             attendanceRefresh.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             attendanceRefresh.ForeColor = Color.White;
             attendanceRefresh.HoverColor = Color.FromArgb(21, 128, 61);
+            attendanceRefresh.IconFallbackGlyph = "";
+            attendanceRefresh.IconGlyph = "";
+            attendanceRefresh.IconSize = 16F;
             attendanceRefresh.Location = new Point(28, 10);
             attendanceRefresh.Name = "attendanceRefresh";
             attendanceRefresh.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1065,11 +1081,15 @@ namespace oop_project.forms
             // 
             catalogRefresh.BackColor = Color.Transparent;
             catalogRefresh.CornerRadius = 11;
+            catalogRefresh.DisabledTextColor = Color.FromArgb(248, 250, 252);
             catalogRefresh.FlatAppearance.BorderSize = 0;
             catalogRefresh.FlatStyle = FlatStyle.Flat;
             catalogRefresh.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             catalogRefresh.ForeColor = Color.White;
             catalogRefresh.HoverColor = Color.FromArgb(21, 128, 61);
+            catalogRefresh.IconFallbackGlyph = "";
+            catalogRefresh.IconGlyph = "";
+            catalogRefresh.IconSize = 16F;
             catalogRefresh.Location = new Point(942, 10);
             catalogRefresh.Name = "catalogRefresh";
             catalogRefresh.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1263,11 +1283,15 @@ namespace oop_project.forms
             // 
             requestsRefresh.BackColor = Color.Transparent;
             requestsRefresh.CornerRadius = 11;
+            requestsRefresh.DisabledTextColor = Color.FromArgb(248, 250, 252);
             requestsRefresh.FlatAppearance.BorderSize = 0;
             requestsRefresh.FlatStyle = FlatStyle.Flat;
             requestsRefresh.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             requestsRefresh.ForeColor = Color.White;
             requestsRefresh.HoverColor = Color.FromArgb(21, 128, 61);
+            requestsRefresh.IconFallbackGlyph = "";
+            requestsRefresh.IconGlyph = "";
+            requestsRefresh.IconSize = 16F;
             requestsRefresh.Location = new Point(28, 10);
             requestsRefresh.Name = "requestsRefresh";
             requestsRefresh.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1460,11 +1484,15 @@ namespace oop_project.forms
             // 
             borrowedRefresh.BackColor = Color.Transparent;
             borrowedRefresh.CornerRadius = 11;
+            borrowedRefresh.DisabledTextColor = Color.FromArgb(248, 250, 252);
             borrowedRefresh.FlatAppearance.BorderSize = 0;
             borrowedRefresh.FlatStyle = FlatStyle.Flat;
             borrowedRefresh.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             borrowedRefresh.ForeColor = Color.White;
             borrowedRefresh.HoverColor = Color.FromArgb(21, 128, 61);
+            borrowedRefresh.IconFallbackGlyph = "";
+            borrowedRefresh.IconGlyph = "";
+            borrowedRefresh.IconSize = 16F;
             borrowedRefresh.Location = new Point(28, 10);
             borrowedRefresh.Name = "borrowedRefresh";
             borrowedRefresh.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1715,7 +1743,6 @@ namespace oop_project.forms
         private RoundedButton editProfileButton;
         private TableLayoutPanel profileColumns;
         private Panel profileIdentityCard;
-        private Label _schoolIdValue;
         private Label idNumberCaption;
         private Label _programValue;
         private Label programCaption;
@@ -1748,5 +1775,6 @@ namespace oop_project.forms
         private TabPage tabPageCatalog;
         private TabPage tabPageRequests;
         private TabPage tabPageBorrowed;
+        private Label _schoolIdValue;
     }
 }

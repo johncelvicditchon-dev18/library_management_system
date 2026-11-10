@@ -24,11 +24,11 @@ namespace oop_project
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
             {
                 { "ICS", new[] { "BSCS" } },
-                { "IAS", new[] { "AB-COM", "AB-ENGLISH" } },
-                { "ICJE", new[] { "BS-CRIMINOLOGY", "BS-ISM" } },
-                { "IBFS", new[] { "BSBA-HRMA", "BSBA-FM", "BSOA" } },
+                { "IAS", new[] { "AB COMM", "AB ENGLISH", "AB POLSCI" } },
+                { "ICJE", new[] { "BS-CRIM", "BSISM" } },
+                { "IBFS", new[] { "BSBA-FM", "BSBA-HRM", "BSBA-MM", "BSOA" } },
                 { "IHS", new[] { "BS-MIDWIFERY" } },
-                { "ITE", new[] { "BSED-MATH", "BSED-FILIPINO", "BSED-ENGLISH", "BSED-SOCTUD" } }
+                { "ITE", new[] { "BEED", "BSED-ENGLISH", "BSED-FILIPINO", "BSED-MATH", "BSED-SOCSTUD" } }
             };
 
         private static readonly string[] YearLevels = { "1ST YEAR", "2ND YEAR", "3RD YEAR", "4TH YEAR" };

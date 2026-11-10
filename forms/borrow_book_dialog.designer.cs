@@ -202,7 +202,7 @@ namespace oop_project.forms
             // 
             _titleLabel.BackColor = Color.Transparent;
             _titleLabel.Font = new Font("Segoe UI", 15.5F, FontStyle.Bold);
-            _titleLabel.ForeColor = Color.White;
+            _titleLabel.ForeColor = Color.FromArgb(15, 23, 42);
             _titleLabel.Location = new Point(32, 22);
             _titleLabel.Name = "_titleLabel";
             _titleLabel.Size = new Size(770, 32);
@@ -216,7 +216,7 @@ namespace oop_project.forms
             // 
             _subtitleLabel.BackColor = Color.Transparent;
             _subtitleLabel.Font = new Font("Segoe UI", 8.75F);
-            _subtitleLabel.ForeColor = Color.FromArgb(209, 250, 229);
+            _subtitleLabel.ForeColor = Color.FromArgb(100, 116, 139);
             _subtitleLabel.Location = new Point(34, 60);
             _subtitleLabel.Name = "_subtitleLabel";
             _subtitleLabel.Size = new Size(760, 22);
@@ -232,6 +232,7 @@ namespace oop_project.forms
             _closeButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             _closeButton.Location = new Point(834, 20);
             _closeButton.Name = "_closeButton";
+            _closeButton.OnLightBackground = true;
             _closeButton.Size = new Size(34, 34);
             _closeButton.TabIndex = 2;
             _closeButton.TabStop = false;
@@ -242,11 +243,15 @@ namespace oop_project.forms
             _primaryButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             _primaryButton.BackColor = Color.Transparent;
             _primaryButton.CornerRadius = 12;
+            _primaryButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             _primaryButton.FlatAppearance.BorderSize = 0;
             _primaryButton.FlatStyle = FlatStyle.Flat;
             _primaryButton.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             _primaryButton.ForeColor = Color.White;
             _primaryButton.HoverColor = Color.FromArgb(21, 128, 61);
+            _primaryButton.IconFallbackGlyph = "";
+            _primaryButton.IconGlyph = "";
+            _primaryButton.IconSize = 16F;
             _primaryButton.Location = new Point(994, 638);
             _primaryButton.Name = "_primaryButton";
             _primaryButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -262,11 +267,15 @@ namespace oop_project.forms
             _secondaryButton.BackColor = Color.Transparent;
             _secondaryButton.CornerRadius = 12;
             _secondaryButton.DialogResult = DialogResult.Cancel;
+            _secondaryButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             _secondaryButton.FlatAppearance.BorderSize = 0;
             _secondaryButton.FlatStyle = FlatStyle.Flat;
             _secondaryButton.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             _secondaryButton.ForeColor = Color.FromArgb(51, 65, 85);
             _secondaryButton.HoverColor = Color.FromArgb(226, 232, 240);
+            _secondaryButton.IconFallbackGlyph = "";
+            _secondaryButton.IconGlyph = "";
+            _secondaryButton.IconSize = 16F;
             _secondaryButton.Location = new Point(862, 638);
             _secondaryButton.Name = "_secondaryButton";
             _secondaryButton.NormalColor = Color.FromArgb(241, 245, 249);

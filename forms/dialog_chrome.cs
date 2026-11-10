@@ -12,6 +12,7 @@ namespace oop_project.forms
     public sealed class DialogCloseButton : Control
     {
         private bool _hover;
+        private bool _onLightBackground;
 
         public DialogCloseButton()
         {
@@ -27,6 +28,25 @@ namespace oop_project.forms
             TabStop = false;
         }
 
+        /// <summary>
+        /// The compact header paints a white band, so the close chip switches to
+        /// dark ink instead of the white ink used over the green header.
+        /// </summary>
+        public bool OnLightBackground
+        {
+            get { return _onLightBackground; }
+            set
+            {
+                if (_onLightBackground == value)
+                {
+                    return;
+                }
+
+                _onLightBackground = value;
+                Invalidate();
+            }
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -40,14 +60,20 @@ namespace oop_project.forms
             Rectangle bounds = new Rectangle(0, 0, Width - 1, Height - 1);
             using (GraphicsPath path = DrawHelper.CreateRoundedPath(bounds, Math.Min(10, Height / 2)))
             {
-                using (SolidBrush fill = new SolidBrush(_hover
-                           ? Color.FromArgb(64, 255, 255, 255)
-                           : Color.FromArgb(30, 255, 255, 255)))
+                Color fillColor = _onLightBackground
+                    ? (_hover ? Color.FromArgb(38, 15, 23, 42) : Color.FromArgb(16, 15, 23, 42))
+                    : (_hover ? Color.FromArgb(64, 255, 255, 255) : Color.FromArgb(30, 255, 255, 255));
+
+                using (SolidBrush fill = new SolidBrush(fillColor))
                 {
                     g.FillPath(fill, path);
                 }
 
-                using Pen border = new Pen(Color.FromArgb(60, 255, 255, 255), 1f);
+                Color borderColor = _onLightBackground
+                    ? Color.FromArgb(46, 15, 23, 42)
+                    : Color.FromArgb(60, 255, 255, 255);
+
+                using Pen border = new Pen(borderColor, 1f);
                 g.DrawPath(border, path);
             }
 
@@ -56,7 +82,7 @@ namespace oop_project.forms
                 "✕",
                 Font,
                 bounds,
-                Color.White,
+                _onLightBackground ? Color.FromArgb(51, 65, 85) : Color.White,
                 TextFormatFlags.HorizontalCenter |
                 TextFormatFlags.VerticalCenter |
                 TextFormatFlags.NoPadding);
@@ -89,6 +115,10 @@ namespace oop_project.forms
         public const int CornerRadius = 20;
         public const int SideMargin = 32;
 
+        // Compact chrome used by the dialogs that match REQUEST TO BORROW: a small
+        // green gradient strip at the very top and a white header underneath.
+        public const int AccentHeight = 8;
+
         public static void EnablePainting(Form form)
         {
             ControlStyles styles = ControlStyles.UserPaint |
@@ -103,6 +133,10 @@ namespace oop_project.forms
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
             setStyle?.Invoke(form, new object[] { styles, true });
+
+            // Every borderless pop up that uses this chrome also gets the soft,
+            // even shadow. It is attached here so each dialog inherits it.
+            DialogShadow.Attach(form);
         }
 
         /// <summary>
@@ -140,6 +174,26 @@ namespace oop_project.forms
             primary.Location = new Point(width - SideMargin - 168, height - FooterHeight + 16);
         }
 
+        /// <summary>
+        /// Switches the title, subtitle and close chip to the colours that read on
+        /// the compact white header.
+        /// </summary>
+        public static void ApplyCompactHeader(
+            Form form,
+            Label titleLabel,
+            Label? subtitleLabel,
+            DialogCloseButton closeButton)
+        {
+            titleLabel.ForeColor = Color.FromArgb(15, 23, 42);
+
+            if (subtitleLabel != null)
+            {
+                subtitleLabel.ForeColor = Color.FromArgb(100, 116, 139);
+            }
+
+            closeButton.OnLightBackground = true;
+        }
+
         public static void ApplyRoundedRegion(Form form)
         {
             if (form.Width <= 0 || form.Height <= 0)
@@ -151,11 +205,6 @@ namespace oop_project.forms
             Region? previous = form.Region;
             form.Region = new Region(path);
             previous?.Dispose();
-        }
-
-        public static void ApplyDropShadow(CreateParams parameters)
-        {
-            parameters.ClassStyle |= 0x00020000; // CS_DROPSHADOW
         }
 
         public static void PaintBackground(Form form, PaintEventArgs e)
@@ -191,6 +240,50 @@ namespace oop_project.forms
                 using (SolidBrush glow = new SolidBrush(Color.FromArgb(20, 255, 255, 255)))
                 {
                     g.FillEllipse(glow, form.Width - 250, -120, 320, 320);
+                }
+
+                g.Restore(state);
+
+                using (Pen border = new Pen(Color.FromArgb(203, 213, 225), 1.2f))
+                {
+                    g.DrawPath(border, card);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Compact chrome that matches the REQUEST TO BORROW dialog: a white card
+        /// with a thin green gradient strip across the top instead of a tall green
+        /// header band.
+        /// </summary>
+        public static void PaintCompactBackground(Form form, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            if (form.Width <= 2 || form.Height <= 2)
+            {
+                return;
+            }
+
+            Rectangle bounds = new Rectangle(0, 0, form.Width, form.Height);
+            using (GraphicsPath card = DrawHelper.CreateRoundedPath(bounds, CornerRadius))
+            {
+                using (SolidBrush body = new SolidBrush(Color.White))
+                {
+                    g.FillPath(body, card);
+                }
+
+                GraphicsState state = g.Save();
+                g.SetClip(new Rectangle(0, 0, form.Width, AccentHeight), CombineMode.Intersect);
+
+                using (LinearGradientBrush accent = new LinearGradientBrush(
+                           new Rectangle(0, 0, form.Width, AccentHeight),
+                           Color.FromArgb(74, 222, 128),
+                           Color.FromArgb(5, 150, 105),
+                           LinearGradientMode.Horizontal))
+                {
+                    g.FillPath(accent, card);
                 }
 
                 g.Restore(state);

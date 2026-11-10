@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 using oop_project.Models;
+using oop_project.Reports;
 using QRCoder;
 
 namespace oop_project.forms
@@ -61,6 +63,7 @@ namespace oop_project.forms
         // account record (name, school id, program / office and institute) with the
         // date and time of the scan.
         private readonly DataGridView _attendanceTable = new DataGridView();
+        private RoundedButton attendanceExport = null!;
 
         /// <summary>
         /// Design time constructor. The complete portal layout is serialized in
@@ -132,6 +135,10 @@ namespace oop_project.forms
             WirePageHead(requestsHead, _requestsSearch, requestsRefresh);
             WirePageHead(borrowedHead, _borrowedSearch, borrowedRefresh);
             WirePageHead(attendanceHead, _attendanceSearch, attendanceRefresh, attendanceSubtitle);
+
+            BuildAttendanceExportButton();
+            attendanceHead.Resize += (s, e) => LayoutAttendanceExport();
+            LayoutAttendanceExport();
 
             catalogRefresh.Click += (s, e) => { LoadCatalogData(); LoadRequests(); LoadBorrowedBooks(); };
             requestsRefresh.Click += (s, e) => LoadRequests();
@@ -274,6 +281,95 @@ namespace oop_project.forms
             if (subtitle != null)
             {
                 subtitle.Width = Math.Max(160, (search == null ? refresh.Left : search.Left) - 16);
+            }
+        }
+
+        /// <summary>
+        /// MY ATTENDANCE: creates the EXPORT PDF action beside REFRESH and wires it
+        /// to the patron's own attendance report.
+        /// </summary>
+        private void BuildAttendanceExportButton()
+        {
+            attendanceExport = new RoundedButton
+            {
+                BackColor = Color.Transparent,
+                CornerRadius = 11,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                ForeColor = Color.White,
+                HoverColor = Color.FromArgb(154, 52, 18),
+                NormalColor = Color.FromArgb(194, 65, 12),
+                PressedColor = Color.FromArgb(120, 45, 15),
+                Size = new Size(132, 44),
+                Text = "EXPORT PDF",
+                UseVisualStyleBackColor = false
+            };
+            attendanceExport.FlatAppearance.BorderSize = 0;
+            attendanceExport.Click += (s, e) => ExportAttendancePdf();
+
+            attendanceHead.Controls.Add(attendanceExport);
+            attendanceExport.BringToFront();
+        }
+
+        /// <summary>
+        /// Keeps the EXPORT PDF button next to REFRESH and shifts the search box and
+        /// subtitle left so the header never overlaps.
+        /// </summary>
+        private void LayoutAttendanceExport()
+        {
+            if (attendanceExport == null)
+            {
+                return;
+            }
+
+            int right = attendanceHead.ClientSize.Width;
+
+            attendanceExport.Left = Math.Max(
+                0, right - attendanceRefresh.Width - 12 - attendanceExport.Width);
+            attendanceExport.Top = attendanceRefresh.Top;
+
+            _attendanceSearch.Left = Math.Max(0, attendanceExport.Left - 12 - _attendanceSearch.Width);
+            _attendanceSearch.Top = 10;
+
+            attendanceSubtitle.Width = Math.Max(160, _attendanceSearch.Left - 16);
+        }
+
+        /// <summary>
+        /// Writes the patron's own attendance log to the LRC PDF form, newest years
+        /// last and every visit in ascending date and time order.
+        /// </summary>
+        private void ExportAttendancePdf()
+        {
+            using (SaveFileDialog dialog = new SaveFileDialog())
+            {
+                dialog.Filter = "PDF file (*.pdf)|*.pdf";
+                dialog.FileName = "my-attendance-" +
+                                  DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".pdf";
+                dialog.Title = "EXPORT MY ATTENDANCE AS PDF";
+                dialog.OverwritePrompt = true;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                try
+                {
+                    MyAttendancePdfExporter.Export(
+                        _fullName, _role, _myAttendance, dialog.FileName);
+
+                    DialogChrome.ShowAlert(
+                        "ATTENDANCE EXPORTED TO:\n" + dialog.FileName,
+                        "PDF SAVED",
+                        MessageBoxIcon.Information);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    DialogChrome.ShowAlert(
+                        "THE PDF COULD NOT BE SAVED.\n" + ex.Message,
+                        "EXPORT FAILED",
+                        MessageBoxIcon.Error);
+                }
             }
         }
 

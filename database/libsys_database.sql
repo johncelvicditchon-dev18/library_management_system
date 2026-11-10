@@ -413,18 +413,35 @@ CREATE TABLE IF NOT EXISTS `attendance_table` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- LIBRARY EVALUATION FORM
--- A public survey opened from the welcome page. One evaluation_table row holds
--- the submission (role, optional name and time) and one evaluation_answer_table
--- row holds each 1-5 rating, so answers stay normalised and can be averaged by
--- section or by question. The form creates these tables itself on first submit.
+-- A public survey opened from the welcome page. The librarian opens ONE semester
+-- (evaluation_period_table) at a time; every submission is tagged with that
+-- period, so one account can answer only once per semester. One evaluation_table
+-- row holds the submission (role, optional name and time) and one
+-- evaluation_answer_table row holds each 1-5 rating, so answers stay normalised
+-- and can be averaged by section or by question. The form creates these tables
+-- itself on first use.
+CREATE TABLE IF NOT EXISTS `evaluation_period_table` (
+    `period_id`   INT(11)     NOT NULL AUTO_INCREMENT,
+    `semester`    VARCHAR(40) NOT NULL,
+    `school_year` VARCHAR(20) NOT NULL,
+    `is_open`     TINYINT(1)  NOT NULL DEFAULT 0,
+    `opened_at`   DATETIME    DEFAULT NULL,
+    `closed_at`   DATETIME    DEFAULT NULL,
+    PRIMARY KEY (`period_id`),
+    UNIQUE KEY `uq_evaluation_period` (`semester`, `school_year`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
 CREATE TABLE IF NOT EXISTS `evaluation_table` (
     `evaluation_id`   INT(11)      NOT NULL AUTO_INCREMENT,
     `account_id`      INT(11)      DEFAULT NULL,
+    `period_id`       INT(11)      DEFAULT NULL,
     `respondent_role` VARCHAR(20)  NOT NULL,
     `respondent_name` VARCHAR(150) NOT NULL DEFAULT '',
     `submitted_at`    DATETIME     NOT NULL,
     PRIMARY KEY (`evaluation_id`),
     KEY `idx_evaluation_account` (`account_id`),
+    KEY `idx_evaluation_period` (`period_id`),
+    UNIQUE KEY `uq_evaluation_period_account` (`period_id`, `account_id`),
     CONSTRAINT `fk_evaluation_account`
         FOREIGN KEY (`account_id`) REFERENCES `account_table` (`account_id`)
         ON DELETE SET NULL
@@ -446,6 +463,13 @@ CREATE TABLE IF NOT EXISTS `evaluation_answer_table` (
 -- Older copies of books_table declared year_published as YEAR(4), which cannot
 -- hold titles such as Noli Me Tangere (1887). Run this once if that is your copy:
 -- ALTER TABLE `books_table` MODIFY `year_published` SMALLINT NULL;
+
+-- Run these once on a database created before the semester periods existed
+-- (the app also adds them automatically the first time ANALYTICS is opened):
+-- CREATE TABLE IF NOT EXISTS `evaluation_period_table` (...same as above...);
+-- ALTER TABLE `evaluation_table` ADD COLUMN `period_id` INT(11) NULL AFTER `account_id`;
+-- ALTER TABLE `evaluation_table` ADD KEY `idx_evaluation_period` (`period_id`);
+-- ALTER TABLE `evaluation_table` ADD UNIQUE KEY `uq_evaluation_period_account` (`period_id`, `account_id`);
 
 -- Run this once on an older database to store book covers:
 -- ALTER TABLE `books_table` ADD COLUMN `book_image` MEDIUMBLOB NULL AFTER `date_added`;

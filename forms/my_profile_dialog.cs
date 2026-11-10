@@ -120,8 +120,9 @@ namespace oop_project.forms
                 FormWidth, formHeight,
                 _contentPanel, _footerDivider, _titleLabel, null,
                 _closeButton, _saveButton, _cancelButton);
+            DialogChrome.ApplyCompactHeader(this, _titleLabel, null, _closeButton);
 
-            // Only the heading is kept, so it is centred in the green header.
+            // Only the heading is kept, so it is centred in the white header.
             _titleLabel.Top = (DialogChrome.HeaderHeight - _titleLabel.Height) / 2;
 
             _saveButton.Click += SaveButton_Click;
@@ -650,19 +651,9 @@ namespace oop_project.forms
             }
         }
 
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams parameters = base.CreateParams;
-                DialogChrome.ApplyDropShadow(parameters);
-                return parameters;
-            }
-        }
-
         protected override void OnPaintBackground(PaintEventArgs e)
         {
-            DialogChrome.PaintBackground(this, e);
+            DialogChrome.PaintCompactBackground(this, e);
         }
     }
 }

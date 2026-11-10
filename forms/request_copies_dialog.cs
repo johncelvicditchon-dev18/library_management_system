@@ -15,9 +15,6 @@ namespace oop_project.forms
     /// </summary>
     public partial class RequestCopiesDialog : Form
     {
-        // CS_DROPSHADOW gives the window the soft shadow Windows uses for menus.
-        private const int DropShadowClass = 0x00020000;
-
         private int _copies = 1;
         private int _maximum = 1;
 
@@ -132,16 +129,6 @@ namespace oop_project.forms
             // The patron can start typing the number straight away.
             copiesInput.Focus();
             copiesInput.SelectAll();
-        }
-
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams cp = base.CreateParams;
-                cp.ClassStyle |= DropShadowClass;
-                return cp;
-            }
         }
     }
 }

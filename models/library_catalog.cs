@@ -793,7 +793,7 @@ namespace oop_project.Models
                 "FROM `borrow_transactions_table` t " +
                 "JOIN `borrowers_table` b ON b.`borrower_id` = t.`borrower_id` " +
                 "LEFT JOIN `books_table` bk ON bk.`book_id` = t.`book_id` " +
-                "ORDER BY t.`date_borrow` DESC, t.`borrow_id` DESC;";
+                "ORDER BY t.`date_borrow` ASC;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
             using (MySqlDataReader reader = command.ExecuteReader())

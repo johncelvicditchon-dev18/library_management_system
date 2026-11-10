@@ -251,12 +251,28 @@ namespace oop_project
 
         private void evaluation_button_Click(object sender, EventArgs e)
         {
-            // The evaluation is open to students, faculty and staff before they
-            // sign in, so it opens directly from the welcome page.
-            using (EvaluationForm form = new EvaluationForm())
+            // Students, faculty and staff sign in with their library account first.
+            // Only an active account may continue to the evaluation form.
+            using (EvaluationLogin signIn = new EvaluationLogin())
             {
-                form.ShowDialog(this);
+                if (signIn.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                using (EvaluationForm form = new EvaluationForm(
+                    signIn.RespondentRole, signIn.RespondentIdNumber,
+                    signIn.RespondentName, signIn.AccountId,
+                    signIn.EvaluationPeriodId, signIn.EvaluationPeriodTitle))
+                {
+                    form.ShowDialog(this);
+                }
             }
+        }
+
+        private void card_Paint(object sender, PaintEventArgs e)
+        {
+
         }
     }
 }

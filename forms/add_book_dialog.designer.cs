@@ -135,7 +135,7 @@ namespace oop_project.forms
             // 
             _titleLabel.BackColor = Color.Transparent;
             _titleLabel.Font = new Font("Segoe UI", 15.5F, FontStyle.Bold);
-            _titleLabel.ForeColor = Color.White;
+            _titleLabel.ForeColor = Color.FromArgb(15, 23, 42);
             _titleLabel.Location = new Point(32, 22);
             _titleLabel.Name = "_titleLabel";
             _titleLabel.Size = new Size(510, 32);
@@ -149,7 +149,7 @@ namespace oop_project.forms
             // 
             _subtitleLabel.BackColor = Color.Transparent;
             _subtitleLabel.Font = new Font("Segoe UI", 8.75F);
-            _subtitleLabel.ForeColor = Color.FromArgb(209, 250, 229);
+            _subtitleLabel.ForeColor = Color.FromArgb(100, 116, 139);
             _subtitleLabel.Location = new Point(34, 60);
             _subtitleLabel.Name = "_subtitleLabel";
             _subtitleLabel.Size = new Size(500, 22);
@@ -165,6 +165,7 @@ namespace oop_project.forms
             _closeButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             _closeButton.Location = new Point(574, 20);
             _closeButton.Name = "_closeButton";
+            _closeButton.OnLightBackground = true;
             _closeButton.Size = new Size(34, 34);
             _closeButton.TabIndex = 2;
             _closeButton.TabStop = false;

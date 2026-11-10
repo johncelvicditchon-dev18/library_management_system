@@ -14,6 +14,10 @@ namespace oop_project.forms
     /// or staff member may answer from the welcome page. The whole questionnaire
     /// lives inside an AutoScroll panel, so the SUBMIT button is reached by
     /// scrolling to the bottom.
+    ///
+    /// The librarian opens one semester at a time in the ANALYTICS tab. The form
+    /// only accepts answers while that semester is open, and each account may
+    /// submit once per semester, so a new period is needed for a new evaluation.
     /// </summary>
     public partial class EvaluationForm : Form
     {
@@ -22,12 +26,28 @@ namespace oop_project.forms
         private const int SectionHeaderHeight = 46;
         private const int SectionGap = 18;
 
+        // One rating pill and the gap between two pills.
+        private const int PillSize = 42;
+        private const int PillGap = 8;
+
         private static readonly string[] RoleOptions =
         {
             "SELECT ROLE",
             "STUDENT",
             "FACULTY",
             "STAFF"
+        };
+
+        // The word behind every number, used by the tooltip of each rating pill so
+        // the respondent does not have to scroll back up to the legend.
+        private static readonly string[] RatingWords =
+        {
+            string.Empty,
+            "POOR",
+            "FAIR",
+            "GOOD",
+            "VERY GOOD",
+            "EXCELLENT"
         };
 
         private static readonly string[] SectionTitles =
@@ -92,28 +112,134 @@ namespace oop_project.forms
         private readonly List<QuestionRow> _rows = new List<QuestionRow>();
         private readonly List<ContentBlock> _blocks = new List<ContentBlock>();
 
+        // One shared tooltip explains what each number means ("5 - EXCELLENT").
+        private readonly ToolTip _ratingTip = new ToolTip
+        {
+            AutoPopDelay = 8000,
+            InitialDelay = 350,
+            ReshowDelay = 100,
+            ShowAlways = true
+        };
+
         private Panel _content = null!;
         private RoundedCard _respondentCard = null!;
         private Label _roleCaption = null!;
         private Label _nameCaption = null!;
+        private Label _idCaption = null!;
         private ComboBox _roleBox = null!;
         private TextBox _nameBox = null!;
+        private Label _roleValue = null!;
+        private Label _idValue = null!;
+        private Label _nameValue = null!;
         private Label _legendLabel = null!;
         private RoundedCard _submitCard = null!;
         private Label _submitNote = null!;
         private RoundedButton _submitButton = null!;
 
+        // Set after a successful LIBRARY EVALUATION sign in. The respondent card
+        // then shows ROLE, NAME and — for a student only — STUDENT ID as read only
+        // values instead of inputs.
+        private bool _signedIn;
+        private string _signedInRole = string.Empty;
+        private string _signedInIdNumber = string.Empty;
+        private string _signedInName = string.Empty;
+        private int _accountId;
+
+        // The semester the librarian opened. It is stored with the answers and it
+        // is what stops one respondent from answering the same semester twice.
+        private readonly int _periodId;
+        private readonly string _periodTitle;
+
         public EvaluationForm()
+            : this(null, null, null, 0)
+        {
+        }
+
+        /// <summary>
+        /// Opens the survey for a patron who already signed in through the
+        /// LIBRARY EVALUATION pop up. The proven role, ID number and name are shown
+        /// read only, the account id is stored with the answers, and the period
+        /// identifies the semester the librarian opened for evaluation.
+        /// </summary>
+        public EvaluationForm(
+            string? role, string? idNumber, string? name, int accountId,
+            int periodId = 0, string? periodTitle = null)
         {
             InitializeComponent();
+            DoubleBuffered = true;
+
+            // The shared rating tooltip is not a child control, so it is released here.
+            Disposed += (s, e) => _ratingTip.Dispose();
+
+            // FULL SCREEN: same behaviour as the welcome page. The form opens
+            // maximised and F11 toggles the borderless view that covers the monitor.
+            ScreenMode.Apply(this);
+
+            _periodId = periodId > 0 ? periodId : 0;
+            _periodTitle = (periodTitle ?? string.Empty).Trim();
+
+            _signedInRole = NormalizeRole(role);
+
+            // Only a student carries a student id into the survey; FACULTY and
+            // STAFF answers are linked to their account instead.
+            _signedInIdNumber = IsStudentRespondent ? (idNumber ?? string.Empty).Trim() : string.Empty;
+
+            _signedInName = (name ?? string.Empty).Trim();
+            _accountId = accountId > 0 ? accountId : 0;
+            _signedIn = _signedInRole.Length > 0;
+
             BuildForm();
+        }
+
+        /// <summary>
+        /// Only a STUDENT has a student id to show. FACULTY and STAFF answers are
+        /// recorded against their account, so the ID NO. field is hidden for them.
+        /// </summary>
+        private bool IsStudentRespondent
+        {
+            get { return string.Equals(_signedInRole, "STUDENT", StringComparison.OrdinalIgnoreCase); }
+        }
+
+        private static string NormalizeRole(string? role)
+        {
+            if (string.IsNullOrWhiteSpace(role))
+            {
+                return string.Empty;
+            }
+
+            string normalized = role.Trim().ToUpperInvariant();
+
+            // An OFFICER account belongs to the staff group.
+            return normalized == "OFFICER" ? "STAFF" : normalized;
         }
 
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
             Arrange();
-            _roleBox.Focus();
+
+            if (_signedIn)
+            {
+                // WinForms checks the first radio button that receives focus when the
+                // window opens. Clear that automatic choice so statement 1 cannot be
+                // submitted with a rating the respondent never picked.
+                BeginInvoke(new Action(ClearInitialRatings));
+            }
+            else if (_roleBox != null)
+            {
+                _roleBox.Focus();
+            }
+        }
+
+        private void ClearInitialRatings()
+        {
+            foreach (QuestionRow row in _rows)
+            {
+                foreach (RadioButton option in row.Options)
+                {
+                    option.Checked = false;
+                }
+            }
         }
 
         // ------------------------------------------------------------------ BUILD
@@ -133,6 +259,13 @@ namespace oop_project.forms
             BuildSections();
             BuildSubmitCard();
 
+            // The cards are measured and positioned by Arrange(), but they still
+            // have to be parented to the scrolling content panel to be painted.
+            foreach (ContentBlock block in _blocks)
+            {
+                _content.Controls.Add(block.Control);
+            }
+
             scrollPanel.Resize += (s, e) => Arrange();
             Arrange();
         }
@@ -147,43 +280,100 @@ namespace oop_project.forms
                 Height = 118
             };
 
-            _roleCaption = MakeCaption("I AM A");
-            _roleCaption.Location = new Point(20, 16);
-            _roleCaption.Size = new Size(260, 18);
-
-            _roleBox = new ComboBox
+            if (_signedIn)
             {
-                BackColor = Color.FromArgb(243, 244, 246),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10.5F),
-                ForeColor = Color.FromArgb(17, 24, 39),
-                Location = new Point(20, 40),
-                Size = new Size(260, 32)
-            };
-            _roleBox.Items.AddRange(RoleOptions);
-            _roleBox.SelectedIndex = 0;
-
-            _nameCaption = MakeCaption("NAME (OPTIONAL)");
-            _nameCaption.Location = new Point(306, 16);
-            _nameCaption.Size = new Size(300, 18);
-
-            _nameBox = new TextBox
+                BuildSignedInRespondentCard();
+            }
+            else
             {
-                BackColor = Color.FromArgb(243, 244, 246),
-                BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 10.5F),
-                ForeColor = Color.FromArgb(17, 24, 39),
-                Location = new Point(306, 42),
-                Size = new Size(400, 28)
-            };
+                _roleCaption = MakeCaption("I AM A");
+                _roleCaption.Location = new Point(20, 16);
+                _roleCaption.Size = new Size(260, 18);
 
-            _respondentCard.Controls.Add(_roleCaption);
-            _respondentCard.Controls.Add(_roleBox);
-            _respondentCard.Controls.Add(_nameCaption);
-            _respondentCard.Controls.Add(_nameBox);
+                _roleBox = new ComboBox
+                {
+                    BackColor = Color.FromArgb(243, 244, 246),
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 10.5F),
+                    ForeColor = Color.FromArgb(17, 24, 39),
+                    Location = new Point(20, 40),
+                    Size = new Size(260, 32)
+                };
+                _roleBox.Items.AddRange(RoleOptions);
+                _roleBox.SelectedIndex = 0;
+
+                _nameCaption = MakeCaption("NAME (OPTIONAL)");
+                _nameCaption.Location = new Point(306, 16);
+                _nameCaption.Size = new Size(300, 18);
+
+                _nameBox = new TextBox
+                {
+                    BackColor = Color.FromArgb(243, 244, 246),
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Font = new Font("Segoe UI", 10.5F),
+                    ForeColor = Color.FromArgb(17, 24, 39),
+                    Location = new Point(306, 42),
+                    Size = new Size(400, 28)
+                };
+
+                _respondentCard.Controls.Add(_roleCaption);
+                _respondentCard.Controls.Add(_roleBox);
+                _respondentCard.Controls.Add(_nameCaption);
+                _respondentCard.Controls.Add(_nameBox);
+            }
 
             _blocks.Add(new ContentBlock(_respondentCard, SectionGap));
+        }
+
+        /// <summary>
+        /// Signed-in respondent card: ROLE, NAME and, for a student only, the
+        /// STUDENT ID are shown as read-only values, because the LIBRARY
+        /// EVALUATION sign in already proved them. FACULTY and STAFF have no
+        /// student id, so that column is left out of their card.
+        /// </summary>
+        private void BuildSignedInRespondentCard()
+        {
+            _roleCaption = MakeCaption("ROLE");
+            _roleCaption.Location = new Point(20, 16);
+            _roleCaption.Size = new Size(160, 18);
+
+            _roleValue = MakeValueLabel(_signedInRole);
+            _roleValue.Location = new Point(20, 40);
+            _roleValue.Size = new Size(160, 34);
+
+            // The STUDENT ID column is built for a student only. FACULTY and STAFF
+            // have no student id, so the field stays out of their card entirely.
+            if (IsStudentRespondent)
+            {
+                _idCaption = MakeCaption("STUDENT ID");
+                _idCaption.Location = new Point(200, 16);
+                _idCaption.Size = new Size(230, 18);
+
+                _idValue = MakeValueLabel(string.IsNullOrWhiteSpace(_signedInIdNumber) ? "—" : _signedInIdNumber);
+                _idValue.Location = new Point(200, 40);
+                _idValue.Size = new Size(230, 34);
+            }
+
+            _nameCaption = MakeCaption("NAME");
+            _nameCaption.Location = new Point(450, 16);
+            _nameCaption.Size = new Size(400, 18);
+
+            _nameValue = MakeValueLabel(string.IsNullOrWhiteSpace(_signedInName) ? "—" : _signedInName);
+            _nameValue.Location = new Point(450, 40);
+            _nameValue.Size = new Size(400, 34);
+
+            _respondentCard.Controls.Add(_roleCaption);
+            _respondentCard.Controls.Add(_roleValue);
+
+            if (_idCaption != null && _idValue != null)
+            {
+                _respondentCard.Controls.Add(_idCaption);
+                _respondentCard.Controls.Add(_idValue);
+            }
+
+            _respondentCard.Controls.Add(_nameCaption);
+            _respondentCard.Controls.Add(_nameValue);
         }
 
         private void BuildLegend()
@@ -283,24 +473,32 @@ namespace oop_project.forms
             {
                 int value = 5 - index;
 
-                options[index] = new RadioButton
+                // RatingPill is a RadioButton, so "one answer per row" and the arrow
+                // key navigation keep working exactly as before; only the look changes.
+                RatingPill pill = new RatingPill
                 {
-                    AccessibleName = "Rating " + value,
-                    AutoSize = false,
-                    BackColor = Color.Transparent,
-                    Cursor = Cursors.Hand,
-                    Font = new Font("Segoe UI", 9F),
-                    ForeColor = Color.FromArgb(51, 65, 85),
-                    Size = new Size(34, 22),
-                    TabStop = true,
-                    Text = value.ToString(),
-                    TextAlign = ContentAlignment.MiddleLeft
+                    AccessibleName = "Rating " + value + " of 5, " + RatingWords[value],
+                    Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                    Size = new Size(PillSize, PillSize),
+                    Text = value.ToString()
                 };
 
-                card.Controls.Add(options[index]);
+                _ratingTip.SetToolTip(pill, value + " - " + RatingWords[value]);
+
+                options[index] = pill;
+                card.Controls.Add(pill);
             }
 
-            return new QuestionRow(section, question, card, number, text, options);
+            QuestionRow row = new QuestionRow(section, question, card, number, text, options);
+
+            // Picking a number clears the red edge a failed submit may have put on
+            // this row, so the correction is acknowledged instantly.
+            foreach (RadioButton option in options)
+            {
+                option.CheckedChanged += (s, e) => row.ClearFlag();
+            }
+
+            return row;
         }
 
         private void BuildSubmitCard()
@@ -321,7 +519,9 @@ namespace oop_project.forms
                 ForeColor = MutedText,
                 Location = new Point(20, 25),
                 Size = new Size(500, 46),
-                Text = "ALL 25 STATEMENTS MUST BE RATED BEFORE SUBMITTING.",
+                Text = _periodTitle.Length > 0
+                    ? "ALL 25 STATEMENTS MUST BE RATED BEFORE SUBMITTING.\nEVALUATION FOR " + _periodTitle + "."
+                    : "ALL 25 STATEMENTS MUST BE RATED BEFORE SUBMITTING.",
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
@@ -356,6 +556,20 @@ namespace oop_project.forms
                 BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
                 ForeColor = MutedText,
+                Text = text,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+        }
+
+        private static Label MakeValueLabel(string text)
+        {
+            return new Label
+            {
+                AutoEllipsis = true,
+                AutoSize = false,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = BodyText,
                 Text = text,
                 TextAlign = ContentAlignment.MiddleLeft
             };
@@ -404,18 +618,55 @@ namespace oop_project.forms
 
         private void ArrangeRespondentCard(int width)
         {
-            const int roleWidth = 260;
+            if (_signedIn)
+            {
+                const int roleWidth = 160;
+                const int idWidth = 230;
+                const int gap = 20;
 
-            _roleCaption.Width = roleWidth;
-            _roleBox.Width = roleWidth;
+                _roleCaption.Width = roleWidth;
+                _roleValue.Width = roleWidth;
 
-            int nameLeft = 20 + roleWidth + 24;
-            int nameWidth = Math.Max(160, width - nameLeft - 20);
+                int nameLeft;
 
-            _nameCaption.Left = nameLeft;
-            _nameCaption.Width = nameWidth;
-            _nameBox.Left = nameLeft;
-            _nameBox.Width = nameWidth;
+                if (_idCaption != null && _idValue != null)
+                {
+                    int idLeft = 20 + roleWidth + gap;
+
+                    _idCaption.Left = idLeft;
+                    _idCaption.Width = idWidth;
+                    _idValue.Left = idLeft;
+                    _idValue.Width = idWidth;
+
+                    nameLeft = idLeft + idWidth + gap;
+                }
+                else
+                {
+                    // No STUDENT ID column: the NAME value takes the free space.
+                    nameLeft = 20 + roleWidth + gap;
+                }
+
+                int nameWidth = Math.Max(160, width - nameLeft - 20);
+
+                _nameCaption.Left = nameLeft;
+                _nameCaption.Width = nameWidth;
+                _nameValue.Left = nameLeft;
+                _nameValue.Width = nameWidth;
+                return;
+            }
+
+            const int roleInputWidth = 260;
+
+            _roleCaption.Width = roleInputWidth;
+            _roleBox.Width = roleInputWidth;
+
+            int inputNameLeft = 20 + roleInputWidth + 24;
+            int inputNameWidth = Math.Max(160, width - inputNameLeft - 20);
+
+            _nameCaption.Left = inputNameLeft;
+            _nameCaption.Width = inputNameWidth;
+            _nameBox.Left = inputNameLeft;
+            _nameBox.Width = inputNameWidth;
         }
 
         private void ArrangeLegend(int width)
@@ -437,7 +688,7 @@ namespace oop_project.forms
 
         private void SubmitButton_Click(object? sender, EventArgs e)
         {
-            if (_roleBox.SelectedIndex <= 0)
+            if (!_signedIn && _roleBox.SelectedIndex <= 0)
             {
                 Authentication.ShowError("EVALUATION", "PLEASE SELECT WHETHER YOU ARE A STUDENT, FACULTY OR STAFF.");
                 _roleBox.Focus();
@@ -465,21 +716,35 @@ namespace oop_project.forms
                     firstMissing = row;
                 }
 
+                // Unanswered rows get a red edge so the respondent can see, at a
+                // glance, which statements still need a number.
+                if (rating == 0)
+                {
+                    row.FlagMissing();
+                }
+                else
+                {
+                    row.ClearFlag();
+                }
+
                 ratings[row.Index] = rating;
             }
 
             if (firstMissing != null)
             {
-                Authentication.ShowError("EVALUATION", "PLEASE RATE EVERY STATEMENT BEFORE SUBMITTING.");
+                Authentication.ShowError("EVALUATION", "PLEASE RATE EVERY STATEMENT BEFORE SUBMITTING. THE UNANSWERED ROWS ARE MARKED IN RED.");
                 scrollPanel.ScrollControlIntoView(firstMissing.Card);
                 return;
             }
 
-            string role = Convert.ToString(_roleBox.SelectedItem) ?? "STUDENT";
+            string role = _signedIn
+                ? _signedInRole
+                : (Convert.ToString(_roleBox.SelectedItem) ?? "STUDENT");
+            string respondentName = _signedIn ? _signedInName : _nameBox.Text.Trim();
 
             try
             {
-                _directory.Submit(role, _nameBox.Text.Trim(), ratings);
+                _directory.Submit(role, respondentName, ratings, _accountId, _periodId);
 
                 Authentication.ShowMessage(
                     "THANK YOU! YOUR RESPONSE HAS BEEN RECORDED.",
@@ -489,6 +754,11 @@ namespace oop_project.forms
 
                 DialogResult = DialogResult.OK;
                 Close();
+            }
+            catch (InvalidOperationException ex)
+            {
+                // The semester was closed, or this account already answered it.
+                Authentication.ShowError("EVALUATION", ex.Message.ToUpperInvariant());
             }
             catch (ArgumentException ex)
             {
@@ -514,6 +784,13 @@ namespace oop_project.forms
 
         private sealed class QuestionRow
         {
+            private static readonly Color FlagBorder = Color.FromArgb(248, 113, 113);
+            private static readonly Color FlagNumber = Color.FromArgb(220, 38, 38);
+
+            private readonly Color _normalBorder;
+            private readonly Color _normalNumber;
+            private bool _flagged;
+
             public QuestionRow(int section, int question, RoundedCard card, Label number, Label text, RadioButton[] options)
             {
                 Section = section;
@@ -522,6 +799,9 @@ namespace oop_project.forms
                 Number = number;
                 Text = text;
                 Options = options;
+
+                _normalBorder = card.BorderColor;
+                _normalNumber = number.ForeColor;
             }
 
             public int Section { get; }
@@ -536,6 +816,32 @@ namespace oop_project.forms
             public Label Text { get; }
             public RadioButton[] Options { get; }
 
+            /// <summary>Red edge used when a submit attempt found this row blank.</summary>
+            public void FlagMissing()
+            {
+                if (_flagged)
+                {
+                    return;
+                }
+
+                _flagged = true;
+                Card.BorderColor = FlagBorder;
+                Number.ForeColor = FlagNumber;
+            }
+
+            /// <summary>Puts the row back to its normal look once it has an answer.</summary>
+            public void ClearFlag()
+            {
+                if (!_flagged)
+                {
+                    return;
+                }
+
+                _flagged = false;
+                Card.BorderColor = _normalBorder;
+                Number.ForeColor = _normalNumber;
+            }
+
             public void Layout(int width)
             {
                 Card.Width = width;
@@ -545,8 +851,9 @@ namespace oop_project.forms
                 Number.Width = 30;
                 Number.Height = Card.Height;
 
-                const int optionWidth = 34;
-                int optionsLeft = width - (optionWidth * Options.Length) - 16;
+                const int optionWidth = PillSize;
+                int optionsWidth = (optionWidth * Options.Length) + (PillGap * (Options.Length - 1));
+                int optionsLeft = width - optionsWidth - 18;
 
                 Text.Left = 48;
                 Text.Top = 0;
@@ -555,7 +862,7 @@ namespace oop_project.forms
 
                 for (int index = 0; index < Options.Length; index++)
                 {
-                    Options[index].Left = optionsLeft + (index * optionWidth);
+                    Options[index].Left = optionsLeft + (index * (optionWidth + PillGap));
                     Options[index].Top = (Card.Height - Options[index].Height) / 2;
                 }
             }

@@ -75,20 +75,22 @@ namespace oop_project
             // 
             qr_scanner_button.BackColor = Color.Transparent;
             qr_scanner_button.CornerRadius = 1;
+            qr_scanner_button.DisabledTextColor = Color.FromArgb(248, 250, 252);
             qr_scanner_button.FlatAppearance.BorderSize = 0;
             qr_scanner_button.FlatStyle = FlatStyle.Flat;
             qr_scanner_button.Font = new Font("Segoe UI", 11F);
             qr_scanner_button.ForeColor = Color.White;
             qr_scanner_button.HoverColor = Color.FromArgb(4, 120, 87);
+            qr_scanner_button.IconFallbackGlyph = "";
+            qr_scanner_button.IconGlyph = "";
+            qr_scanner_button.IconSize = 16F;
             qr_scanner_button.Location = new Point(260, 432);
             qr_scanner_button.Name = "qr_scanner_button";
-            qr_scanner_button.NormalColor = Color.FromArgb(6, 95, 70);
+            qr_scanner_button.NormalColor = Color.FromArgb(22, 163, 74);
             qr_scanner_button.PressedColor = Color.FromArgb(6, 78, 59);
             qr_scanner_button.Size = new Size(260, 35);
             qr_scanner_button.TabIndex = 12;
             qr_scanner_button.Text = "QR CODE SCANNER";
-            qr_scanner_button.IconGlyph = "\uED14";
-            qr_scanner_button.IconFallbackGlyph = "\uE8FE";
             qr_scanner_button.UseVisualStyleBackColor = false;
             qr_scanner_button.Click += roundedButton1_Click;
             // 
@@ -96,19 +98,22 @@ namespace oop_project
             // 
             evaluation_button.BackColor = Color.Transparent;
             evaluation_button.CornerRadius = 1;
+            evaluation_button.DisabledTextColor = Color.FromArgb(248, 250, 252);
             evaluation_button.FlatAppearance.BorderSize = 0;
             evaluation_button.FlatStyle = FlatStyle.Flat;
             evaluation_button.Font = new Font("Segoe UI", 11F);
             evaluation_button.ForeColor = Color.White;
-            evaluation_button.HoverColor = Color.FromArgb(21, 128, 61);
+            evaluation_button.HoverColor = Color.FromArgb(4, 120, 87);
+            evaluation_button.IconFallbackGlyph = "";
+            evaluation_button.IconGlyph = "";
+            evaluation_button.IconSize = 16F;
             evaluation_button.Location = new Point(388, 432);
             evaluation_button.Name = "evaluation_button";
             evaluation_button.NormalColor = Color.FromArgb(22, 163, 74);
-            evaluation_button.PressedColor = Color.FromArgb(20, 83, 45);
+            evaluation_button.PressedColor = Color.FromArgb(6, 78, 59);
             evaluation_button.Size = new Size(260, 35);
             evaluation_button.TabIndex = 13;
             evaluation_button.Text = "LIBRARY EVALUATION";
-            evaluation_button.IconGlyph = "\uE73E";
             evaluation_button.UseVisualStyleBackColor = false;
             evaluation_button.Click += evaluation_button_Click;
             // 
@@ -206,11 +211,15 @@ namespace oop_project
             // 
             start_button.BackColor = Color.Transparent;
             start_button.CornerRadius = 15;
+            start_button.DisabledTextColor = Color.FromArgb(248, 250, 252);
             start_button.FlatAppearance.BorderSize = 0;
             start_button.FlatStyle = FlatStyle.Flat;
             start_button.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             start_button.ForeColor = Color.White;
             start_button.HoverColor = Color.FromArgb(4, 120, 87);
+            start_button.IconFallbackGlyph = "";
+            start_button.IconGlyph = "";
+            start_button.IconSize = 16F;
             start_button.Location = new Point(230, 354);
             start_button.Name = "start_button";
             start_button.NormalColor = Color.FromArgb(6, 95, 70);

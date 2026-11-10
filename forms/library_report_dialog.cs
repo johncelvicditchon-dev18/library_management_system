@@ -115,16 +115,6 @@ namespace oop_project.forms
             }
         }
 
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams parameters = base.CreateParams;
-                DialogChrome.ApplyDropShadow(parameters);
-                return parameters;
-            }
-        }
-
         protected override void OnPaintBackground(PaintEventArgs e)
         {
             DialogChrome.PaintBackground(this, e);

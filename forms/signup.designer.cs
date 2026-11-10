@@ -96,11 +96,11 @@ namespace oop_project
             signup_label = new Label();
             gradientPanel1 = new GradientPanel();
             roundedCard1 = new RoundedCard();
-            closeButton = new RoundedButton();
             logoBadge = new TcgcLogoBadge();
             label2 = new Label();
             headerLine = new Panel();
             signin_label = new Label();
+            closeButton = new RoundedButton();
             lrcLogoBadge1 = new LrcLogoBadge();
             brandLabel = new Label();
             taglineLabel = new Label();
@@ -150,6 +150,7 @@ namespace oop_project
             fullNameField.CornerRadius = 10;
             fullNameField.FillColor = Color.FromArgb(243, 244, 246);
             fullNameField.FocusColor = Color.FromArgb(22, 163, 74);
+            fullNameField.HasError = false;
             fullNameField.IsFocused = false;
             fullNameField.Location = new Point(50, 122);
             fullNameField.Name = "fullNameField";
@@ -186,6 +187,7 @@ namespace oop_project
             roleField.CornerRadius = 10;
             roleField.FillColor = Color.FromArgb(243, 244, 246);
             roleField.FocusColor = Color.FromArgb(22, 163, 74);
+            roleField.HasError = false;
             roleField.IsFocused = false;
             roleField.Location = new Point(50, 122);
             roleField.Name = "roleField";
@@ -224,6 +226,7 @@ namespace oop_project
             lastNameField.CornerRadius = 10;
             lastNameField.FillColor = Color.FromArgb(243, 244, 246);
             lastNameField.FocusColor = Color.FromArgb(22, 163, 74);
+            lastNameField.HasError = false;
             lastNameField.IsFocused = false;
             lastNameField.Location = new Point(360, 122);
             lastNameField.Name = "lastNameField";
@@ -259,6 +262,7 @@ namespace oop_project
             firstNameField.CornerRadius = 10;
             firstNameField.FillColor = Color.FromArgb(243, 244, 246);
             firstNameField.FocusColor = Color.FromArgb(22, 163, 74);
+            firstNameField.HasError = false;
             firstNameField.IsFocused = false;
             firstNameField.Location = new Point(50, 218);
             firstNameField.Name = "firstNameField";
@@ -294,6 +298,7 @@ namespace oop_project
             middleInitialField.CornerRadius = 10;
             middleInitialField.FillColor = Color.FromArgb(243, 244, 246);
             middleInitialField.FocusColor = Color.FromArgb(22, 163, 74);
+            middleInitialField.HasError = false;
             middleInitialField.IsFocused = false;
             middleInitialField.Location = new Point(360, 218);
             middleInitialField.Name = "middleInitialField";
@@ -330,6 +335,7 @@ namespace oop_project
             schoolIdField.CornerRadius = 10;
             schoolIdField.FillColor = Color.FromArgb(243, 244, 246);
             schoolIdField.FocusColor = Color.FromArgb(22, 163, 74);
+            schoolIdField.HasError = false;
             schoolIdField.IsFocused = false;
             schoolIdField.Location = new Point(50, 314);
             schoolIdField.Name = "schoolIdField";
@@ -366,6 +372,7 @@ namespace oop_project
             programField.CornerRadius = 10;
             programField.FillColor = Color.FromArgb(243, 244, 246);
             programField.FocusColor = Color.FromArgb(22, 163, 74);
+            programField.HasError = false;
             programField.IsFocused = false;
             programField.Location = new Point(50, 506);
             programField.Name = "programField";
@@ -375,15 +382,14 @@ namespace oop_project
             // program_option
             // 
             program_option.BackColor = Color.FromArgb(243, 244, 246);
+            program_option.DropDownStyle = ComboBoxStyle.DropDownList;
             program_option.FlatStyle = FlatStyle.Flat;
             program_option.Font = new Font("Segoe UI", 11F);
             program_option.ForeColor = Color.FromArgb(17, 24, 39);
-            program_option.FormattingEnabled = false;
             program_option.Location = new Point(12, 5);
             program_option.Name = "program_option";
             program_option.Size = new Size(266, 33);
             program_option.TabIndex = 0;
-            program_option.DropDownStyle = ComboBoxStyle.DropDownList;
             // 
             // yearLevelLabel
             // 
@@ -404,6 +410,7 @@ namespace oop_project
             yearLevelField.CornerRadius = 10;
             yearLevelField.FillColor = Color.FromArgb(243, 244, 246);
             yearLevelField.FocusColor = Color.FromArgb(22, 163, 74);
+            yearLevelField.HasError = false;
             yearLevelField.IsFocused = false;
             yearLevelField.Location = new Point(360, 314);
             yearLevelField.Name = "yearLevelField";
@@ -443,6 +450,7 @@ namespace oop_project
             instituteField.CornerRadius = 10;
             instituteField.FillColor = Color.FromArgb(243, 244, 246);
             instituteField.FocusColor = Color.FromArgb(22, 163, 74);
+            instituteField.HasError = false;
             instituteField.IsFocused = false;
             instituteField.Location = new Point(360, 410);
             instituteField.Name = "instituteField";
@@ -481,6 +489,7 @@ namespace oop_project
             contactField.CornerRadius = 10;
             contactField.FillColor = Color.FromArgb(243, 244, 246);
             contactField.FocusColor = Color.FromArgb(22, 163, 74);
+            contactField.HasError = false;
             contactField.IsFocused = false;
             contactField.Location = new Point(50, 410);
             contactField.Name = "contactField";
@@ -517,6 +526,7 @@ namespace oop_project
             addressField.CornerRadius = 10;
             addressField.FillColor = Color.FromArgb(243, 244, 246);
             addressField.FocusColor = Color.FromArgb(22, 163, 74);
+            addressField.HasError = false;
             addressField.IsFocused = false;
             addressField.Location = new Point(360, 506);
             addressField.Name = "addressField";
@@ -553,6 +563,7 @@ namespace oop_project
             usernameField.CornerRadius = 10;
             usernameField.FillColor = Color.FromArgb(243, 244, 246);
             usernameField.FocusColor = Color.FromArgb(22, 163, 74);
+            usernameField.HasError = false;
             usernameField.IsFocused = false;
             usernameField.Location = new Point(50, 602);
             usernameField.Name = "usernameField";
@@ -589,6 +600,7 @@ namespace oop_project
             passwordField.CornerRadius = 10;
             passwordField.FillColor = Color.FromArgb(243, 244, 246);
             passwordField.FocusColor = Color.FromArgb(22, 163, 74);
+            passwordField.HasError = false;
             passwordField.IsFocused = false;
             passwordField.Location = new Point(360, 602);
             passwordField.Name = "passwordField";
@@ -608,6 +620,7 @@ namespace oop_project
             // 
             // password_toggle
             // 
+            password_toggle.AccessibleName = "Show password";
             password_toggle.BackColor = Color.FromArgb(243, 244, 246);
             password_toggle.Location = new Point(254, 9);
             password_toggle.Name = "password_toggle";
@@ -635,6 +648,7 @@ namespace oop_project
             confirmField.CornerRadius = 10;
             confirmField.FillColor = Color.FromArgb(243, 244, 246);
             confirmField.FocusColor = Color.FromArgb(22, 163, 74);
+            confirmField.HasError = false;
             confirmField.IsFocused = false;
             confirmField.Location = new Point(50, 698);
             confirmField.Name = "confirmField";
@@ -654,6 +668,7 @@ namespace oop_project
             // 
             // confirm_toggle
             // 
+            confirm_toggle.AccessibleName = "Show password";
             confirm_toggle.BackColor = Color.FromArgb(243, 244, 246);
             confirm_toggle.Location = new Point(564, 9);
             confirm_toggle.Name = "confirm_toggle";
@@ -863,6 +878,7 @@ namespace oop_project
             officeField.CornerRadius = 10;
             officeField.FillColor = Color.FromArgb(243, 244, 246);
             officeField.FocusColor = Color.FromArgb(22, 163, 74);
+            officeField.HasError = false;
             officeField.IsFocused = false;
             officeField.Location = new Point(50, 314);
             officeField.Name = "officeField";
@@ -898,11 +914,15 @@ namespace oop_project
             // 
             create_button.BackColor = Color.Transparent;
             create_button.CornerRadius = 12;
+            create_button.DisabledTextColor = Color.FromArgb(248, 250, 252);
             create_button.FlatAppearance.BorderSize = 0;
             create_button.FlatStyle = FlatStyle.Flat;
             create_button.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold);
             create_button.ForeColor = Color.White;
             create_button.HoverColor = Color.FromArgb(21, 128, 61);
+            create_button.IconFallbackGlyph = "";
+            create_button.IconGlyph = "";
+            create_button.IconSize = 16F;
             create_button.Location = new Point(50, 774);
             create_button.Name = "create_button";
             create_button.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1008,25 +1028,6 @@ namespace oop_project
             roundedCard1.Size = new Size(700, 917);
             roundedCard1.TabIndex = 4;
             // 
-            // closeButton
-            // 
-            closeButton.BackColor = Color.Transparent;
-            closeButton.CornerRadius = 12;
-            closeButton.FlatAppearance.BorderSize = 0;
-            closeButton.FlatStyle = FlatStyle.Flat;
-            closeButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-            closeButton.ForeColor = Color.FromArgb(71, 85, 105);
-            closeButton.HoverColor = Color.FromArgb(226, 232, 240);
-            closeButton.Location = new Point(648, 18);
-            closeButton.Name = "closeButton";
-            closeButton.NormalColor = Color.FromArgb(241, 245, 249);
-            closeButton.PressedColor = Color.FromArgb(203, 213, 225);
-            closeButton.Size = new Size(36, 36);
-            closeButton.TabIndex = 25;
-            closeButton.Text = "✕";
-            closeButton.UseVisualStyleBackColor = false;
-            closeButton.Click += closeButton_Click;
-            // 
             // logoBadge
             // 
             logoBadge.BackColor = Color.Transparent;
@@ -1068,13 +1069,36 @@ namespace oop_project
             signin_label.Text = "Sign In";
             signin_label.Click += label1_Click;
             // 
+            // closeButton
+            // 
+            closeButton.BackColor = Color.Transparent;
+            closeButton.CornerRadius = 12;
+            closeButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
+            closeButton.FlatAppearance.BorderSize = 0;
+            closeButton.FlatStyle = FlatStyle.Flat;
+            closeButton.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            closeButton.ForeColor = Color.FromArgb(71, 85, 105);
+            closeButton.HoverColor = Color.FromArgb(226, 232, 240);
+            closeButton.IconFallbackGlyph = "";
+            closeButton.IconGlyph = "";
+            closeButton.IconSize = 16F;
+            closeButton.Location = new Point(648, 18);
+            closeButton.Name = "closeButton";
+            closeButton.NormalColor = Color.FromArgb(241, 245, 249);
+            closeButton.PressedColor = Color.FromArgb(203, 213, 225);
+            closeButton.Size = new Size(36, 36);
+            closeButton.TabIndex = 25;
+            closeButton.Text = "✕";
+            closeButton.UseVisualStyleBackColor = false;
+            closeButton.Click += closeButton_Click;
+            // 
             // lrcLogoBadge1
             // 
             lrcLogoBadge1.BackColor = Color.Transparent;
             lrcLogoBadge1.Location = new Point(0, 221);
             lrcLogoBadge1.LogoKind = LogoKind.Lrc;
             lrcLogoBadge1.Name = "lrcLogoBadge1";
-            lrcLogoBadge1.Size = new Size(725, 410);
+            lrcLogoBadge1.Size = new Size(714, 410);
             lrcLogoBadge1.TabIndex = 3;
             lrcLogoBadge1.Text = "lrcLogoBadge1";
             // 

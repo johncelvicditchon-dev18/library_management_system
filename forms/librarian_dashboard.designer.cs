@@ -39,12 +39,12 @@ namespace oop_project.forms
             dividerRow6 = new Panel();
             valueDateCreated = new Label();
             captionDateCreated = new Label();
-            valueProgramOffice = new Label();
-            captionProgramOffice = new Label();
+            dividerRow5 = new Panel();
             valueInstitute = new Label();
             captionInstitute = new Label();
-            dividerRow5 = new Panel();
             dividerRow4 = new Panel();
+            valueProgramOffice = new Label();
+            captionProgramOffice = new Label();
             valueStatus = new Label();
             captionStatus = new Label();
             dividerRow3 = new Panel();
@@ -102,13 +102,14 @@ namespace oop_project.forms
             loanIdColumn = new DataGridViewTextBoxColumn();
             loanTitleColumn = new DataGridViewTextBoxColumn();
             year = new DataGridViewTextBoxColumn();
-            loanCopyColumn = new DataGridViewTextBoxColumn();
+            studentid = new DataGridViewTextBoxColumn();
+            loanBorrowerColumn = new DataGridViewTextBoxColumn();
             program_ = new DataGridViewTextBoxColumn();
             institute = new DataGridViewTextBoxColumn();
-            studentid = new DataGridViewTextBoxColumn();
+            loanCopyColumn = new DataGridViewTextBoxColumn();
             loanDateColumn = new DataGridViewTextBoxColumn();
-            loanDaysColumn = new DataGridViewTextBoxColumn();
             loanReturnedColumn = new DataGridViewTextBoxColumn();
+            loanDaysColumn = new DataGridViewTextBoxColumn();
             loanStatusColumn = new DataGridViewTextBoxColumn();
             attendanceStatusLabel = new Label();
             attendanceReportButton = new RoundedButton();
@@ -172,6 +173,7 @@ namespace oop_project.forms
             facultySubtitle = new Label();
             facultyHeading = new Label();
             tabPage6 = new TabPage();
+            analyticsTab = new TabPage();
             studentEmptyLabel = new Label();
             studentGrid = new DataGridView();
             studentIdColumn = new DataGridViewTextBoxColumn();
@@ -261,6 +263,7 @@ namespace oop_project.forms
             tabControl1.Controls.Add(staffTab);
             tabControl1.Controls.Add(tabPage5);
             tabControl1.Controls.Add(tabPage6);
+            tabControl1.Controls.Add(analyticsTab);
             tabControl1.Dock = DockStyle.Fill;
             tabControl1.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             tabControl1.Location = new Point(14, 18);
@@ -325,7 +328,7 @@ namespace oop_project.forms
             profileFooter.ForeColor = Color.FromArgb(148, 163, 184);
             profileFooter.Location = new Point(34, 599);
             profileFooter.Name = "profileFooter";
-            profileFooter.Size = new Size(384, 19);
+            profileFooter.Size = new Size(687, 19);
             profileFooter.TabIndex = 18;
             profileFooter.Text = "ACCOUNT DETAILS ARE READ-ONLY. USE CHANGE PASSWORD TO UPDATE YOUR SIGN-IN PASSWORD.";
             // 
@@ -363,30 +366,14 @@ namespace oop_project.forms
             captionDateCreated.Text = "DATE CREATED";
             captionDateCreated.TextAlign = ContentAlignment.MiddleLeft;
             // 
-            // valueProgramOffice
+            // dividerRow5
             // 
-            valueProgramOffice.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            valueProgramOffice.BackColor = Color.Transparent;
-            valueProgramOffice.Font = new Font("Segoe UI", 10.75F);
-            valueProgramOffice.ForeColor = Color.FromArgb(15, 23, 42);
-            valueProgramOffice.Location = new Point(340, 392);
-            valueProgramOffice.Name = "valueProgramOffice";
-            valueProgramOffice.Size = new Size(528, 44);
-            valueProgramOffice.TabIndex = 22;
-            valueProgramOffice.Text = "—";
-            valueProgramOffice.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // captionProgramOffice
-            // 
-            captionProgramOffice.BackColor = Color.Transparent;
-            captionProgramOffice.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            captionProgramOffice.ForeColor = Color.FromArgb(148, 163, 184);
-            captionProgramOffice.Location = new Point(34, 400);
-            captionProgramOffice.Name = "captionProgramOffice";
-            captionProgramOffice.Size = new Size(300, 34);
-            captionProgramOffice.TabIndex = 23;
-            captionProgramOffice.Text = "PROGRAM / OFFICE";
-            captionProgramOffice.TextAlign = ContentAlignment.MiddleLeft;
+            dividerRow5.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dividerRow5.BackColor = Color.FromArgb(241, 245, 249);
+            dividerRow5.Location = new Point(34, 454);
+            dividerRow5.Name = "dividerRow5";
+            dividerRow5.Size = new Size(832, 1);
+            dividerRow5.TabIndex = 17;
             // 
             // valueInstitute
             // 
@@ -413,15 +400,6 @@ namespace oop_project.forms
             captionInstitute.Text = "INSTITUTE";
             captionInstitute.TextAlign = ContentAlignment.MiddleLeft;
             // 
-            // dividerRow5
-            // 
-            dividerRow5.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            dividerRow5.BackColor = Color.FromArgb(241, 245, 249);
-            dividerRow5.Location = new Point(34, 454);
-            dividerRow5.Name = "dividerRow5";
-            dividerRow5.Size = new Size(832, 1);
-            dividerRow5.TabIndex = 17;
-            // 
             // dividerRow4
             // 
             dividerRow4.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
@@ -430,6 +408,31 @@ namespace oop_project.forms
             dividerRow4.Name = "dividerRow4";
             dividerRow4.Size = new Size(832, 1);
             dividerRow4.TabIndex = 14;
+            // 
+            // valueProgramOffice
+            // 
+            valueProgramOffice.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            valueProgramOffice.BackColor = Color.Transparent;
+            valueProgramOffice.Font = new Font("Segoe UI", 10.75F);
+            valueProgramOffice.ForeColor = Color.FromArgb(15, 23, 42);
+            valueProgramOffice.Location = new Point(340, 392);
+            valueProgramOffice.Name = "valueProgramOffice";
+            valueProgramOffice.Size = new Size(528, 44);
+            valueProgramOffice.TabIndex = 22;
+            valueProgramOffice.Text = "—";
+            valueProgramOffice.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // captionProgramOffice
+            // 
+            captionProgramOffice.BackColor = Color.Transparent;
+            captionProgramOffice.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            captionProgramOffice.ForeColor = Color.FromArgb(148, 163, 184);
+            captionProgramOffice.Location = new Point(34, 400);
+            captionProgramOffice.Name = "captionProgramOffice";
+            captionProgramOffice.Size = new Size(300, 34);
+            captionProgramOffice.TabIndex = 23;
+            captionProgramOffice.Text = "PROGRAM / OFFICE";
+            captionProgramOffice.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // valueStatus
             // 
@@ -699,11 +702,15 @@ namespace oop_project.forms
             // 
             changePasswordButton.BackColor = Color.Transparent;
             changePasswordButton.CornerRadius = 11;
+            changePasswordButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             changePasswordButton.FlatAppearance.BorderSize = 0;
             changePasswordButton.FlatStyle = FlatStyle.Flat;
             changePasswordButton.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
             changePasswordButton.ForeColor = Color.FromArgb(4, 120, 87);
             changePasswordButton.HoverColor = Color.FromArgb(220, 252, 231);
+            changePasswordButton.IconFallbackGlyph = "";
+            changePasswordButton.IconGlyph = "";
+            changePasswordButton.IconSize = 16F;
             changePasswordButton.Location = new Point(91, 444);
             changePasswordButton.Name = "changePasswordButton";
             changePasswordButton.NormalColor = Color.White;
@@ -717,11 +724,15 @@ namespace oop_project.forms
             // 
             editProfileButton.BackColor = Color.Transparent;
             editProfileButton.CornerRadius = 11;
+            editProfileButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             editProfileButton.FlatAppearance.BorderSize = 0;
             editProfileButton.FlatStyle = FlatStyle.Flat;
             editProfileButton.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
             editProfileButton.ForeColor = Color.White;
             editProfileButton.HoverColor = Color.FromArgb(21, 128, 61);
+            editProfileButton.IconFallbackGlyph = "";
+            editProfileButton.IconGlyph = "";
+            editProfileButton.IconSize = 16F;
             editProfileButton.Location = new Point(91, 494);
             editProfileButton.Name = "editProfileButton";
             editProfileButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -856,18 +867,22 @@ namespace oop_project.forms
             // 
             generateReportButton.BackColor = Color.Transparent;
             generateReportButton.CornerRadius = 12;
+            generateReportButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             generateReportButton.FlatAppearance.BorderSize = 0;
             generateReportButton.FlatStyle = FlatStyle.Flat;
             generateReportButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             generateReportButton.ForeColor = Color.White;
             generateReportButton.HoverColor = Color.FromArgb(154, 52, 18);
+            generateReportButton.IconFallbackGlyph = "";
+            generateReportButton.IconGlyph = "";
+            generateReportButton.IconSize = 16F;
             generateReportButton.Location = new Point(432, 196);
             generateReportButton.Name = "generateReportButton";
             generateReportButton.NormalColor = Color.FromArgb(194, 65, 12);
             generateReportButton.PressedColor = Color.FromArgb(120, 45, 15);
             generateReportButton.Size = new Size(196, 46);
             generateReportButton.TabIndex = 7;
-            generateReportButton.Text = "GENERATE REPORT";
+            generateReportButton.Text = "EXPORT PDF";
             generateReportButton.UseVisualStyleBackColor = false;
             generateReportButton.Click += generateReportButton_Click;
             // 
@@ -875,11 +890,15 @@ namespace oop_project.forms
             // 
             borrowBookButton.BackColor = Color.Transparent;
             borrowBookButton.CornerRadius = 12;
+            borrowBookButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             borrowBookButton.FlatAppearance.BorderSize = 0;
             borrowBookButton.FlatStyle = FlatStyle.Flat;
             borrowBookButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             borrowBookButton.ForeColor = Color.White;
             borrowBookButton.HoverColor = Color.FromArgb(15, 118, 110);
+            borrowBookButton.IconFallbackGlyph = "";
+            borrowBookButton.IconGlyph = "";
+            borrowBookButton.IconSize = 16F;
             borrowBookButton.Location = new Point(232, 196);
             borrowBookButton.Name = "borrowBookButton";
             borrowBookButton.NormalColor = Color.FromArgb(13, 148, 136);
@@ -894,11 +913,15 @@ namespace oop_project.forms
             // 
             addBookButton.BackColor = Color.Transparent;
             addBookButton.CornerRadius = 12;
+            addBookButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             addBookButton.FlatAppearance.BorderSize = 0;
             addBookButton.FlatStyle = FlatStyle.Flat;
             addBookButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             addBookButton.ForeColor = Color.White;
             addBookButton.HoverColor = Color.FromArgb(21, 128, 61);
+            addBookButton.IconFallbackGlyph = "";
+            addBookButton.IconGlyph = "";
+            addBookButton.IconSize = 16F;
             addBookButton.Location = new Point(30, 196);
             addBookButton.Name = "addBookButton";
             addBookButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1113,7 +1136,7 @@ namespace oop_project.forms
             attendanceGrid.BorderStyle = BorderStyle.None;
             attendanceGrid.ColumnHeadersHeight = 44;
             attendanceGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            attendanceGrid.Columns.AddRange(new DataGridViewColumn[] { loanIdColumn, loanTitleColumn, year, loanCopyColumn, program_, institute, studentid, loanDateColumn, loanDaysColumn, loanReturnedColumn, loanStatusColumn });
+            attendanceGrid.Columns.AddRange(new DataGridViewColumn[] { loanIdColumn, loanTitleColumn, year, studentid, loanBorrowerColumn, program_, institute, loanCopyColumn, loanDateColumn, loanReturnedColumn, loanDaysColumn, loanStatusColumn });
             attendanceGrid.Location = new Point(30, 156);
             attendanceGrid.MultiSelect = false;
             attendanceGrid.Name = "attendanceGrid";
@@ -1146,13 +1169,20 @@ namespace oop_project.forms
             year.Name = "year";
             year.Width = 125;
             // 
-            // loanCopyColumn
+            // studentid
             // 
-            loanCopyColumn.HeaderText = "BORROWED COPY";
-            loanCopyColumn.MinimumWidth = 6;
-            loanCopyColumn.Name = "loanCopyColumn";
-            loanCopyColumn.ReadOnly = true;
-            loanCopyColumn.Width = 110;
+            studentid.HeaderText = "ID NO.";
+            studentid.MinimumWidth = 6;
+            studentid.Name = "studentid";
+            studentid.Width = 104;
+            // 
+            // loanBorrowerColumn
+            // 
+            loanBorrowerColumn.HeaderText = "BORROWER";
+            loanBorrowerColumn.MinimumWidth = 6;
+            loanBorrowerColumn.Name = "loanBorrowerColumn";
+            loanBorrowerColumn.ReadOnly = true;
+            loanBorrowerColumn.Width = 170;
             // 
             // program_
             // 
@@ -1168,12 +1198,13 @@ namespace oop_project.forms
             institute.Name = "institute";
             institute.Width = 118;
             // 
-            // studentid
+            // loanCopyColumn
             // 
-            studentid.HeaderText = "ID NO.";
-            studentid.MinimumWidth = 6;
-            studentid.Name = "studentid";
-            studentid.Width = 104;
+            loanCopyColumn.HeaderText = "BORROWED COPY";
+            loanCopyColumn.MinimumWidth = 6;
+            loanCopyColumn.Name = "loanCopyColumn";
+            loanCopyColumn.ReadOnly = true;
+            loanCopyColumn.Width = 110;
             // 
             // loanDateColumn
             // 
@@ -1182,19 +1213,19 @@ namespace oop_project.forms
             loanDateColumn.Name = "loanDateColumn";
             loanDateColumn.Width = 118;
             // 
-            // loanDaysColumn
-            // 
-            loanDaysColumn.HeaderText = "DAYS";
-            loanDaysColumn.MinimumWidth = 6;
-            loanDaysColumn.Name = "loanDaysColumn";
-            loanDaysColumn.Width = 92;
-            // 
             // loanReturnedColumn
             // 
             loanReturnedColumn.HeaderText = "RETURNED";
             loanReturnedColumn.MinimumWidth = 6;
             loanReturnedColumn.Name = "loanReturnedColumn";
             loanReturnedColumn.Width = 124;
+            // 
+            // loanDaysColumn
+            // 
+            loanDaysColumn.HeaderText = "DAYS";
+            loanDaysColumn.MinimumWidth = 6;
+            loanDaysColumn.Name = "loanDaysColumn";
+            loanDaysColumn.Width = 92;
             // 
             // loanStatusColumn
             // 
@@ -1220,30 +1251,38 @@ namespace oop_project.forms
             // 
             attendanceReportButton.BackColor = Color.Transparent;
             attendanceReportButton.CornerRadius = 12;
+            attendanceReportButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             attendanceReportButton.FlatAppearance.BorderSize = 0;
             attendanceReportButton.FlatStyle = FlatStyle.Flat;
             attendanceReportButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             attendanceReportButton.ForeColor = Color.White;
             attendanceReportButton.HoverColor = Color.FromArgb(154, 52, 18);
+            attendanceReportButton.IconFallbackGlyph = "";
+            attendanceReportButton.IconGlyph = "";
+            attendanceReportButton.IconSize = 16F;
             attendanceReportButton.Location = new Point(420, 92);
             attendanceReportButton.Name = "attendanceReportButton";
             attendanceReportButton.NormalColor = Color.FromArgb(194, 65, 12);
             attendanceReportButton.PressedColor = Color.FromArgb(120, 45, 15);
             attendanceReportButton.Size = new Size(196, 46);
             attendanceReportButton.TabIndex = 4;
-            attendanceReportButton.Text = "GENERATE REPORT";
+            attendanceReportButton.Text = "EXPORT PDF";
             attendanceReportButton.UseVisualStyleBackColor = false;
-            attendanceReportButton.Click += generateReportButton_Click;
+            attendanceReportButton.Click += attendanceReportButton_Click;
             // 
             // markReturnedButton
             // 
             markReturnedButton.BackColor = Color.Transparent;
             markReturnedButton.CornerRadius = 12;
+            markReturnedButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             markReturnedButton.FlatAppearance.BorderSize = 0;
             markReturnedButton.FlatStyle = FlatStyle.Flat;
             markReturnedButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             markReturnedButton.ForeColor = Color.White;
             markReturnedButton.HoverColor = Color.FromArgb(71, 85, 105);
+            markReturnedButton.IconFallbackGlyph = "";
+            markReturnedButton.IconGlyph = "";
+            markReturnedButton.IconSize = 16F;
             markReturnedButton.Location = new Point(232, 92);
             markReturnedButton.Name = "markReturnedButton";
             markReturnedButton.NormalColor = Color.FromArgb(100, 116, 139);
@@ -1258,11 +1297,15 @@ namespace oop_project.forms
             // 
             recordBorrowButton.BackColor = Color.Transparent;
             recordBorrowButton.CornerRadius = 12;
+            recordBorrowButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             recordBorrowButton.FlatAppearance.BorderSize = 0;
             recordBorrowButton.FlatStyle = FlatStyle.Flat;
             recordBorrowButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             recordBorrowButton.ForeColor = Color.White;
             recordBorrowButton.HoverColor = Color.FromArgb(15, 118, 110);
+            recordBorrowButton.IconFallbackGlyph = "";
+            recordBorrowButton.IconGlyph = "";
+            recordBorrowButton.IconSize = 16F;
             recordBorrowButton.Location = new Point(21, 92);
             recordBorrowButton.Name = "recordBorrowButton";
             recordBorrowButton.NormalColor = Color.FromArgb(13, 148, 136);
@@ -1447,11 +1490,15 @@ namespace oop_project.forms
             // 
             requestsRefreshButton.BackColor = Color.Transparent;
             requestsRefreshButton.CornerRadius = 12;
+            requestsRefreshButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             requestsRefreshButton.FlatAppearance.BorderSize = 0;
             requestsRefreshButton.FlatStyle = FlatStyle.Flat;
             requestsRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             requestsRefreshButton.ForeColor = Color.White;
             requestsRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
+            requestsRefreshButton.IconFallbackGlyph = "";
+            requestsRefreshButton.IconGlyph = "";
+            requestsRefreshButton.IconSize = 16F;
             requestsRefreshButton.Location = new Point(30, 92);
             requestsRefreshButton.Name = "requestsRefreshButton";
             requestsRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1614,11 +1661,15 @@ namespace oop_project.forms
             // 
             accountsRefreshButton.BackColor = Color.Transparent;
             accountsRefreshButton.CornerRadius = 12;
+            accountsRefreshButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             accountsRefreshButton.FlatAppearance.BorderSize = 0;
             accountsRefreshButton.FlatStyle = FlatStyle.Flat;
             accountsRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             accountsRefreshButton.ForeColor = Color.White;
             accountsRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
+            accountsRefreshButton.IconFallbackGlyph = "";
+            accountsRefreshButton.IconGlyph = "";
+            accountsRefreshButton.IconSize = 16F;
             accountsRefreshButton.Location = new Point(32, 92);
             accountsRefreshButton.Name = "accountsRefreshButton";
             accountsRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1772,11 +1823,15 @@ namespace oop_project.forms
             // 
             staffRefreshButton.BackColor = Color.Transparent;
             staffRefreshButton.CornerRadius = 12;
+            staffRefreshButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             staffRefreshButton.FlatAppearance.BorderSize = 0;
             staffRefreshButton.FlatStyle = FlatStyle.Flat;
             staffRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             staffRefreshButton.ForeColor = Color.White;
             staffRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
+            staffRefreshButton.IconFallbackGlyph = "";
+            staffRefreshButton.IconGlyph = "";
+            staffRefreshButton.IconSize = 16F;
             staffRefreshButton.Location = new Point(32, 92);
             staffRefreshButton.Name = "staffRefreshButton";
             staffRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1922,11 +1977,15 @@ namespace oop_project.forms
             // 
             facultyRefreshButton.BackColor = Color.Transparent;
             facultyRefreshButton.CornerRadius = 12;
+            facultyRefreshButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             facultyRefreshButton.FlatAppearance.BorderSize = 0;
             facultyRefreshButton.FlatStyle = FlatStyle.Flat;
             facultyRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             facultyRefreshButton.ForeColor = Color.White;
             facultyRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
+            facultyRefreshButton.IconFallbackGlyph = "";
+            facultyRefreshButton.IconGlyph = "";
+            facultyRefreshButton.IconSize = 16F;
             facultyRefreshButton.Location = new Point(32, 92);
             facultyRefreshButton.Name = "facultyRefreshButton";
             facultyRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -1976,6 +2035,17 @@ namespace oop_project.forms
             tabPage6.Size = new Size(1344, 655);
             tabPage6.TabIndex = 5;
             tabPage6.Text = "STUDENT ACCOUNTS";
+            // 
+            // analyticsTab
+            // 
+            analyticsTab.BackColor = Color.White;
+            analyticsTab.Location = new Point(4, 29);
+            analyticsTab.Name = "analyticsTab";
+            analyticsTab.Padding = new Padding(3);
+            analyticsTab.Size = new Size(1344, 655);
+            analyticsTab.TabIndex = 7;
+            analyticsTab.Text = "ANALYTICS";
+            analyticsTab.UseVisualStyleBackColor = false;
             // 
             // studentEmptyLabel
             // 
@@ -2105,11 +2175,15 @@ namespace oop_project.forms
             // 
             studentRefreshButton.BackColor = Color.Transparent;
             studentRefreshButton.CornerRadius = 12;
+            studentRefreshButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             studentRefreshButton.FlatAppearance.BorderSize = 0;
             studentRefreshButton.FlatStyle = FlatStyle.Flat;
             studentRefreshButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             studentRefreshButton.ForeColor = Color.White;
             studentRefreshButton.HoverColor = Color.FromArgb(21, 128, 61);
+            studentRefreshButton.IconFallbackGlyph = "";
+            studentRefreshButton.IconGlyph = "";
+            studentRefreshButton.IconSize = 16F;
             studentRefreshButton.Location = new Point(32, 92);
             studentRefreshButton.Name = "studentRefreshButton";
             studentRefreshButton.NormalColor = Color.FromArgb(22, 163, 74);
@@ -2149,11 +2223,15 @@ namespace oop_project.forms
             logoutButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             logoutButton.BackColor = Color.Transparent;
             logoutButton.CornerRadius = 12;
+            logoutButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             logoutButton.FlatAppearance.BorderSize = 0;
             logoutButton.FlatStyle = FlatStyle.Flat;
             logoutButton.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             logoutButton.ForeColor = Color.White;
             logoutButton.HoverColor = Color.FromArgb(194, 65, 12);
+            logoutButton.IconFallbackGlyph = "";
+            logoutButton.IconGlyph = "";
+            logoutButton.IconSize = 16F;
             logoutButton.Location = new Point(1260, 32);
             logoutButton.Name = "logoutButton";
             logoutButton.NormalColor = Color.FromArgb(234, 88, 12);
@@ -2228,14 +2306,14 @@ namespace oop_project.forms
             logoBadge.TabIndex = 0;
             logoBadge.Text = "632456098";
             // 
-            // admin_dashboard
+            // librarian_dashboard
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1440, 860);
             Controls.Add(gradientPanel1);
             MinimumSize = new Size(1180, 740);
-            Name = "admin_dashboard";
+            Name = "librarian_dashboard";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "TCGC - LIBRARY MANAGEMENT SYSTEM";
             WindowState = FormWindowState.Maximized;
@@ -2362,6 +2440,7 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn loanIdColumn;
         private DataGridViewTextBoxColumn loanTitleColumn;
         private DataGridViewTextBoxColumn loanCopyColumn;
+        private DataGridViewTextBoxColumn loanBorrowerColumn;
         private DataGridViewTextBoxColumn loanDateColumn;
         private DataGridViewTextBoxColumn loanDaysColumn;
         private DataGridViewTextBoxColumn loanReturnedColumn;
@@ -2372,6 +2451,7 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn studentid;
         private TabPage tabPage5;
         private TabPage tabPage6;
+        private TabPage analyticsTab;
         private Label facultyHeading;
         private Label facultySubtitle;
         private RoundedButton facultyRefreshButton;
