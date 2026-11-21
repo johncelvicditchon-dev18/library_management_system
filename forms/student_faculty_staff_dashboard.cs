@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -52,12 +54,26 @@ namespace oop_project.forms
         private List<BorrowRequestRow> _studentRequests = new List<BorrowRequestRow>();
         private List<AttendanceRow> _myAttendance = new List<AttendanceRow>();
         private Image? _qrImage;
+        private Image? _avatarPhoto;
         private bool _layingOutCards;
+
+        // The name in the profile card shrinks instead of ending in "...". The
+        // fitted font is owned by the form and disposed when the window closes.
+        private const float ProfileNameMaxSize = 17f;
+        private const float ProfileNameMinSize = 8f;
+        private Font? _profileNameFont;
+        private float _profileNameSize = ProfileNameMaxSize;
+
+        // The QR caption stays on a single line: the font shrinks just enough to
+        // fit, so the sentence is never wrapped or cut with an ellipsis.
+        private const float QrCaptionMaxSize = 7.75f;
+        private const float QrCaptionMinSize = 6f;
+        private Font? _qrCaptionFont;
+        private float _qrCaptionSize = QrCaptionMaxSize;
 
         private readonly List<BookCard> _bookCards = new List<BookCard>();
         private readonly List<RequestCard> _requestCards = new List<RequestCard>();
         private readonly List<BorrowedBookCard> _borrowedCards = new List<BorrowedBookCard>();
-        private readonly List<Label> _profileValueLabels = new List<Label>();
 
         // MY ATTENDANCE is shown as a table so every scanned visit lists the full
         // account record (name, school id, program / office and institute) with the
@@ -103,28 +119,19 @@ namespace oop_project.forms
         private void ApplyIdentity()
         {
             Text = "TCGC - " + PortalName() + " DASHBOARD";
-            qrHeading.Text = PortalName() + " ATTENDANCE QR CODE";
             _headerName.Text = _fullName.ToUpperInvariant();
             _headerRole.Text = _role;
+            profileRoleBadge.Text = _role;
             _profileName.Text = _fullName;
-            _profileMeta.Text = _role + (_username.Length > 0 ? "     \u2022     @" + _username : string.Empty);
-            _profileRole.Text = _role;
             _headerAvatar.Initials = Initials(_fullName);
             _profileAvatar.Initials = Initials(_fullName);
+            FitProfileName();
         }
 
         /// <summary>Hooks the interactions that used to live inside the layout builders.</summary>
         private void WireEvents()
         {
             BuildAttendanceTable();
-
-            _profileValueLabels.Clear();
-            _profileValueLabels.Add(_schoolIdValue);
-            _profileValueLabels.Add(_programValue);
-            _profileValueLabels.Add(_yearValue);
-            _profileValueLabels.Add(_instituteValue);
-            _profileValueLabels.Add(_contactValue);
-            _profileValueLabels.Add(_addressValue);
 
             _logout.Click += SignOut_Click;
 
@@ -168,10 +175,13 @@ namespace oop_project.forms
             borrowedStatRow.Resize += (s, e) => LayoutStatRow(borrowedStatRow);
             attendanceStatRow.Resize += (s, e) => LayoutStatRow(attendanceStatRow);
 
-            profileIdentityCard.Paint += PaintRoundedCard;
-            profileQrCard.Paint += PaintRoundedCard;
-            profileIdentityCard.Resize += (s, e) => LayoutIdentityCard();
-            profileQrCard.Resize += (s, e) => LayoutQrCard();
+            profileIdentityCard.Paint += PaintIdentityCard;
+            profileDetailsCard.Paint += PaintDetailsCard;
+            profileIdentityCard.Resize += (s, e) => LayoutProfileCard();
+            profileDetailsCard.Resize += (s, e) => LayoutDetailsCard();
+            downloadQrButton.Click += (s, e) => SaveQrCode();
+            LayoutProfileCard();
+            LayoutDetailsCard();
 
             // A scan can happen in the scanner window while the patron is on this
             // page, so the MY ATTENDANCE table is refreshed whenever the portal is
@@ -181,6 +191,13 @@ namespace oop_project.forms
                 if (_tabs.SelectedIndex == 1)
                 {
                     LoadAttendance();
+                }
+                else if (_tabs.SelectedIndex == 4)
+                {
+                    // The librarian may have released an approved request while the
+                    // patron was in another window, so the borrowed list is rebuilt.
+                    LoadCatalogData();
+                    LoadBorrowedBooks();
                 }
             };
         }
@@ -373,19 +390,20 @@ namespace oop_project.forms
             }
         }
 
-        // The PROFILE header carries two actions, so EDIT MY INFO and CHANGE
-        // PASSWORD sit on the right edge and the subtitle stops before them.
+        // The PROFILE header carries two actions and mirrors the librarian portal:
+        // the green EDIT MY INFO button sits on the right edge and CHANGE PASSWORD
+        // to its left, with the subtitle stopping before both.
         private void LayoutProfileActions()
         {
             int right = profileHead.ClientSize.Width;
 
-            changePasswordButton.Left = Math.Max(0, right - changePasswordButton.Width);
-            changePasswordButton.Top = 10;
-
-            editProfileButton.Left = Math.Max(0, changePasswordButton.Left - 12 - editProfileButton.Width);
+            editProfileButton.Left = Math.Max(0, right - editProfileButton.Width);
             editProfileButton.Top = 10;
 
-            profileSubtitle.Width = Math.Max(160, editProfileButton.Left - 16);
+            changePasswordButton.Left = Math.Max(0, editProfileButton.Left - 12 - changePasswordButton.Width);
+            changePasswordButton.Top = 10;
+
+            profileSubtitle.Width = Math.Max(160, changePasswordButton.Left - 16);
         }
 
         private void ShowChangePasswordDialog()
@@ -445,9 +463,11 @@ namespace oop_project.forms
                     dialog.Institute,
                     dialog.ContactNumber,
                     dialog.Address,
-                    dialog.Office);
+                    dialog.Office,
+                    dialog.ProfilePictureChanged ? dialog.ProfilePicture : null,
+                    dialog.ProfilePictureChanged);
 
-                // The portal chrome, the QR pass and the profile card all read from
+                // The portal chrome, the QR code and the profile card all read from
                 // these values, so they are refreshed before the next paint.
                 _fullName = dialog.FullName;
                 _username = dialog.Username;
@@ -478,57 +498,242 @@ namespace oop_project.forms
             _headerName.Width = Math.Max(180, _logout.Left - 140);
         }
 
-        private void PaintRoundedCard(object? sender, PaintEventArgs e)
+        // The identity card uses the same soft mint surface as the librarian
+        // portal, so both dashboards present the profile the same way.
+        private void PaintIdentityCard(object? sender, PaintEventArgs e)
         {
-            CardPaint.DrawSurface(e.Graphics, ((Control)sender!).Size, PageBack, Color.White, CardBorder);
+            Control card = (Control)sender!;
+            CardPaint.DrawSurface(
+                e.Graphics,
+                card.Size,
+                PageBack,
+                Color.FromArgb(240, 253, 244),
+                Color.FromArgb(187, 247, 208));
         }
 
-        private void LayoutIdentityCard()
+        // The account details card stays white, matching the librarian portal.
+        private void PaintDetailsCard(object? sender, PaintEventArgs e)
         {
-            int width = Math.Max(200, profileIdentityCard.ClientSize.Width - 52);
-            _profileName.Left = 26;
-            _profileName.Width = width;
-            _profileMeta.Left = 26;
-            _profileMeta.Width = width;
-            _profileAvatar.Left = 26 + Math.Max(0, (width - _profileAvatar.Width) / 2);
-            _profileRole.Left = 26 + Math.Max(0, (width - _profileRole.Width) / 2);
-            identityDivider.Width = width;
-
-            foreach (Label value in _profileValueLabels)
-            {
-                value.Width = Math.Max(80, width - 138);
-            }
+            Control card = (Control)sender!;
+            CardPaint.DrawSurface(e.Graphics, card.Size, PageBack, Color.White, CardBorder);
         }
 
-        private void LayoutQrCard()
+        // IDENTITY CARD: picture, name and role badge at the top, the QR pass with
+        // its DOWNLOAD QR button directly under the picture, and the privacy note
+        // pinned to the bottom of the card.
+        private void LayoutProfileCard()
         {
-            int width = Math.Max(120, profileQrCard.ClientSize.Width - 52);
-            bool wide = width >= 700;
+            if (profileIdentityCard == null || _qrPicture == null)
+            {
+                return;
+            }
 
-            if (wide)
+            int width = profileIdentityCard.ClientSize.Width;
+            int height = profileIdentityCard.ClientSize.Height;
+
+            if (width <= 0 || height <= 0)
             {
-                _qrPicture.Left = 26;
-                _qrCaption.Left = 26;
-                _qrCaption.Width = 260;
-                qrDivider.SetBounds(312, 64, 1, 320);
-                qrHowTo.Left = 340;
-                qrStepOne.SetBounds(340, 92, width - 314, 20);
-                qrStepTwo.SetBounds(340, 118, width - 314, 20);
-                qrStepThree.SetBounds(340, 144, width - 314, 20);
-                qrKeepPrivate.SetBounds(340, 186, width - 314, 40);
+                return;
             }
-            else
+
+            int avatarSize = Math.Clamp(width / 3, 110, 140);
+            _profileAvatar.SetBounds((width - avatarSize) / 2, 16, avatarSize, avatarSize);
+
+            _profileName.SetBounds(18, _profileAvatar.Bottom + 4, Math.Max(80, width - 36), 34);
+
+            profileRoleBadge.Top = _profileName.Bottom + 4;
+            profileRoleBadge.Left = (width - profileRoleBadge.Width) / 2;
+
+            identityDivider.SetBounds(40, profileRoleBadge.Bottom + 10, Math.Max(40, width - 80), 1);
+
+            qrHeading.SetBounds(24, identityDivider.Bottom + 8, Math.Max(80, width - 48), 20);
+
+            int buttonTop = height - 40 - 18;
+            int buttonWidth = Math.Min(200, Math.Max(130, width - 120));
+            downloadQrButton.SetBounds((width - buttonWidth) / 2, buttonTop, buttonWidth, 40);
+
+            int captionTop = buttonTop - 6 - 24;
+            _qrCaption.SetBounds(12, captionTop, Math.Max(80, width - 24), 24);
+
+            int qrTop = qrHeading.Bottom + 8;
+            int available = captionTop - 8 - qrTop;
+            int side = Math.Clamp(Math.Min(Math.Max(0, width - 110), available), 96, 320);
+
+            _qrPicture.SetBounds((width - side) / 2, qrTop, side, side);
+            _qrPicture.Visible = available >= 96;
+
+            FitQrCaption();
+            profileIdentityCard.Invalidate();
+            FitProfileName();
+        }
+
+        /// <summary>
+        /// Keeps the QR caption on one line. The font shrinks in small steps until
+        /// the whole sentence fits the card width, so it is never wrapped or cut.
+        /// </summary>
+        private void FitQrCaption()
+        {
+            string caption = _qrCaption.Text ?? string.Empty;
+            int available = Math.Max(60, _qrCaption.Width - 8);
+            float size = QrCaptionMaxSize;
+
+            while (size > QrCaptionMinSize)
             {
-                _qrPicture.Left = 26 + Math.Max(0, (width - _qrPicture.Width) / 2);
-                _qrCaption.Left = 26;
-                _qrCaption.Width = width;
-                qrDivider.SetBounds(26, 384, width, 1);
-                qrHowTo.Left = 26;
-                qrStepOne.SetBounds(26, 404, width, 20);
-                qrStepTwo.SetBounds(26, 430, width, 20);
-                qrStepThree.SetBounds(26, 456, width, 20);
-                qrKeepPrivate.SetBounds(26, 494, width, 40);
+                using (var probe = new Font("Segoe UI", size, FontStyle.Regular))
+                {
+                    Size measured = TextRenderer.MeasureText(
+                        caption,
+                        probe,
+                        Size.Empty,
+                        TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+
+                    if (measured.Width <= available)
+                    {
+                        break;
+                    }
+                }
+
+                size -= 0.25f;
             }
+
+            if (Math.Abs(size - _qrCaptionSize) < 0.01f)
+            {
+                return;
+            }
+
+            Font? previous = _qrCaptionFont;
+            _qrCaptionFont = new Font("Segoe UI", size, FontStyle.Regular);
+            _qrCaptionSize = size;
+            _qrCaption.Font = _qrCaptionFont;
+            previous?.Dispose();
+        }
+
+        /// <summary>
+        /// Shrinks the profile name until the whole name fits on one line. A long
+        /// name is therefore shown in full instead of ending in "...".
+        /// </summary>
+        private void FitProfileName()
+        {
+            string name = _profileName.Text ?? string.Empty;
+            int available = Math.Max(60, _profileName.Width - 12);
+            float size = ProfileNameMaxSize;
+
+            while (size > ProfileNameMinSize)
+            {
+                using (var probe = new Font("Segoe UI", size, FontStyle.Bold))
+                {
+                    Size measured = TextRenderer.MeasureText(
+                        name,
+                        probe,
+                        Size.Empty,
+                        TextFormatFlags.NoPadding);
+
+                    if (measured.Width <= available)
+                    {
+                        break;
+                    }
+                }
+
+                size -= 0.5f;
+            }
+
+            if (Math.Abs(size - _profileNameSize) < 0.01f)
+            {
+                return;
+            }
+
+            Font? previous = _profileNameFont;
+            _profileNameFont = new Font("Segoe UI", size, FontStyle.Bold);
+            _profileNameSize = size;
+            _profileName.Font = _profileNameFont;
+            previous?.Dispose();
+        }
+
+        // ACCOUNT DETAILS: the six read only rows share the height of the card, so a
+        // taller window spreads them instead of leaving a gap above the footer.
+        private void LayoutDetailsCard()
+        {
+            if (profileDetailsCard == null || profileFooter == null)
+            {
+                return;
+            }
+
+            int width = profileDetailsCard.ClientSize.Width;
+            int height = profileDetailsCard.ClientSize.Height;
+
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            int dividerWidth = Math.Max(40, width - 68);
+            detailsTopDivider.SetBounds(34, 92, dividerWidth, 1);
+
+            profileFooter.Left = 34;
+            profileFooter.Top = height - 28;
+            profileFooter.MaximumSize = new Size(dividerWidth, 0);
+
+            Label[] captions =
+            {
+                idNumberCaption,
+                programCaption,
+                yearCaption,
+                instituteCaption,
+                contactCaption,
+                addressCaption
+            };
+
+            Label[] values =
+            {
+                _schoolIdValue,
+                _programValue,
+                _yearValue,
+                _instituteValue,
+                _contactValue,
+                _addressValue
+            };
+
+            Panel[] dividers =
+            {
+                dividerRow1,
+                dividerRow2,
+                dividerRow3,
+                dividerRow4,
+                dividerRow5,
+                dividerRow6
+            };
+
+            int rowTop = 92;
+            int rowsBottom = profileFooter.Top - 8;
+            int step = Math.Max(52, (rowsBottom - rowTop) / captions.Length);
+
+            int captionWidth = Math.Min(300, Math.Max(120, width / 2 - 34));
+            int valueLeft = Math.Min(340, Math.Max(220, width / 2 + 10));
+            int valueWidth = Math.Max(120, width - valueLeft - 34);
+
+            for (int index = 0; index < captions.Length; index++)
+            {
+                captions[index].SetBounds(
+                    34,
+                    rowTop + Math.Max(0, (step - 34) / 2),
+                    captionWidth,
+                    34);
+
+                values[index].SetBounds(
+                    valueLeft,
+                    rowTop + Math.Max(0, (step - 44) / 2),
+                    valueWidth,
+                    44);
+
+                if (index < dividers.Length)
+                {
+                    dividers[index].SetBounds(34, rowTop + step, dividerWidth, 1);
+                }
+
+                rowTop += step;
+            }
+
+            profileDetailsCard.Invalidate();
         }
 
         private static void LayoutStatRow(FlowLayoutPanel row)
@@ -543,6 +748,13 @@ namespace oop_project.forms
 
             int available = Math.Max(320, row.ClientSize.Width - row.Padding.Horizontal);
             int width = Math.Max(110, (available - gap * (count - 1)) / count);
+
+            // A row with a single summary card (MY REQUESTS keeps only TOTAL
+            // REQUESTS) stays a compact card instead of stretching across the page.
+            if (count == 1)
+            {
+                width = Math.Min(width, 280);
+            }
 
             for (int i = 0; i < count; i++)
             {
@@ -587,6 +799,20 @@ namespace oop_project.forms
                 LoadCatalogData();
                 LoadRequests();
             }
+            else if (index == 3)
+            {
+                // The librarian claims a request from the BORROW REQUESTS tab, so
+                // reopening MY REQUESTS picks up the CLAIMED status right away.
+                LoadRequests();
+            }
+            else if (index == 4)
+            {
+                // Approval writes the borrow rows from the librarian window, so the
+                // catalog is reloaded before MY BORROWED BOOKS is built. The tab then
+                // shows the same titles and copies as MY REQUESTS without a refresh.
+                LoadCatalogData();
+                LoadBorrowedBooks();
+            }
         }
 
         /// <summary>
@@ -607,8 +833,7 @@ namespace oop_project.forms
                 return "FACULTY";
             }
 
-            if (string.Equals(_role, "STAFF", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(_role, "OFFICER", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(_role, "STAFF", StringComparison.OrdinalIgnoreCase))
             {
                 return "STAFF";
             }
@@ -650,21 +875,69 @@ namespace oop_project.forms
             _headerName.Text = name.ToUpperInvariant();
             _headerRole.Text = role.ToUpperInvariant();
 
+            // A staff account has an OFFICE instead of a program, so the row is
+            // labelled OFFICE and its value comes from staff_info_table.
+            programCaption.Text = IsStaffRole(role) ? "OFFICE" : "PROGRAM / OFFICE";
+
             _profileName.Text = name;
-            _profileMeta.Text = role.ToUpperInvariant() +
-                                (_username.Length > 0 ? "     \u2022     @" + _username : string.Empty);
-            _profileRole.Text = role.ToUpperInvariant();
+            profileRoleBadge.Text = role.ToUpperInvariant();
             _headerAvatar.Initials = Initials(name);
             _profileAvatar.Initials = Initials(name);
+            LayoutProfileCard();
+
+            ApplyProfilePhoto();
 
             _schoolIdValue.Text = DisplayId();
-            _programValue.Text = DisplayProgramOrOffice();
-            _yearValue.Text = DisplayYearOrRole();
-            _instituteValue.Text = Value(_profile?.Institute);
-            _contactValue.Text = Value(_profile?.ContactNumber);
-            _addressValue.Text = Value(_profile?.Address);
+            _programValue.Text = ProfileValue(DisplayProgramOrOffice());
+            _yearValue.Text = ProfileValue(DisplayYearOrRole());
+            _instituteValue.Text = ProfileValue(_profile?.Institute);
+            _contactValue.Text = ProfileValue(_profile?.ContactNumber);
+            _addressValue.Text = ProfileValue(_profile?.Address);
 
             BuildQrCode(name, role);
+        }
+
+        // An empty profile value shows an em dash so every row in the account
+        // details card stays aligned and readable, exactly like the librarian tab.
+        private static string ProfileValue(string? value)
+        {
+            return IsPlaceholder(value) ? "\u2014" : value!.Trim();
+        }
+
+        /// <summary>
+        /// Decodes the portrait that EDIT MY INFO stored on the account. Both the
+        /// banner avatar and the large profile avatar use the same image; when the
+        /// account has no picture they fall back to the initials.
+        /// </summary>
+        private void ApplyProfilePhoto()
+        {
+            Image? next = ProfilePicture.Load(_profile?.ProfilePicture);
+            Image? previous = _avatarPhoto;
+            _avatarPhoto = next;
+
+            _profileAvatar.Picture = next;
+            _headerAvatar.Picture = next;
+
+            previous?.Dispose();
+            _profileAvatar.Invalidate();
+            _headerAvatar.Invalidate();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+
+            _avatarPhoto?.Dispose();
+            _avatarPhoto = null;
+
+            _qrImage?.Dispose();
+            _qrImage = null;
+
+            _profileNameFont?.Dispose();
+            _profileNameFont = null;
+
+            _qrCaptionFont?.Dispose();
+            _qrCaptionFont = null;
         }
 
         /// <summary>
@@ -683,6 +956,11 @@ namespace oop_project.forms
         {
             string program = CleanValue(_profile?.Program);
             return program.Length > 0 ? program : Value(_profile?.Office);
+        }
+
+        private static bool IsStaffRole(string role)
+        {
+            return string.Equals(role, "STAFF", StringComparison.OrdinalIgnoreCase);
         }
 
         private string DisplayYearOrRole()
@@ -710,12 +988,11 @@ namespace oop_project.forms
                 {
                     QRCode code = new QRCode(data);
                     _qrImage?.Dispose();
-                    _qrImage = code.GetGraphic(6, qrCodeColor, Color.White, true);
+                    _qrImage = code.GetGraphic(12, qrCodeColor, Color.White, true);
                     _qrPicture.Image = _qrImage;
                 }
 
-                _qrCaption.Text = "SCAN THIS QR CODE AT THE ENTRANCE TO RECORD THE VISIT OF " +
-                                  name.ToUpperInvariant() + " (" + PortalName() + ").";
+                _qrCaption.Text = "SHOW THIS QR CODE AT THE ENTRANCE TO RECORD THE LIBRARY VISIT.";
             }
             catch (Exception)
             {
@@ -724,6 +1001,148 @@ namespace oop_project.forms
                 _qrPicture.Image = null;
                 _qrCaption.Text = "THE QR CODE COULD NOT BE CREATED FOR THIS PROFILE.";
             }
+
+            FitQrCaption();
+        }
+
+        // --------------------------------------------------------- DOWNLOAD QR
+
+        /// <summary>Writes the profile QR pass to a PNG file chosen by the user.</summary>
+        private void SaveQrCode()
+        {
+            if (_qrImage == null)
+            {
+                Authentication.ShowError("MY PROFILE", "THE QR CODE IS NOT READY YET. REOPEN THE PROFILE TAB AND TRY ONCE MORE.");
+                return;
+            }
+
+            using SaveFileDialog dialog = new SaveFileDialog
+            {
+                Title = "SAVE LIBRARY QR CODE",
+                Filter = "PNG IMAGE (*.png)|*.png",
+                DefaultExt = "png",
+                AddExtension = true,
+                OverwritePrompt = true,
+                FileName = BuildQrFileName()
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            try
+            {
+                using Bitmap card = BuildQrCardImage();
+                card.Save(dialog.FileName, ImageFormat.Png);
+            }
+            catch (Exception ex) when (ex is IOException ||
+                                       ex is UnauthorizedAccessException ||
+                                       ex is System.Runtime.InteropServices.ExternalException)
+            {
+                Authentication.ShowError("MY PROFILE", "THE QR CODE COULD NOT BE SAVED.\n" + ex.Message);
+                return;
+            }
+
+            Authentication.ShowMessage(
+                "YOUR QR CODE HAS BEEN SAVED AS A PNG FILE.",
+                "QR CODE SAVED",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// Composes the saved PNG: the code on a white card with the account name
+        /// under it, so the file still makes sense outside the dashboard.
+        /// </summary>
+        private Bitmap BuildQrCardImage()
+        {
+            const int padding = 40;
+            const int qrSize = 420;
+            const int headerHeight = 82;
+
+            int width = qrSize + (padding * 2);
+            int height = headerHeight + qrSize + 120;
+            Bitmap card = new Bitmap(width, height);
+
+            using Graphics graphics = Graphics.FromImage(card);
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+            graphics.PixelOffsetMode = PixelOffsetMode.Half;
+            graphics.Clear(Color.White);
+
+            using Font titleFont = new Font("Segoe UI", 13F, FontStyle.Bold);
+            using Font nameFont = new Font("Segoe UI", 11.5F, FontStyle.Bold);
+            using Font bodyFont = new Font("Segoe UI", 8.75F);
+
+            TextRenderer.DrawText(
+                graphics,
+                "TCGC LIBRARY ATTENDANCE PASS",
+                titleFont,
+                new Rectangle(0, 30, width, 28),
+                HeaderGreen,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
+
+            Rectangle codeBounds = new Rectangle(padding, headerHeight, qrSize, qrSize);
+
+            using (var quietZone = new SolidBrush(Color.White))
+            {
+                graphics.FillRectangle(quietZone, Rectangle.Inflate(codeBounds, 12, 12));
+            }
+
+            if (_qrImage != null)
+            {
+                graphics.DrawImage(_qrImage, codeBounds);
+            }
+
+            TextRenderer.DrawText(
+                graphics,
+                _fullName.ToUpperInvariant(),
+                nameFont,
+                new Rectangle(0, codeBounds.Bottom + 24, width, 26),
+                HeaderGreen,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+
+            TextRenderer.DrawText(
+                graphics,
+                _role.ToUpperInvariant() + "  \u2022  ACCOUNT " +
+                    _accountId.ToString(CultureInfo.InvariantCulture),
+                bodyFont,
+                new Rectangle(0, codeBounds.Bottom + 54, width, 20),
+                Color.FromArgb(100, 116, 139),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
+
+            TextRenderer.DrawText(
+                graphics,
+                "SHOW THIS CODE AT THE LRC ENTRANCE TO RECORD YOUR VISIT.",
+                bodyFont,
+                new Rectangle(padding, height - 36, qrSize, 20),
+                Color.FromArgb(100, 116, 139),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
+
+            using (var border = new Pen(Color.FromArgb(226, 232, 240), 2f))
+            {
+                graphics.DrawRectangle(border, 1, 1, width - 3, height - 3);
+            }
+
+            return card;
+        }
+
+        private string BuildQrFileName()
+        {
+            char[] invalid = Path.GetInvalidFileNameChars();
+            StringBuilder builder = new StringBuilder("TCGC-LIBRARY-QR-");
+
+            foreach (char character in _fullName.ToUpperInvariant())
+            {
+                builder.Append(
+                    Array.IndexOf(invalid, character) >= 0 || char.IsWhiteSpace(character)
+                        ? '-'
+                        : character);
+            }
+
+            builder.Append(".png");
+            return builder.ToString();
         }
 
         private void LoadCatalogData()
@@ -965,9 +1384,6 @@ namespace oop_project.forms
         private void LoadBorrowedBooks()
         {
             RebuildBorrowedCards();
-
-            int count = GetMyBorrowRecords().Count;
-          
         }
 
         // --------------------------------------------------------------- ATTENDANCE
@@ -1040,7 +1456,7 @@ namespace oop_project.forms
                 _attendanceEmpty.Title = term.Length > 0 ? "NO MATCHING VISITS" : "NO ATTENDANCE RECORDED YET";
                 _attendanceEmpty.Caption = term.Length > 0
                     ? "TRY ANOTHER DATE, TIME OR NAME."
-                    : "SHOW YOUR QR PASS TO THE LIBRARIAN AT THE LIBRARY OFFICE ENTRANCE.";
+                    : "SHOW YOUR QR CODE TO THE LIBRARIAN AT THE LIBRARY OFFICE ENTRANCE.";
                 _attendanceEmpty.BringToFront();
             }
 
@@ -1076,20 +1492,23 @@ namespace oop_project.forms
 
             ClearCards(_borrowedFlow, _borrowedCards);
 
-            List<BorrowRecord> borrowRecords = GetMyBorrowRecords()
-                .OrderBy(record => record.DateReturned.HasValue)
-                .ThenByDescending(record => record.DateBorrowed)
+            // One card per title: the copies written by an approved request are
+            // folded into a single line, so the tab shows how many copies the
+            // patron borrowed instead of repeating the same title per copy.
+            List<BorrowedBookGroup> groups = GetMyBorrowedTitleGroups()
+                .OrderBy(group => group.IsFullyReturned)
+                .ThenByDescending(group => group.DateBorrowed)
                 .ToList();
 
-            foreach (BorrowRecord record in borrowRecords)
+            foreach (BorrowedBookGroup group in groups)
             {
-                if (term.Length > 0 && !MatchesBorrowRecord(record, term))
+                if (term.Length > 0 && !MatchesBorrowGroup(group, term))
                 {
                     continue;
                 }
 
-                Book? coverBook = _catalog.Books.FirstOrDefault(book => book.BookId == record.BookId);
-                BorrowedBookCard card = new BorrowedBookCard(record, coverBook?.CoverImage);
+                Book? coverBook = _catalog.Books.FirstOrDefault(book => book.BookId == group.BookId);
+                BorrowedBookCard card = new BorrowedBookCard(group, coverBook?.CoverImage);
                 _borrowedFlow.Controls.Add(card);
                 _borrowedCards.Add(card);
                 shown++;
@@ -1107,13 +1526,6 @@ namespace oop_project.forms
             }
 
             LayoutCardColumns(_borrowedFlow, false);
-
-            if (borrowRecords.Count > 0)
-            {
-                int active = borrowRecords.Count(record => !record.DateReturned.HasValue);
-                int returned = borrowRecords.Count - active;
-
-            }
 
             UpdateStats();
         }
@@ -1140,8 +1552,6 @@ namespace oop_project.forms
             int currentlyBorrowed = borrowRecords.Count(record => !record.DateReturned.HasValue);
             int alreadyReturned = borrowRecords.Count - currentlyBorrowed;
             int pending = _studentRequests.Count(request => request.IsPending);
-            int approved = _studentRequests.Count(request => request.IsApproved);
-            int closed = _studentRequests.Count - pending - approved;
 
             _catalogStatTitles.Value = _catalog.Books.Count.ToString(CultureInfo.InvariantCulture);
             _catalogStatCopies.Value = _catalog.AvailableCopies.ToString(CultureInfo.InvariantCulture);
@@ -1149,9 +1559,6 @@ namespace oop_project.forms
             _catalogStatPending.Value = pending.ToString(CultureInfo.InvariantCulture);
 
             _requestStatTotal.Value = _studentRequests.Count.ToString(CultureInfo.InvariantCulture);
-            _requestStatPending.Value = pending.ToString(CultureInfo.InvariantCulture);
-            _requestStatApproved.Value = approved.ToString(CultureInfo.InvariantCulture);
-            _requestStatClosed.Value = Math.Max(0, closed).ToString(CultureInfo.InvariantCulture);
 
             int longest = currentlyBorrowed == 0
                 ? 0
@@ -1181,6 +1588,33 @@ namespace oop_project.forms
             }
 
             return mine;
+        }
+
+        /// <summary>
+        /// Folds the patron's borrow rows into one line per title. Approving a
+        /// request for several copies writes one row per copy, so grouping keeps
+        /// MY BORROWED BOOKS reading like MY REQUESTS: one card per title with the
+        /// number of copies behind it.
+        /// </summary>
+        private List<BorrowedBookGroup> GetMyBorrowedTitleGroups()
+        {
+            List<BorrowedBookGroup> groups = new List<BorrowedBookGroup>();
+
+            foreach (IGrouping<string, BorrowRecord> bucket in
+                     GetMyBorrowRecords().GroupBy(TitleKeyFor))
+            {
+                groups.Add(new BorrowedBookGroup(bucket));
+            }
+
+            return groups;
+        }
+
+        private static string TitleKeyFor(BorrowRecord record)
+        {
+            // A deleted title keeps no book id, so its upper case title is the key.
+            return record.BookId > 0
+                ? "BOOK:" + record.BookId.ToString(CultureInfo.InvariantCulture)
+                : "TITLE:" + record.BookTitle.ToUpperInvariant();
         }
 
         private bool IsMyBorrowRecord(BorrowRecord record)
@@ -1222,11 +1656,11 @@ namespace oop_project.forms
                    request.Status.ToUpperInvariant().Contains(term);
         }
 
-        private static bool MatchesBorrowRecord(BorrowRecord record, string term)
+        private static bool MatchesBorrowGroup(BorrowedBookGroup group, string term)
         {
-            return record.BookTitle.ToUpperInvariant().Contains(term) ||
-                   record.Author.ToUpperInvariant().Contains(term) ||
-                   record.Status.ToUpperInvariant().Contains(term);
+            return group.BookTitle.ToUpperInvariant().Contains(term) ||
+                   group.Author.ToUpperInvariant().Contains(term) ||
+                   group.DisplayStatus.ToUpperInvariant().Contains(term);
         }
 
         private void RelayoutCards(FlowLayoutPanel flow, bool grid)
@@ -1254,28 +1688,45 @@ namespace oop_project.forms
                 return;
             }
 
-            int available = Math.Max(320, flow.ClientSize.Width - flow.Padding.Horizontal - 22);
+            // The width comes from the host panel, not from the scrolling flow.
+            // Adding cards can make a vertical scrollbar appear; measuring the
+            // flow again would then give the later cards a smaller width than the
+            // first ones and they would look like they overlapped the edge.
+            Control host = flow.Parent ?? flow;
+            int hostWidth = host.ClientSize.Width > 0
+                ? host.ClientSize.Width
+                : flow.ClientSize.Width;
+            int available = Math.Max(320, hostWidth - flow.Padding.Horizontal - 24);
 
-            if (!grid)
+            flow.SuspendLayout();
+            try
             {
-                int width = Math.Max(300, available);
-                foreach (Control card in flow.Controls)
+                if (!grid)
                 {
-                    card.Width = width;
+                    int width = Math.Max(300, available);
+
+                    foreach (Control card in flow.Controls)
+                    {
+                        card.Width = width;
+                    }
+
+                    return;
                 }
 
-                return;
+                const int gap = 16;
+                const int minimumCard = 330;
+                int columns = Math.Max(1, Math.Min(4, (available + gap) / (minimumCard + gap)));
+                int cardWidth = Math.Max(300, (available - gap * columns) / columns);
+
+                foreach (Control card in flow.Controls)
+                {
+                    card.Width = cardWidth;
+                    card.Margin = new Padding(0, 0, gap, 16);
+                }
             }
-
-            const int gap = 16;
-            const int minimumCard = 330;
-            int columns = Math.Max(1, Math.Min(4, (available + gap) / (minimumCard + gap)));
-            int cardWidth = Math.Max(300, (available - gap * columns) / columns);
-
-            foreach (Control card in flow.Controls)
+            finally
             {
-                card.Width = cardWidth;
-                card.Margin = new Padding(0, 0, gap, 16);
+                flow.ResumeLayout();
             }
         }
 
@@ -1335,12 +1786,29 @@ namespace oop_project.forms
 
         private static string Value(string? value)
         {
-            return string.IsNullOrWhiteSpace(value) || value == "-" ? "-" : value.Trim();
+            return IsPlaceholder(value) ? "-" : value!.Trim();
         }
 
         private static string CleanValue(string? value)
         {
-            return string.IsNullOrWhiteSpace(value) || value == "-" ? string.Empty : value.Trim();
+            return IsPlaceholder(value) ? string.Empty : value!.Trim();
+        }
+
+        /// <summary>
+        /// AccountRow stores a missing profile value as an em dash, while the
+        /// designer uses a plain hyphen. Both count as empty here, so a staff
+        /// account without a program falls through to its OFFICE instead of
+        /// showing the dash.
+        /// </summary>
+        private static bool IsPlaceholder(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return true;
+            }
+
+            string trimmed = value.Trim();
+            return trimmed == "-" || trimmed == "\u2013" || trimmed == "\u2014";
         }
 
         private static string Initials(string value)

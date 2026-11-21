@@ -306,6 +306,9 @@ namespace oop_project.forms
             cancelButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             cancelButton.ForeColor = Color.FromArgb(71, 85, 105);
             cancelButton.HoverColor = Color.FromArgb(226, 232, 240);
+            cancelButton.IconFallbackGlyph = "";
+            cancelButton.IconGlyph = "";
+            cancelButton.IconSize = 16F;
             cancelButton.Location = new Point(41, 672);
             cancelButton.Margin = new Padding(3, 4, 3, 4);
             cancelButton.Name = "cancelButton";
@@ -326,6 +329,9 @@ namespace oop_project.forms
             saveButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             saveButton.ForeColor = Color.White;
             saveButton.HoverColor = Color.FromArgb(21, 128, 61);
+            saveButton.IconFallbackGlyph = "";
+            saveButton.IconGlyph = "";
+            saveButton.IconSize = 16F;
             saveButton.Location = new Point(244, 672);
             saveButton.Margin = new Padding(3, 4, 3, 4);
             saveButton.Name = "saveButton";

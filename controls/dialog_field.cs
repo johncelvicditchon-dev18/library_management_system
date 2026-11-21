@@ -157,10 +157,22 @@ namespace oop_project
         /// </summary>
         private void RebuildInput()
         {
+            bool readOnly = _kind == DialogFieldKind.ReadOnly;
+
             _box.Controls.Clear();
 
-            _text.ReadOnly = _kind == DialogFieldKind.ReadOnly;
-            _text.TabStop = _kind != DialogFieldKind.ReadOnly;
+            _text.ReadOnly = readOnly;
+            _text.TabStop = !readOnly;
+
+            // A read only field is drawn as a locked box: a cooler fill and a grey
+            // focus border instead of the green one, so it never looks typeable.
+            Color fillColor = readOnly ? Color.FromArgb(241, 245, 249) : Color.FromArgb(243, 244, 246);
+            _text.BackColor = fillColor;
+            _text.ForeColor = readOnly ? Color.FromArgb(100, 116, 139) : SystemColors.WindowText;
+            _text.Cursor = readOnly ? Cursors.Default : Cursors.IBeam;
+            _box.FillColor = fillColor;
+            _box.FocusColor = readOnly ? Color.FromArgb(203, 213, 225) : Color.FromArgb(22, 163, 74);
+            _box.Invalidate();
 
             if (_kind == DialogFieldKind.Choice)
             {

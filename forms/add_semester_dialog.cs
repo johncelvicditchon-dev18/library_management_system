@@ -11,9 +11,8 @@ namespace oop_project.forms
     /// dashboard opens it in evaluation_period_table through
     /// <see cref="Models.EvaluationDirectory.OpenPeriod"/>.
     /// </summary>
-    public sealed class AddSemesterDialog : Form
+    public sealed partial class AddSemesterDialog : Form
     {
-        private static readonly Color Ink = Color.FromArgb(15, 23, 42);
         private static readonly Color Muted = Color.FromArgb(100, 116, 139);
         private static readonly Color Success = Color.FromArgb(4, 120, 87);
 
@@ -25,14 +24,6 @@ namespace oop_project.forms
         };
 
         private readonly DialogChrome.DragMover _drag = new DialogChrome.DragMover();
-
-        private readonly DialogField _semesterField = DialogField.ForChoice("SEMESTER");
-        private readonly DialogField _yearField = DialogField.ForText("SCHOOL YEAR (E.G. 2026-2027)");
-        private readonly Label _preview = new Label();
-        private readonly Label _note = new Label();
-        private readonly DialogCloseButton _closeButton = new DialogCloseButton();
-        private readonly RoundedButton _primaryButton = new RoundedButton();
-        private readonly RoundedButton _secondaryButton = new RoundedButton();
 
         /// <summary>"1ST SEMESTER", "2ND SEMESTER" or "SUMMER".</summary>
         public string Semester { get; private set; } = string.Empty;
@@ -52,20 +43,11 @@ namespace oop_project.forms
         public AddSemesterDialog(string suggestedSemester, string suggestedSchoolYear)
         {
             DialogChrome.EnablePainting(this);
+            InitializeComponent();
 
-            FormBorderStyle = FormBorderStyle.None;
-            StartPosition = FormStartPosition.CenterParent;
-            ShowInTaskbar = false;
-            KeyPreview = true;
-            ClientSize = new Size(560, 436);
-            Font = new Font("Segoe UI", 9F);
-            BackColor = Color.White;
-            Text = "ADD SEMESTER";
-
-            BuildHeader();
-            BuildFields();
-            BuildFooter();
-
+            // RUNTIME DATA: the semester list and the suggested term are filled
+            // after the designer has created the controls, so the Design View
+            // never tries to reach the database or the clock.
             foreach (string name in SemesterNames)
             {
                 _semesterField.ChoiceBox.Items.Add(name);
@@ -91,6 +73,18 @@ namespace oop_project.forms
                 DialogChrome.ApplyRoundedRegion(this);
                 _semesterField.FocusInput();
             };
+
+            _closeButton.Click += (s, e) => CancelAndClose();
+            _secondaryButton.Click += (s, e) => CancelAndClose();
+            _primaryButton.Click += (s, e) => Submit();
+
+            // The compact white header can be dragged like every other pop up.
+            _titleLabel.MouseDown += (s, e) => _drag.Start(this, e);
+            _titleLabel.MouseMove += (s, e) => _drag.Move(this, e);
+            _titleLabel.MouseUp += (s, e) => _drag.End();
+            MouseDown += (s, e) => _drag.Start(this, e);
+            MouseMove += (s, e) => _drag.Move(this, e);
+            MouseUp += (s, e) => _drag.End();
         }
 
         protected override void OnPaintBackground(PaintEventArgs e)
@@ -104,138 +98,14 @@ namespace oop_project.forms
 
             if (e.KeyCode == Keys.Escape)
             {
-                DialogResult = DialogResult.Cancel;
-                Close();
+                CancelAndClose();
             }
         }
 
-        private void BuildHeader()
+        private void CancelAndClose()
         {
-            Label accent = new Label
-            {
-                AutoSize = false,
-                BackColor = Color.Transparent,
-                Font = new Font("Segoe UI", 13.5F, FontStyle.Bold),
-                ForeColor = Ink,
-                Location = new Point(32, 26),
-                Size = new Size(420, 30),
-                Text = "ADD SEMESTER",
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            Label subtitle = new Label
-            {
-                AutoSize = false,
-                BackColor = Color.Transparent,
-                Font = new Font("Segoe UI", 8.75F),
-                ForeColor = Muted,
-                Location = new Point(34, 58),
-                Size = new Size(470, 20),
-                Text = "THE SEMESTER STUDENTS, FACULTY AND STAFF MAY EVALUATE.",
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            _closeButton.Location = new Point(ClientSize.Width - 32 - 34, 18);
-            _closeButton.Size = new Size(34, 34);
-            _closeButton.OnLightBackground = true;
-            _closeButton.Click += (s, e) =>
-            {
-                DialogResult = DialogResult.Cancel;
-                Close();
-            };
-
-            Controls.Add(accent);
-            Controls.Add(subtitle);
-            Controls.Add(_closeButton);
-
-            // The compact white header can be dragged like every other pop up.
-            accent.MouseDown += (s, e) => _drag.Start(this, e);
-            accent.MouseMove += (s, e) => _drag.Move(this, e);
-            accent.MouseUp += (s, e) => _drag.End();
-            MouseDown += (s, e) => _drag.Start(this, e);
-            MouseMove += (s, e) => _drag.Move(this, e);
-            MouseUp += (s, e) => _drag.End();
-        }
-
-        private void BuildFields()
-        {
-            _semesterField.Location = new Point(32, 96);
-            _semesterField.Size = new Size(496, 88);
-
-            _yearField.Location = new Point(32, 196);
-            _yearField.Size = new Size(496, 88);
-
-            _preview.AutoSize = false;
-            _preview.BackColor = Color.Transparent;
-            _preview.Font = new Font("Segoe UI", 9.25F, FontStyle.Bold);
-            _preview.ForeColor = Success;
-            _preview.Location = new Point(34, 292);
-            _preview.Size = new Size(494, 22);
-            _preview.TextAlign = ContentAlignment.MiddleLeft;
-
-            _note.AutoSize = false;
-            _note.BackColor = Color.Transparent;
-            _note.Font = new Font("Segoe UI", 8F);
-            _note.ForeColor = Muted;
-            _note.Location = new Point(34, 318);
-            _note.Size = new Size(494, 34);
-            _note.Text = "ADDING A SEMESTER OPENS IT FOR EVALUATION RIGHT AWAY. ANY OTHER OPEN SEMESTER IS CLOSED FIRST.";
-            _note.TextAlign = ContentAlignment.MiddleLeft;
-
-            Controls.Add(_semesterField);
-            Controls.Add(_yearField);
-            Controls.Add(_preview);
-            Controls.Add(_note);
-        }
-
-        private void BuildFooter()
-        {
-            Panel divider = new Panel
-            {
-                BackColor = Color.FromArgb(229, 231, 235),
-                Location = new Point(0, 364),
-                Size = new Size(ClientSize.Width, 1)
-            };
-
-            _secondaryButton.BackColor = Color.Transparent;
-            _secondaryButton.CornerRadius = 11;
-            _secondaryButton.FlatStyle = FlatStyle.Flat;
-            _secondaryButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            _secondaryButton.ForeColor = Color.FromArgb(51, 65, 85);
-            _secondaryButton.HoverColor = Color.FromArgb(226, 232, 240);
-            _secondaryButton.NormalColor = Color.FromArgb(241, 245, 249);
-            _secondaryButton.PressedColor = Color.FromArgb(203, 213, 225);
-            _secondaryButton.Size = new Size(140, 44);
-            _secondaryButton.Text = "CANCEL";
-            _secondaryButton.UseVisualStyleBackColor = false;
-            _secondaryButton.FlatAppearance.BorderSize = 0;
-            _secondaryButton.Location = new Point(ClientSize.Width - 32 - 168 - 12 - 140, 376);
-            _secondaryButton.Click += (s, e) =>
-            {
-                DialogResult = DialogResult.Cancel;
-                Close();
-            };
-
-            _primaryButton.BackColor = Color.Transparent;
-            _primaryButton.CornerRadius = 11;
-            _primaryButton.FlatStyle = FlatStyle.Flat;
-            _primaryButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            _primaryButton.ForeColor = Color.White;
-            _primaryButton.HoverColor = Color.FromArgb(21, 128, 61);
-            _primaryButton.NormalColor = Color.FromArgb(22, 163, 74);
-            _primaryButton.PressedColor = Color.FromArgb(20, 83, 45);
-            _primaryButton.Size = new Size(168, 44);
-            _primaryButton.Text = "OPEN SEMESTER";
-            _primaryButton.UseVisualStyleBackColor = false;
-            _primaryButton.FlatAppearance.BorderSize = 0;
-            _primaryButton.Location = new Point(ClientSize.Width - 32 - 168, 376);
-            _primaryButton.Click += (s, e) => Submit();
-
-            AcceptButton = _primaryButton;
-
-            Controls.Add(divider);
-            Controls.Add(_secondaryButton);
-            Controls.Add(_primaryButton);
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
 
         private void UpdatePreview()

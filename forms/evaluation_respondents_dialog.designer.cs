@@ -166,7 +166,7 @@ namespace oop_project.forms
             // 
             instituteColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             instituteColumn.FillWeight = 28F;
-            instituteColumn.HeaderText = "INSTITUTE";
+            instituteColumn.HeaderText = "INSTITUTE/OFFICE";
             instituteColumn.MinimumWidth = 190;
             instituteColumn.Name = "instituteColumn";
             instituteColumn.ReadOnly = true;

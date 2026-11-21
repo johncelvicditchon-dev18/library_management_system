@@ -11,9 +11,10 @@ namespace oop_project.forms
 {
     /// <summary>
     /// Pop up opened by the RESPONDENTS button in ANALYTICS. It lists the people who
-    /// answered the selected semester: name, institute, program, role and student id.
-    /// Faculty have no program or student id and staff have neither, so those cells
-    /// stay blank instead of inventing a value.
+    /// answered the selected semester: name, institute/office, program, role and
+    /// student id. A STAFF member has an office instead of an institute, so that
+    /// column shows it. Faculty have no program or student id and staff have neither,
+    /// so those cells stay blank instead of inventing a value.
     /// </summary>
     public sealed partial class EvaluationRespondentsDialog : Form
     {
@@ -151,13 +152,14 @@ namespace oop_project.forms
             {
                 int index = grid.Rows.Add(
                     person.Name,
-                    person.Institute,
+                    person.InstituteOrOffice,
                     person.Program,
                     person.Role,
                     person.StudentId);
 
-                // A blank institute/program/student id is normal for faculty and
-                // staff, so the row still alternates and selects as one record.
+                // A blank institute/office, program or student id is normal for
+                // faculty and staff, so the row still alternates and selects as
+                // one record.
                 grid.Rows[index].Tag = person;
             }
 
@@ -169,7 +171,7 @@ namespace oop_project.forms
 
         /// <summary>
         /// Filters the rows already on screen with the text in the search bar. The
-        /// match checks every column shown from the database: name, institute,
+        /// match checks every column shown from the database: name, institute/office,
         /// program, role and student id, so the librarian does not pick a field.
         /// </summary>
         private void ApplyFilter()
@@ -217,7 +219,7 @@ namespace oop_project.forms
             }
 
             return Contains(person.Name, term) ||
-                   Contains(person.Institute, term) ||
+                   Contains(person.InstituteOrOffice, term) ||
                    Contains(person.Program, term) ||
                    Contains(person.Role, term) ||
                    Contains(person.StudentId, term);

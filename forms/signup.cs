@@ -56,10 +56,11 @@ namespace oop_project
         private const int WideWidth = 600;
         private const int Gutter = 20;
         private const int RowStep = 96;
+        private const int MinRowStep = 76;
         private const int FieldOffset = 22;
         private const int FieldHeight = 44;
-        private const int ErrorOffset = 68;
-        private const int ErrorHeight = 16;
+        private const int ErrorOffset = 66;
+        private const int ErrorHeight = 14;
         private const int ButtonGap = 14;
         private const int ButtonHeight = 52;
         private const int BlockTop = 100;
@@ -76,6 +77,14 @@ namespace oop_project
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = true;
             signup_label.BringToFront();
+
+            // HEADER TYPE: the sign-up card uses the same title style as the
+            // sign-in card, so both authentication screens read as one product.
+            label2.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+
+            // FOOTER: measured text keeps "Already have an account?" and the link
+            // centred as one group instead of relying on a fixed label width.
+            footerPrompt.AutoSize = true;
 
             // The role list comes from the factory, so a role added there shows up here.
             role_option.Items.Clear();
@@ -347,16 +356,21 @@ namespace oop_project
         // as a single row item, so the layout code never repeats the same coordinates.
         private sealed class SignupField
         {
-            public SignupField(Label label, FieldPanel field, Label error)
+            public SignupField(Label label, FieldPanel field, Label error, bool wide = false)
             {
                 Label = label;
                 Field = field;
                 Error = error;
+                Wide = wide;
             }
 
             public Label Label { get; }
             public FieldPanel Field { get; }
             public Label Error { get; }
+
+            // A wide field spans both grid columns instead of the normal 290px,
+            // so the last row of the form does not leave empty space on the right.
+            public bool Wide { get; }
         }
 
         private string SelectedRole
@@ -464,42 +478,103 @@ namespace oop_project
             }
         }
 
-        // LAYOUT: every visible field is the same width, so the block is a clean
-        // two-column grid. The white card is resized to fit the rows that are
-        // actually shown, then centred vertically in the window.
+        // LAYOUT: every visible field is normally one column wide, so the block is
+        // a clean two-column grid. The white card is resized to fit the rows that
+        // are actually shown, then centred vertically in the window.
         private void ApplyFieldLayout()
         {
             List<SignupField> items = VisibleFields();
-            int rows = Math.Max(1, (items.Count + ColumnsPerRow - 1) / ColumnsPerRow);
+
+            // The row step adapts to the window: the design rhythm is kept on a
+            // tall screen and tightened a little on a short one, so the whole card
+            // (including the footer) always stays inside the viewport.
+            int rows = CountRows(items);
+            int rowStep = RowStep;
+
+            if (rows > 1)
+            {
+                int available = gradientPanel1.ClientSize.Height - CardTopMargin * 2;
+                int fixedHeight = BlockTop + ErrorOffset + ErrorHeight +
+                                  ButtonGap + ButtonHeight + CardFooterHeight;
+                rowStep = Math.Clamp((available - fixedHeight) / (rows - 1), MinRowStep, RowStep);
+            }
+
+            // The grid is packed row by row. A wide field starts its own row and
+            // fills both columns, which keeps the last row from ending on the left
+            // with an empty half on the right.
+            int row = 0;
+            int column = 0;
 
             for (int index = 0; index < items.Count; index++)
             {
-                int row = index / ColumnsPerRow;
-                int column = index % ColumnsPerRow;
-                int x = CardLeftPadding + column * (ColumnWidth + Gutter);
-                int y = BlockTop + row * RowStep;
                 SignupField item = items[index];
+                int x;
+                int width;
+
+                if (item.Wide)
+                {
+                    if (column > 0)
+                    {
+                        row++;
+                        column = 0;
+                    }
+
+                    x = CardLeftPadding;
+                    width = WideWidth;
+                }
+                else
+                {
+                    x = CardLeftPadding + column * (ColumnWidth + Gutter);
+                    width = ColumnWidth;
+                }
+
+                int y = BlockTop + row * rowStep;
 
                 item.Label.Location = new Point(x, y);
                 item.Field.Location = new Point(x, y + FieldOffset);
-                item.Field.Size = new Size(ColumnWidth, FieldHeight);
+                item.Field.Size = new Size(width, FieldHeight);
                 item.Error.Location = new Point(x, y + ErrorOffset);
-                item.Error.Size = new Size(ColumnWidth, ErrorHeight);
-                FitInput(item.Field, ColumnWidth);
+                item.Error.Size = new Size(width, ErrorHeight);
+                FitInput(item.Field, width);
+
+                if (item.Wide)
+                {
+                    // A wide field is the only thing on its row.
+                    row++;
+                    column = 0;
+                }
+                else if (++column == ColumnsPerRow)
+                {
+                    column = 0;
+                    row++;
+                }
             }
 
-            int buttonTop = BlockTop + (rows - 1) * RowStep + ErrorOffset + ErrorHeight + ButtonGap;
+            int buttonTop = BlockTop + (rows - 1) * rowStep + ErrorOffset + ErrorHeight + ButtonGap;
             create_button.Location = new Point(CardLeftPadding, buttonTop);
             create_button.Size = new Size(WideWidth, ButtonHeight);
+
+            // HEADER LOCK-UP: the close button ends exactly where the fields end
+            // and sits on the same centre line as the seal and the title.
+            closeButton.Location = new Point(
+                roundedCard1.Width - CardLeftPadding - closeButton.Width,
+                26 + (48 - closeButton.Height) / 2);
 
             // RESPONSIVE CARD: fewer rows make the card shorter, more rows make it
             // taller, and the footer stays pinned to the bottom of the card.
             int cardHeight = buttonTop + ButtonHeight + CardFooterHeight;
             roundedCard1.Height = cardHeight;
 
+            // FOOTER: the prompt and the link are measured and centred as one
+            // group under the button, so the pair stays centred at any DPI.
             int footerTop = cardHeight - CardFooterInset;
-            footerPrompt.Top = footerTop;
-            signin_label.Top = footerTop;
+            int footerWidth = footerPrompt.Width + 10 + signin_label.Width;
+            int footerLeft = (roundedCard1.Width - footerWidth) / 2;
+
+            footerPrompt.Location = new Point(
+                footerLeft,
+                footerTop + (signin_label.Height - footerPrompt.Height) / 2);
+            signin_label.Location = new Point(footerLeft + footerPrompt.Width + 10, footerTop);
 
             // The window layout owns the card's X. Centre its Y only once the
             // design position has been captured, so the capture stays accurate.
@@ -509,6 +584,39 @@ namespace oop_project
                 int top = Math.Max(CardTopMargin, (available - cardHeight) / 2);
                 roundedCard1.Top = top;
             }
+        }
+
+        // Counts how many grid rows the visible fields occupy. A wide field takes
+        // a row of its own, so the count is not simply items / columns.
+        private static int CountRows(List<SignupField> items)
+        {
+            int rows = 0;
+            int column = 0;
+
+            foreach (SignupField item in items)
+            {
+                if (item.Wide)
+                {
+                    if (column > 0)
+                    {
+                        rows++;
+                        column = 0;
+                    }
+
+                    rows++;
+                }
+                else
+                {
+                    if (column == 0)
+                    {
+                        rows++;
+                    }
+
+                    column = (column + 1) % ColumnsPerRow;
+                }
+            }
+
+            return Math.Max(1, rows);
         }
 
         // Keeps the text box / dropdown evenly inside its rounded panel.
@@ -599,7 +707,8 @@ namespace oop_project
 
             items.Add(new SignupField(usernameLabel, usernameField, usernameError));
             items.Add(new SignupField(passwordLabel, passwordField, passwordError));
-            items.Add(new SignupField(confirmLabel, confirmField, confirmError));
+            // CONFIRM PASSWORD spans both columns so the bottom row is not half empty.
+            items.Add(new SignupField(confirmLabel, confirmField, confirmError, true));
             return items;
         }
 
@@ -1041,19 +1150,24 @@ namespace oop_project
                             {
                                 cmd.Parameters.AddWithValue("@name", person.FullName);
                                 cmd.Parameters.AddWithValue("@username", username);
-                                cmd.Parameters.AddWithValue("@password", password);
+                                // SECURITY: only the PBKDF2 hash is stored, never
+                                // the password that was typed into the form.
+                                cmd.Parameters.AddWithValue("@password", PasswordHasher.Hash(password));
                                 cmd.ExecuteNonQuery();
                                 accountId = cmd.LastInsertedId;
                             }
 
-                            string roleQuery = "INSERT INTO account_role_table (account_id, `role`, `status`, date_created) VALUES (@accountId, @role, 'PENDING', UPPER(DATE_FORMAT(NOW(), '%M %e, %Y')));";
-                            long roleId;
+                            string roleQuery =
+                                "INSERT INTO account_role_table (account_id, role_id, status_id, date_created) " +
+                                "VALUES (@accountId, " +
+                                "        (SELECT role_id FROM role_table WHERE role_code = @role), " +
+                                "        (SELECT status_id FROM account_status_table WHERE status_code = 'PENDING'), " +
+                                "        CURDATE());";
                             using (MySqlCommand cmd = new MySqlCommand(roleQuery, conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@accountId", accountId);
                                 cmd.Parameters.AddWithValue("@role", person.Role);
                                 cmd.ExecuteNonQuery();
-                                roleId = cmd.LastInsertedId;
                             }
 
                             if (student != null)
@@ -1066,15 +1180,15 @@ namespace oop_project
                             }
                             else if (IsStaff)
                             {
-                                InsertStaffProfile(conn, transaction, accountId, roleId, office, contact);
+                                InsertStaffProfile(conn, transaction, accountId, office, contact);
                             }
                             else if (IsLibrarian)
                             {
-                                InsertLibrarianProfile(conn, transaction, accountId, roleId);
+                                InsertLibrarianProfile(conn, transaction, accountId);
                             }
 
                             transaction.Commit();
-                            ShowMessage("SUCCESSFULLY CREATED!. NEWLY CREATED ACCOUNT NEED APPROVAL FROM THE ADMIN.", "SIGNUP SUCCESSFUL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            ShowMessage("SUCCESSFULLY CREATED!. NEWLY CREATED ACCOUNT NEED APPROVAL FROM THE LIBRARIAN.", "SIGNUP SUCCESSFUL", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             Login loginForm = new Login();
                             loginForm.Show();
                             this.Hide();
@@ -1117,8 +1231,8 @@ namespace oop_project
             long programId = ResolveProgramId(conn, transaction, student.Program, instituteId);
 
             const string sql = "INSERT INTO `student_info_table` " +
-                               "(`account_id`, `school_id`, `last_name`, `first_name`, `middle_initial`, `program_id`, `year_level`, `institute_id`, `contact_number`, `address`) " +
-                               "VALUES (@accountId, @schoolId, @lastName, @firstName, @middleInitial, @programId, @yearLevel, @instituteId, @contactNumber, @address);";
+                               "(`account_id`, `school_id`, `last_name`, `first_name`, `middle_initial`, `program_id`, `year_level`, `contact_number`, `address`) " +
+                               "VALUES (@accountId, @schoolId, @lastName, @firstName, @middleInitial, @programId, @yearLevel, @contactNumber, @address);";
 
             using (MySqlCommand cmd = new MySqlCommand(sql, conn, transaction))
             {
@@ -1129,7 +1243,6 @@ namespace oop_project
                 cmd.Parameters.AddWithValue("@middleInitial", string.IsNullOrEmpty(student.MiddleInitial) ? (object)DBNull.Value : student.MiddleInitial);
                 cmd.Parameters.AddWithValue("@programId", programId);
                 cmd.Parameters.AddWithValue("@yearLevel", student.YearLevel);
-                cmd.Parameters.AddWithValue("@instituteId", instituteId);
                 cmd.Parameters.AddWithValue("@contactNumber", student.ContactNumber);
                 cmd.Parameters.AddWithValue("@address", student.Address);
                 cmd.ExecuteNonQuery();
@@ -1157,17 +1270,16 @@ namespace oop_project
 
         // NORMALISATION: a staff member gets one profile row that keeps the office
         // they were assigned to and the contact number they gave. The row links to
-        // account_table (account_id) and to the STAFF row in account_role_table
-        // (role_id), so the role and status are never copied into this table.
-        private static void InsertStaffProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, long roleId, string office, string contact)
+        // account_table only; the role is read from account_role_table through
+        // account_id, so it is never copied into this table.
+        private static void InsertStaffProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, string office, string contact)
         {
-            const string sql = "INSERT INTO `staff_info_table` (`account_id`, `role_id`, `office`, `contact_number`) " +
-                               "VALUES (@accountId, @roleId, @office, @contactNumber);";
+            const string sql = "INSERT INTO `staff_info_table` (`account_id`, `office`, `contact_number`) " +
+                               "VALUES (@accountId, @office, @contactNumber);";
 
             using (MySqlCommand cmd = new MySqlCommand(sql, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@accountId", accountId);
-                cmd.Parameters.AddWithValue("@roleId", roleId);
                 cmd.Parameters.AddWithValue("@office", office.Trim());
                 cmd.Parameters.AddWithValue("@contactNumber", contact);
                 cmd.ExecuteNonQuery();
@@ -1175,16 +1287,15 @@ namespace oop_project
         }
 
         // NORMALISATION: the librarian (system admin) gets a profile row that only
-        // links the account to its role row. No office is recorded any more.
-        private static void InsertLibrarianProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId, long roleId)
+        // links the account. The role is read through that account id.
+        private static void InsertLibrarianProfile(MySqlConnection conn, MySqlTransaction transaction, long accountId)
         {
-            const string sql = "INSERT INTO `librarian_info_table` (`account_id`, `role_id`) " +
-                               "VALUES (@accountId, @roleId);";
+            const string sql = "INSERT INTO `librarian_info_table` (`account_id`) " +
+                               "VALUES (@accountId);";
 
             using (MySqlCommand cmd = new MySqlCommand(sql, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@accountId", accountId);
-                cmd.Parameters.AddWithValue("@roleId", roleId);
                 cmd.ExecuteNonQuery();
             }
         }

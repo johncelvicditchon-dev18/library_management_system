@@ -6,7 +6,7 @@ using oop_project.Models;
 namespace oop_project.Reports
 {
     /// <summary>
-    /// The LIBRARY ATTENDANCE report: every QR pass scanned at the library office
+    /// The LIBRARY ATTENDANCE report: every QR code scanned at the library office
     /// entrance, with the date and time, the person, the role, the program or
     /// office and the institute. Columns are fitted to their content, so nobody's
     /// name is cut and nothing is wrapped.
@@ -20,7 +20,8 @@ namespace oop_project.Reports
         private static readonly ReportColumn[] Columns =
         {
             new ReportColumn { Header = "DATE & TIME", Width = 120f, Center = true },
-            new ReportColumn { Header = "NAME", Width = 190f, BoldBody = true },
+            new ReportColumn { Header = "NAME", Width = 170f, BoldBody = true },
+            new ReportColumn { Header = "ID NUMBER", Width = 80f, Center = true },
             new ReportColumn { Header = "ROLE", Width = 70f, Center = true },
             new ReportColumn { Header = "PROGRAM/OFFICE", Width = 180f },
             new ReportColumn { Header = "INSTITUTE", Width = 188f }
@@ -59,7 +60,7 @@ namespace oop_project.Reports
             {
                 int year = row.ScanTime.Year;
 
-                if (!byYear.TryGetValue(year, out List<string[]> yearRows))
+                if (!byYear.TryGetValue(year, out List<string[]>? yearRows))
                 {
                     yearRows = new List<string[]>();
                     byYear.Add(year, yearRows);
@@ -70,6 +71,7 @@ namespace oop_project.Reports
                 {
                     row.StampText,
                     (row.Name ?? string.Empty).Trim().ToUpperInvariant(),
+                    row.DisplayIdNumber.ToUpperInvariant(),
                     (row.Role ?? string.Empty).Trim().ToUpperInvariant(),
                     (row.ProgramOrOffice ?? string.Empty).Trim().ToUpperInvariant(),
                     (row.Institute ?? string.Empty).Trim().ToUpperInvariant()

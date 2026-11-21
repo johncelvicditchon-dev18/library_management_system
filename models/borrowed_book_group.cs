@@ -324,5 +324,23 @@ namespace oop_project.Models
         {
             get { return IsFullyReturned ? "RETURNED" : "BORROWED"; }
         }
+
+        /// <summary>
+        /// The status shown on a patron card: a group with some copies back on the
+        /// shelf and some still out reads PARTLY RETURNED instead of hiding the
+        /// returned copies behind BORROWED.
+        /// </summary>
+        public string DisplayStatus
+        {
+            get
+            {
+                if (IsFullyReturned)
+                {
+                    return "RETURNED";
+                }
+
+                return ReturnedCount > 0 ? "PARTLY RETURNED" : "BORROWED";
+            }
+        }
     }
 }

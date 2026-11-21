@@ -30,10 +30,16 @@ namespace oop_project.forms
         {
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
             gradientPanel1 = new GradientPanel();
             roundedCard1 = new RoundedCard();
             tabControl1 = new TabControl();
             tabPage1 = new TabPage();
+            profileTabGrid = new TableLayoutPanel();
+            profileHeader = new Panel();
+            profileSubtitleLabel = new Label();
+            profileTitleLabel = new Label();
+            profileColumns = new TableLayoutPanel();
             detailsCard = new RoundedCard();
             profileFooter = new Label();
             dividerRow6 = new Panel();
@@ -51,8 +57,6 @@ namespace oop_project.forms
             valueRole = new Label();
             captionRole = new Label();
             dividerRow2 = new Panel();
-            valueUsername = new Label();
-            captionUsername = new Label();
             dividerRow1 = new Panel();
             valueFullName = new Label();
             captionFullName = new Label();
@@ -60,13 +64,10 @@ namespace oop_project.forms
             detailsSubtitle = new Label();
             detailsHeading = new Label();
             identityCard = new RoundedCard();
-            recordDivider = new Panel();
-            identityNote = new Label();
             identityDivider = new Panel();
             profileRoleBadge = new PillBadge();
             profileName = new Label();
             avatarBadge = new AvatarBadge();
-            securityCaption = new Label();
             changePasswordButton = new RoundedButton();
             editProfileButton = new RoundedButton();
             tabPage3 = new TabPage();
@@ -113,8 +114,6 @@ namespace oop_project.forms
             loanStatusColumn = new DataGridViewTextBoxColumn();
             attendanceStatusLabel = new Label();
             attendanceReportButton = new RoundedButton();
-            markReturnedButton = new RoundedButton();
-            recordBorrowButton = new RoundedButton();
             attendanceSubtitle = new Label();
             attendanceHeading = new Label();
             requestsTab = new TabPage();
@@ -129,6 +128,7 @@ namespace oop_project.forms
             requestStatusColumn = new DataGridViewTextBoxColumn();
             requestApproveColumn = new DataGridViewTextBoxColumn();
             requestRejectColumn = new DataGridViewTextBoxColumn();
+            requestClaimColumn = new DataGridViewTextBoxColumn();
             requestsStatusLabel = new Label();
             requestsRefreshButton = new RoundedButton();
             requestsSubtitle = new Label();
@@ -154,6 +154,7 @@ namespace oop_project.forms
             staffNameColumn = new DataGridViewTextBoxColumn();
             staffUsernameColumn = new DataGridViewTextBoxColumn();
             staffPasswordColumn = new DataGridViewTextBoxColumn();
+            staffOfficeColumn = new DataGridViewTextBoxColumn();
             staffStatusColumn = new DataGridViewTextBoxColumn();
             staffRoleColumn = new DataGridViewTextBoxColumn();
             staffStatusLabel = new Label();
@@ -189,7 +190,7 @@ namespace oop_project.forms
             studentRefreshButton = new RoundedButton();
             studentSubtitle = new Label();
             studentHeading = new Label();
-            logoutButton = new RoundedButton();
+            logoutButton = new SignOutButton();
             headerRoleBadge = new PillBadge();
             accountNameLabel = new Label();
             brandSubtitle = new Label();
@@ -199,6 +200,9 @@ namespace oop_project.forms
             roundedCard1.SuspendLayout();
             tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
+            profileTabGrid.SuspendLayout();
+            profileHeader.SuspendLayout();
+            profileColumns.SuspendLayout();
             detailsCard.SuspendLayout();
             identityCard.SuspendLayout();
             tabPage3.SuspendLayout();
@@ -275,8 +279,7 @@ namespace oop_project.forms
             // tabPage1
             // 
             tabPage1.BackColor = Color.White;
-            tabPage1.Controls.Add(detailsCard);
-            tabPage1.Controls.Add(identityCard);
+            tabPage1.Controls.Add(profileTabGrid);
             tabPage1.Location = new Point(4, 29);
             tabPage1.Name = "tabPage1";
             tabPage1.Padding = new Padding(3);
@@ -284,9 +287,76 @@ namespace oop_project.forms
             tabPage1.TabIndex = 0;
             tabPage1.Text = "PROFILE";
             // 
+            // profileTabGrid
+            // 
+            profileTabGrid.BackColor = Color.White;
+            profileTabGrid.ColumnCount = 1;
+            profileTabGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            profileTabGrid.Controls.Add(profileHeader, 0, 0);
+            profileTabGrid.Controls.Add(profileColumns, 0, 1);
+            profileTabGrid.Dock = DockStyle.Fill;
+            profileTabGrid.Location = new Point(3, 3);
+            profileTabGrid.Name = "profileTabGrid";
+            profileTabGrid.Padding = new Padding(24, 12, 24, 18);
+            profileTabGrid.RowCount = 2;
+            profileTabGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 92F));
+            profileTabGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            profileTabGrid.Size = new Size(1338, 649);
+            profileTabGrid.TabIndex = 0;
+            // 
+            // profileHeader
+            // 
+            profileHeader.Controls.Add(profileSubtitleLabel);
+            profileHeader.Controls.Add(profileTitleLabel);
+            profileHeader.Dock = DockStyle.Fill;
+            profileHeader.Location = new Point(24, 12);
+            profileHeader.Margin = new Padding(0);
+            profileHeader.Name = "profileHeader";
+            profileHeader.Size = new Size(1290, 92);
+            profileHeader.TabIndex = 0;
+            // 
+            // profileSubtitleLabel
+            // 
+            profileSubtitleLabel.AutoEllipsis = true;
+            profileSubtitleLabel.BackColor = Color.Transparent;
+            profileSubtitleLabel.Font = new Font("Segoe UI", 9F);
+            profileSubtitleLabel.ForeColor = Color.FromArgb(100, 116, 139);
+            profileSubtitleLabel.Location = new Point(4, 64);
+            profileSubtitleLabel.Name = "profileSubtitleLabel";
+            profileSubtitleLabel.Size = new Size(620, 22);
+            profileSubtitleLabel.TabIndex = 1;
+            profileSubtitleLabel.Text = "THE INFORMATION BELOW COMES FROM YOUR LIBRARY ACCOUNT.";
+            // 
+            // profileTitleLabel
+            // 
+            profileTitleLabel.AutoSize = true;
+            profileTitleLabel.BackColor = Color.Transparent;
+            profileTitleLabel.Font = new Font("Segoe UI", 26F, FontStyle.Bold);
+            profileTitleLabel.ForeColor = Color.FromArgb(15, 23, 42);
+            profileTitleLabel.Location = new Point(0, 0);
+            profileTitleLabel.Name = "profileTitleLabel";
+            profileTitleLabel.Size = new Size(278, 60);
+            profileTitleLabel.TabIndex = 0;
+            profileTitleLabel.Text = "MY PROFILE";
+            // 
+            // profileColumns
+            // 
+            profileColumns.ColumnCount = 2;
+            profileColumns.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 440F));
+            profileColumns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            profileColumns.Controls.Add(identityCard, 0, 0);
+            profileColumns.Controls.Add(detailsCard, 1, 0);
+            profileColumns.Dock = DockStyle.Fill;
+            profileColumns.Location = new Point(24, 104);
+            profileColumns.Margin = new Padding(0);
+            profileColumns.Name = "profileColumns";
+            profileColumns.RowCount = 1;
+            profileColumns.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            profileColumns.Size = new Size(1290, 527);
+            profileColumns.TabIndex = 1;
+            // 
             // detailsCard
             // 
-            detailsCard.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             detailsCard.BackColor = Color.White;
             detailsCard.BorderColor = Color.FromArgb(226, 232, 240);
             detailsCard.Controls.Add(profileFooter);
@@ -305,8 +375,6 @@ namespace oop_project.forms
             detailsCard.Controls.Add(valueRole);
             detailsCard.Controls.Add(captionRole);
             detailsCard.Controls.Add(dividerRow2);
-            detailsCard.Controls.Add(valueUsername);
-            detailsCard.Controls.Add(captionUsername);
             detailsCard.Controls.Add(dividerRow1);
             detailsCard.Controls.Add(valueFullName);
             detailsCard.Controls.Add(captionFullName);
@@ -314,10 +382,12 @@ namespace oop_project.forms
             detailsCard.Controls.Add(detailsSubtitle);
             detailsCard.Controls.Add(detailsHeading);
             detailsCard.CornerRadius = 20;
-            detailsCard.Location = new Point(430, 6);
+            detailsCard.Dock = DockStyle.Fill;
+            detailsCard.Location = new Point(440, 0);
+            detailsCard.Margin = new Padding(0);
             detailsCard.Name = "detailsCard";
-            detailsCard.Size = new Size(900, 643);
-            detailsCard.TabIndex = 3;
+            detailsCard.Size = new Size(850, 527);
+            detailsCard.TabIndex = 1;
             // 
             // profileFooter
             // 
@@ -347,7 +417,7 @@ namespace oop_project.forms
             valueDateCreated.BackColor = Color.Transparent;
             valueDateCreated.Font = new Font("Segoe UI", 10.75F);
             valueDateCreated.ForeColor = Color.FromArgb(15, 23, 42);
-            valueDateCreated.Location = new Point(340, 542);
+            valueDateCreated.Location = new Point(340, 472);
             valueDateCreated.Name = "valueDateCreated";
             valueDateCreated.Size = new Size(528, 44);
             valueDateCreated.TabIndex = 20;
@@ -359,7 +429,7 @@ namespace oop_project.forms
             captionDateCreated.BackColor = Color.Transparent;
             captionDateCreated.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
             captionDateCreated.ForeColor = Color.FromArgb(148, 163, 184);
-            captionDateCreated.Location = new Point(34, 550);
+            captionDateCreated.Location = new Point(34, 480);
             captionDateCreated.Name = "captionDateCreated";
             captionDateCreated.Size = new Size(300, 34);
             captionDateCreated.TabIndex = 19;
@@ -381,7 +451,7 @@ namespace oop_project.forms
             valueInstitute.BackColor = Color.Transparent;
             valueInstitute.Font = new Font("Segoe UI", 10.75F);
             valueInstitute.ForeColor = Color.FromArgb(15, 23, 42);
-            valueInstitute.Location = new Point(340, 462);
+            valueInstitute.Location = new Point(340, 402);
             valueInstitute.Name = "valueInstitute";
             valueInstitute.Size = new Size(528, 44);
             valueInstitute.TabIndex = 24;
@@ -393,7 +463,7 @@ namespace oop_project.forms
             captionInstitute.BackColor = Color.Transparent;
             captionInstitute.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
             captionInstitute.ForeColor = Color.FromArgb(148, 163, 184);
-            captionInstitute.Location = new Point(34, 470);
+            captionInstitute.Location = new Point(34, 410);
             captionInstitute.Name = "captionInstitute";
             captionInstitute.Size = new Size(300, 34);
             captionInstitute.TabIndex = 25;
@@ -415,7 +485,7 @@ namespace oop_project.forms
             valueProgramOffice.BackColor = Color.Transparent;
             valueProgramOffice.Font = new Font("Segoe UI", 10.75F);
             valueProgramOffice.ForeColor = Color.FromArgb(15, 23, 42);
-            valueProgramOffice.Location = new Point(340, 392);
+            valueProgramOffice.Location = new Point(340, 332);
             valueProgramOffice.Name = "valueProgramOffice";
             valueProgramOffice.Size = new Size(528, 44);
             valueProgramOffice.TabIndex = 22;
@@ -427,7 +497,7 @@ namespace oop_project.forms
             captionProgramOffice.BackColor = Color.Transparent;
             captionProgramOffice.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
             captionProgramOffice.ForeColor = Color.FromArgb(148, 163, 184);
-            captionProgramOffice.Location = new Point(34, 400);
+            captionProgramOffice.Location = new Point(34, 340);
             captionProgramOffice.Name = "captionProgramOffice";
             captionProgramOffice.Size = new Size(300, 34);
             captionProgramOffice.TabIndex = 23;
@@ -440,7 +510,7 @@ namespace oop_project.forms
             valueStatus.BackColor = Color.Transparent;
             valueStatus.Font = new Font("Segoe UI", 10.75F, FontStyle.Bold);
             valueStatus.ForeColor = Color.FromArgb(4, 120, 87);
-            valueStatus.Location = new Point(340, 332);
+            valueStatus.Location = new Point(340, 262);
             valueStatus.Name = "valueStatus";
             valueStatus.Size = new Size(528, 44);
             valueStatus.TabIndex = 13;
@@ -452,7 +522,7 @@ namespace oop_project.forms
             captionStatus.BackColor = Color.Transparent;
             captionStatus.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
             captionStatus.ForeColor = Color.FromArgb(148, 163, 184);
-            captionStatus.Location = new Point(34, 340);
+            captionStatus.Location = new Point(34, 270);
             captionStatus.Name = "captionStatus";
             captionStatus.Size = new Size(300, 34);
             captionStatus.TabIndex = 12;
@@ -474,7 +544,7 @@ namespace oop_project.forms
             valueRole.BackColor = Color.Transparent;
             valueRole.Font = new Font("Segoe UI", 10.75F);
             valueRole.ForeColor = Color.FromArgb(15, 23, 42);
-            valueRole.Location = new Point(340, 262);
+            valueRole.Location = new Point(340, 192);
             valueRole.Name = "valueRole";
             valueRole.Size = new Size(528, 44);
             valueRole.TabIndex = 10;
@@ -486,7 +556,7 @@ namespace oop_project.forms
             captionRole.BackColor = Color.Transparent;
             captionRole.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
             captionRole.ForeColor = Color.FromArgb(148, 163, 184);
-            captionRole.Location = new Point(34, 270);
+            captionRole.Location = new Point(34, 200);
             captionRole.Name = "captionRole";
             captionRole.Size = new Size(300, 34);
             captionRole.TabIndex = 9;
@@ -501,31 +571,6 @@ namespace oop_project.forms
             dividerRow2.Name = "dividerRow2";
             dividerRow2.Size = new Size(832, 1);
             dividerRow2.TabIndex = 8;
-            // 
-            // valueUsername
-            // 
-            valueUsername.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            valueUsername.BackColor = Color.Transparent;
-            valueUsername.Font = new Font("Segoe UI", 10.75F);
-            valueUsername.ForeColor = Color.FromArgb(15, 23, 42);
-            valueUsername.Location = new Point(340, 192);
-            valueUsername.Name = "valueUsername";
-            valueUsername.Size = new Size(528, 44);
-            valueUsername.TabIndex = 7;
-            valueUsername.Text = "YOUR USERNAME";
-            valueUsername.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // captionUsername
-            // 
-            captionUsername.BackColor = Color.Transparent;
-            captionUsername.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            captionUsername.ForeColor = Color.FromArgb(148, 163, 184);
-            captionUsername.Location = new Point(34, 200);
-            captionUsername.Name = "captionUsername";
-            captionUsername.Size = new Size(300, 34);
-            captionUsername.TabIndex = 6;
-            captionUsername.Text = "USERNAME";
-            captionUsername.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // dividerRow1
             // 
@@ -594,110 +639,6 @@ namespace oop_project.forms
             detailsHeading.TabIndex = 0;
             detailsHeading.Text = "ACCOUNT DETAILS";
             // 
-            // identityCard
-            // 
-            identityCard.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            identityCard.BackColor = Color.FromArgb(240, 253, 244);
-            identityCard.BorderColor = Color.FromArgb(187, 247, 208);
-            identityCard.Controls.Add(recordDivider);
-            identityCard.Controls.Add(identityNote);
-            identityCard.Controls.Add(identityDivider);
-            identityCard.Controls.Add(profileRoleBadge);
-            identityCard.Controls.Add(profileName);
-            identityCard.Controls.Add(avatarBadge);
-            identityCard.Controls.Add(securityCaption);
-            identityCard.Controls.Add(changePasswordButton);
-            identityCard.Controls.Add(editProfileButton);
-            identityCard.CornerRadius = 20;
-            identityCard.Location = new Point(6, 6);
-            identityCard.Name = "identityCard";
-            identityCard.Size = new Size(402, 643);
-            identityCard.TabIndex = 2;
-            // 
-            // recordDivider
-            // 
-            recordDivider.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            recordDivider.BackColor = Color.FromArgb(187, 247, 208);
-            recordDivider.Location = new Point(40, 398);
-            recordDivider.Name = "recordDivider";
-            recordDivider.Size = new Size(322, 1);
-            recordDivider.TabIndex = 6;
-            // 
-            // identityNote
-            // 
-            identityNote.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            identityNote.BackColor = Color.Transparent;
-            identityNote.Font = new Font("Segoe UI", 8.75F);
-            identityNote.ForeColor = Color.FromArgb(71, 105, 92);
-            identityNote.Location = new Point(40, 324);
-            identityNote.Name = "identityNote";
-            identityNote.Size = new Size(322, 62);
-            identityNote.TabIndex = 5;
-            identityNote.Text = "YOU ARE SIGNED IN TO THE TCGC LEARNING RESOURCE CENTER LIBRARY SYSTEM.";
-            identityNote.TextAlign = ContentAlignment.TopCenter;
-            // 
-            // identityDivider
-            // 
-            identityDivider.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            identityDivider.BackColor = Color.FromArgb(187, 247, 208);
-            identityDivider.Location = new Point(40, 306);
-            identityDivider.Name = "identityDivider";
-            identityDivider.Size = new Size(322, 1);
-            identityDivider.TabIndex = 4;
-            // 
-            // profileRoleBadge
-            // 
-            profileRoleBadge.BackColor = Color.Transparent;
-            profileRoleBadge.BorderColor = Color.FromArgb(167, 243, 208);
-            profileRoleBadge.CornerRadius = 14;
-            profileRoleBadge.FillColor = Color.White;
-            profileRoleBadge.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            profileRoleBadge.Location = new Point(154, 224);
-            profileRoleBadge.Name = "profileRoleBadge";
-            profileRoleBadge.Size = new Size(103, 33);
-            profileRoleBadge.TabIndex = 2;
-            profileRoleBadge.TabStop = false;
-            profileRoleBadge.Text = "MEMBER";
-            profileRoleBadge.TextColor = Color.FromArgb(4, 120, 87);
-            // 
-            // profileName
-            // 
-            profileName.AutoEllipsis = true;
-            profileName.BackColor = Color.Transparent;
-            profileName.Font = new Font("Segoe UI", 17F, FontStyle.Bold);
-            profileName.ForeColor = Color.FromArgb(6, 78, 59);
-            profileName.Location = new Point(20, 158);
-            profileName.Name = "profileName";
-            profileName.Size = new Size(364, 56);
-            profileName.TabIndex = 1;
-            profileName.Text = "FULL NAME";
-            profileName.TextAlign = ContentAlignment.MiddleCenter;
-            // 
-            // avatarBadge
-            // 
-            avatarBadge.BackColor = Color.Transparent;
-            avatarBadge.FillBottomColor = Color.FromArgb(4, 90, 66);
-            avatarBadge.FillTopColor = Color.FromArgb(34, 197, 94);
-            avatarBadge.InitialsColor = Color.White;
-            avatarBadge.Location = new Point(150, 34);
-            avatarBadge.Name = "avatarBadge";
-            avatarBadge.RingColor = Color.FromArgb(70, 255, 255, 255);
-            avatarBadge.Size = new Size(104, 104);
-            avatarBadge.TabIndex = 0;
-            avatarBadge.TabStop = false;
-            // 
-            // securityCaption
-            // 
-            securityCaption.BackColor = Color.Transparent;
-            securityCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            securityCaption.ForeColor = Color.FromArgb(4, 120, 87);
-            securityCaption.Location = new Point(40, 416);
-            securityCaption.Name = "securityCaption";
-            securityCaption.Size = new Size(322, 20);
-            securityCaption.TabIndex = 7;
-            securityCaption.Text = "ACCOUNT SECURITY";
-            securityCaption.TextAlign = ContentAlignment.MiddleCenter;
-            // 
             // changePasswordButton
             // 
             changePasswordButton.BackColor = Color.Transparent;
@@ -711,12 +652,12 @@ namespace oop_project.forms
             changePasswordButton.IconFallbackGlyph = "";
             changePasswordButton.IconGlyph = "";
             changePasswordButton.IconSize = 16F;
-            changePasswordButton.Location = new Point(91, 444);
+            changePasswordButton.Location = new Point(101, 344);
             changePasswordButton.Name = "changePasswordButton";
             changePasswordButton.NormalColor = Color.White;
             changePasswordButton.PressedColor = Color.FromArgb(187, 247, 208);
             changePasswordButton.Size = new Size(220, 44);
-            changePasswordButton.TabIndex = 8;
+            changePasswordButton.TabIndex = 5;
             changePasswordButton.Text = "CHANGE PASSWORD";
             changePasswordButton.UseVisualStyleBackColor = false;
             // 
@@ -733,14 +674,82 @@ namespace oop_project.forms
             editProfileButton.IconFallbackGlyph = "";
             editProfileButton.IconGlyph = "";
             editProfileButton.IconSize = 16F;
-            editProfileButton.Location = new Point(91, 494);
+            editProfileButton.Location = new Point(101, 398);
             editProfileButton.Name = "editProfileButton";
             editProfileButton.NormalColor = Color.FromArgb(22, 163, 74);
             editProfileButton.PressedColor = Color.FromArgb(20, 83, 45);
             editProfileButton.Size = new Size(220, 44);
-            editProfileButton.TabIndex = 9;
+            editProfileButton.TabIndex = 6;
             editProfileButton.Text = "EDIT MY INFO";
             editProfileButton.UseVisualStyleBackColor = false;
+            // 
+            // identityCard
+            // 
+            identityCard.BackColor = Color.FromArgb(240, 253, 244);
+            identityCard.BorderColor = Color.FromArgb(187, 247, 208);
+            identityCard.Controls.Add(editProfileButton);
+            identityCard.Controls.Add(changePasswordButton);
+            identityCard.Controls.Add(identityDivider);
+            identityCard.Controls.Add(profileRoleBadge);
+            identityCard.Controls.Add(profileName);
+            identityCard.Controls.Add(avatarBadge);
+            identityCard.CornerRadius = 20;
+            identityCard.Dock = DockStyle.Fill;
+            identityCard.Location = new Point(0, 0);
+            identityCard.Margin = new Padding(0, 0, 18, 0);
+            identityCard.Name = "identityCard";
+            identityCard.Size = new Size(422, 527);
+            identityCard.TabIndex = 0;
+            // 
+            // identityDivider
+            // 
+            identityDivider.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            identityDivider.BackColor = Color.FromArgb(187, 247, 208);
+            identityDivider.Location = new Point(40, 331);
+            identityDivider.Name = "identityDivider";
+            identityDivider.Size = new Size(342, 1);
+            identityDivider.TabIndex = 4;
+            // 
+            // profileRoleBadge
+            // 
+            profileRoleBadge.BackColor = Color.Transparent;
+            profileRoleBadge.BorderColor = Color.FromArgb(167, 243, 208);
+            profileRoleBadge.CornerRadius = 14;
+            profileRoleBadge.FillColor = Color.White;
+            profileRoleBadge.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            profileRoleBadge.Location = new Point(160, 286);
+            profileRoleBadge.Name = "profileRoleBadge";
+            profileRoleBadge.Size = new Size(103, 33);
+            profileRoleBadge.TabIndex = 3;
+            profileRoleBadge.TabStop = false;
+            profileRoleBadge.Text = "MEMBER";
+            profileRoleBadge.TextColor = Color.FromArgb(4, 120, 87);
+            // 
+            // profileName
+            // 
+            profileName.AutoEllipsis = true;
+            profileName.BackColor = Color.Transparent;
+            profileName.Font = new Font("Segoe UI", 17F, FontStyle.Bold);
+            profileName.ForeColor = Color.FromArgb(6, 78, 59);
+            profileName.Location = new Point(20, 248);
+            profileName.Name = "profileName";
+            profileName.Size = new Size(382, 38);
+            profileName.TabIndex = 2;
+            profileName.Text = "FULL NAME";
+            profileName.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // avatarBadge
+            // 
+            avatarBadge.BackColor = Color.Transparent;
+            avatarBadge.FillBottomColor = Color.FromArgb(4, 90, 66);
+            avatarBadge.FillTopColor = Color.FromArgb(34, 197, 94);
+            avatarBadge.InitialsColor = Color.White;
+            avatarBadge.Location = new Point(131, 84);
+            avatarBadge.Name = "avatarBadge";
+            avatarBadge.RingColor = Color.FromArgb(70, 255, 255, 255);
+            avatarBadge.Size = new Size(160, 160);
+            avatarBadge.TabIndex = 1;
+            avatarBadge.TabStop = false;
             // 
             // tabPage3
             // 
@@ -1103,8 +1112,6 @@ namespace oop_project.forms
             tabPage4.Controls.Add(attendanceGrid);
             tabPage4.Controls.Add(attendanceStatusLabel);
             tabPage4.Controls.Add(attendanceReportButton);
-            tabPage4.Controls.Add(markReturnedButton);
-            tabPage4.Controls.Add(recordBorrowButton);
             tabPage4.Controls.Add(attendanceSubtitle);
             tabPage4.Controls.Add(attendanceHeading);
             tabPage4.Location = new Point(4, 29);
@@ -1124,7 +1131,7 @@ namespace oop_project.forms
             attendanceEmptyLabel.Name = "attendanceEmptyLabel";
             attendanceEmptyLabel.Size = new Size(1284, 70);
             attendanceEmptyLabel.TabIndex = 7;
-            attendanceEmptyLabel.Text = "NO BORROW RECORDS YET.\r\nUSE RECORD BORROW TO LOG THE FIRST LOAN.";
+            attendanceEmptyLabel.Text = "NO BORROW RECORDS YET.\r\nUSE BORROW BOOK IN THE BOOK CATALOG TAB TO LOG THE FIRST LOAN.";
             attendanceEmptyLabel.TextAlign = ContentAlignment.MiddleCenter;
             attendanceEmptyLabel.Visible = false;
             // 
@@ -1260,7 +1267,7 @@ namespace oop_project.forms
             attendanceReportButton.IconFallbackGlyph = "";
             attendanceReportButton.IconGlyph = "";
             attendanceReportButton.IconSize = 16F;
-            attendanceReportButton.Location = new Point(420, 92);
+            attendanceReportButton.Location = new Point(30, 92);
             attendanceReportButton.Name = "attendanceReportButton";
             attendanceReportButton.NormalColor = Color.FromArgb(194, 65, 12);
             attendanceReportButton.PressedColor = Color.FromArgb(120, 45, 15);
@@ -1269,52 +1276,6 @@ namespace oop_project.forms
             attendanceReportButton.Text = "EXPORT PDF";
             attendanceReportButton.UseVisualStyleBackColor = false;
             attendanceReportButton.Click += attendanceReportButton_Click;
-            // 
-            // markReturnedButton
-            // 
-            markReturnedButton.BackColor = Color.Transparent;
-            markReturnedButton.CornerRadius = 12;
-            markReturnedButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
-            markReturnedButton.FlatAppearance.BorderSize = 0;
-            markReturnedButton.FlatStyle = FlatStyle.Flat;
-            markReturnedButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            markReturnedButton.ForeColor = Color.White;
-            markReturnedButton.HoverColor = Color.FromArgb(71, 85, 105);
-            markReturnedButton.IconFallbackGlyph = "";
-            markReturnedButton.IconGlyph = "";
-            markReturnedButton.IconSize = 16F;
-            markReturnedButton.Location = new Point(232, 92);
-            markReturnedButton.Name = "markReturnedButton";
-            markReturnedButton.NormalColor = Color.FromArgb(100, 116, 139);
-            markReturnedButton.PressedColor = Color.FromArgb(51, 65, 85);
-            markReturnedButton.Size = new Size(172, 46);
-            markReturnedButton.TabIndex = 3;
-            markReturnedButton.Text = "MARK RETURNED";
-            markReturnedButton.UseVisualStyleBackColor = false;
-            markReturnedButton.Click += markReturnedButton_Click;
-            // 
-            // recordBorrowButton
-            // 
-            recordBorrowButton.BackColor = Color.Transparent;
-            recordBorrowButton.CornerRadius = 12;
-            recordBorrowButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
-            recordBorrowButton.FlatAppearance.BorderSize = 0;
-            recordBorrowButton.FlatStyle = FlatStyle.Flat;
-            recordBorrowButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            recordBorrowButton.ForeColor = Color.White;
-            recordBorrowButton.HoverColor = Color.FromArgb(15, 118, 110);
-            recordBorrowButton.IconFallbackGlyph = "";
-            recordBorrowButton.IconGlyph = "";
-            recordBorrowButton.IconSize = 16F;
-            recordBorrowButton.Location = new Point(21, 92);
-            recordBorrowButton.Name = "recordBorrowButton";
-            recordBorrowButton.NormalColor = Color.FromArgb(13, 148, 136);
-            recordBorrowButton.PressedColor = Color.FromArgb(17, 94, 89);
-            recordBorrowButton.Size = new Size(186, 46);
-            recordBorrowButton.TabIndex = 2;
-            recordBorrowButton.Text = "RECORD BORROW";
-            recordBorrowButton.UseVisualStyleBackColor = false;
-            recordBorrowButton.Click += borrowBookButton_Click;
             // 
             // attendanceSubtitle
             // 
@@ -1365,7 +1326,7 @@ namespace oop_project.forms
             requestsGrid.BorderStyle = BorderStyle.None;
             requestsGrid.ColumnHeadersHeight = 44;
             requestsGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            requestsGrid.Columns.AddRange(new DataGridViewColumn[] { requestIdColumn, requestBookColumn, requestStudentColumn, requestStudentIdColumn, requestProgramColumn, requestDateColumn, requestCopiesColumn, requestStatusColumn, requestApproveColumn, requestRejectColumn });
+            requestsGrid.Columns.AddRange(new DataGridViewColumn[] { requestIdColumn, requestBookColumn, requestStudentColumn, requestStudentIdColumn, requestProgramColumn, requestDateColumn, requestCopiesColumn, requestStatusColumn, requestApproveColumn, requestRejectColumn, requestClaimColumn });
             requestsGrid.Location = new Point(30, 156);
             requestsGrid.MultiSelect = false;
             requestsGrid.Name = "requestsGrid";
@@ -1473,6 +1434,20 @@ namespace oop_project.forms
             requestRejectColumn.SortMode = DataGridViewColumnSortMode.NotSortable;
             requestRejectColumn.Width = 92;
             // 
+            // requestClaimColumn
+            // 
+            requestClaimColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dataGridViewCellStyle3.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+            dataGridViewCellStyle3.ForeColor = Color.FromArgb(29, 78, 216);
+            requestClaimColumn.DefaultCellStyle = dataGridViewCellStyle3;
+            requestClaimColumn.HeaderText = "CLAIM";
+            requestClaimColumn.MinimumWidth = 82;
+            requestClaimColumn.Name = "requestClaimColumn";
+            requestClaimColumn.ReadOnly = true;
+            requestClaimColumn.SortMode = DataGridViewColumnSortMode.NotSortable;
+            requestClaimColumn.Width = 92;
+            // 
             // requestsStatusLabel
             // 
             requestsStatusLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -1519,7 +1494,7 @@ namespace oop_project.forms
             requestsSubtitle.Name = "requestsSubtitle";
             requestsSubtitle.Size = new Size(261, 20);
             requestsSubtitle.TabIndex = 1;
-            requestsSubtitle.Text = "Student requests waiting for approval.";
+            requestsSubtitle.Text = "Approve each request, then confirm the claim when the student collects the books.";
             // 
             // requestsHeading
             // 
@@ -1744,7 +1719,7 @@ namespace oop_project.forms
             staffGrid.BorderStyle = BorderStyle.None;
             staffGrid.ColumnHeadersHeight = 44;
             staffGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            staffGrid.Columns.AddRange(new DataGridViewColumn[] { staffIdColumn, staffNameColumn, staffUsernameColumn, staffPasswordColumn, staffStatusColumn, staffRoleColumn });
+            staffGrid.Columns.AddRange(new DataGridViewColumn[] { staffIdColumn, staffNameColumn, staffUsernameColumn, staffPasswordColumn, staffOfficeColumn, staffStatusColumn, staffRoleColumn });
             staffGrid.Location = new Point(30, 156);
             staffGrid.MultiSelect = false;
             staffGrid.Name = "staffGrid";
@@ -1789,6 +1764,15 @@ namespace oop_project.forms
             staffPasswordColumn.Name = "staffPasswordColumn";
             staffPasswordColumn.ReadOnly = true;
             staffPasswordColumn.Width = 130;
+            // 
+            // staffOfficeColumn
+            // 
+            staffOfficeColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            staffOfficeColumn.FillWeight = 20F;
+            staffOfficeColumn.HeaderText = "OFFICE";
+            staffOfficeColumn.MinimumWidth = 110;
+            staffOfficeColumn.Name = "staffOfficeColumn";
+            staffOfficeColumn.ReadOnly = true;
             // 
             // staffStatusColumn
             // 
@@ -2222,24 +2206,13 @@ namespace oop_project.forms
             // 
             logoutButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             logoutButton.BackColor = Color.Transparent;
-            logoutButton.CornerRadius = 12;
-            logoutButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
-            logoutButton.FlatAppearance.BorderSize = 0;
-            logoutButton.FlatStyle = FlatStyle.Flat;
-            logoutButton.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            logoutButton.ForeColor = Color.White;
+            logoutButton.CornerRadius = 14;
             logoutButton.HoverColor = Color.FromArgb(194, 65, 12);
-            logoutButton.IconFallbackGlyph = "";
-            logoutButton.IconGlyph = "";
-            logoutButton.IconSize = 16F;
-            logoutButton.Location = new Point(1260, 32);
+            logoutButton.Location = new Point(1364, 31);
             logoutButton.Name = "logoutButton";
-            logoutButton.NormalColor = Color.FromArgb(234, 88, 12);
             logoutButton.PressedColor = Color.FromArgb(154, 52, 18);
-            logoutButton.Size = new Size(150, 44);
+            logoutButton.Size = new Size(46, 46);
             logoutButton.TabIndex = 5;
-            logoutButton.Text = "SIGN OUT";
-            logoutButton.UseVisualStyleBackColor = false;
             logoutButton.Click += logoutButton_Click;
             // 
             // headerRoleBadge
@@ -2322,6 +2295,11 @@ namespace oop_project.forms
             roundedCard1.ResumeLayout(false);
             tabControl1.ResumeLayout(false);
             tabPage1.ResumeLayout(false);
+            profileTabGrid.ResumeLayout(false);
+            profileTabGrid.PerformLayout();
+            profileHeader.ResumeLayout(false);
+            profileHeader.PerformLayout();
+            profileColumns.ResumeLayout(false);
             detailsCard.ResumeLayout(false);
             detailsCard.PerformLayout();
             identityCard.ResumeLayout(false);
@@ -2362,7 +2340,7 @@ namespace oop_project.forms
         private Label brandSubtitle;
         private Label accountNameLabel;
         private PillBadge headerRoleBadge;
-        private RoundedButton logoutButton;
+        private SignOutButton logoutButton;
         private RoundedCard roundedCard1;
         private TabControl tabControl1;
         private TabPage tabPage1;
@@ -2370,12 +2348,15 @@ namespace oop_project.forms
         private TabPage tabPage3;
         private TabPage tabPage4;
         private RoundedCard identityCard;
-        private Label identityNote;
         private Panel identityDivider;
         private PillBadge profileRoleBadge;
         private Label profileName;         
         private AvatarBadge avatarBadge;   
-        private Label securityCaption;
+        private TableLayoutPanel profileTabGrid;
+        private Panel profileHeader;
+        private Label profileTitleLabel;
+        private Label profileSubtitleLabel;
+        private TableLayoutPanel profileColumns;
         private RoundedButton changePasswordButton;
         private RoundedButton editProfileButton;
         private RoundedCard detailsCard;
@@ -2389,8 +2370,6 @@ namespace oop_project.forms
         private Label valueRole;
         private Label captionRole;
         private Panel dividerRow2;
-        private Label valueUsername;
-        private Label captionUsername;
         private Panel dividerRow1;
         private Label valueFullName;
         private Label captionFullName;
@@ -2424,8 +2403,6 @@ namespace oop_project.forms
         private DataGridView booksGrid;
         private Label attendanceHeading;
         private Label attendanceSubtitle;
-        private RoundedButton recordBorrowButton;
-        private RoundedButton markReturnedButton;
         private RoundedButton attendanceReportButton;
         private Label attendanceStatusLabel;
         private Label attendanceEmptyLabel;
@@ -2476,6 +2453,7 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn staffNameColumn;
         private DataGridViewTextBoxColumn staffUsernameColumn;
         private DataGridViewTextBoxColumn staffPasswordColumn;
+        private DataGridViewTextBoxColumn staffOfficeColumn;
         private DataGridViewTextBoxColumn staffStatusColumn;
         private DataGridViewTextBoxColumn staffRoleColumn;
         private Label staffStatusLabel;
@@ -2504,7 +2482,6 @@ namespace oop_project.forms
         private Label captionProgramOffice;
         private Label valueInstitute;
         private Label captionInstitute;
-        private Panel recordDivider;
         private DataGridViewTextBoxColumn bookIdColumn;
         private DataGridViewTextBoxColumn bookTitleColumn;
         private DataGridViewTextBoxColumn bookAuthorColumn;
@@ -2521,6 +2498,7 @@ namespace oop_project.forms
         private DataGridViewTextBoxColumn requestStatusColumn;
         private DataGridViewTextBoxColumn requestApproveColumn;
         private DataGridViewTextBoxColumn requestRejectColumn;
+        private DataGridViewTextBoxColumn requestClaimColumn;
         private TabPage tabPage7;
     }
 }

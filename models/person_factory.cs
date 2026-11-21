@@ -19,9 +19,6 @@ namespace oop_project.Models
                 case "FACULTY": return new Faculty();
                 case "STAFF": return new Staff();
                 case "LIBRARIAN": return new Librarian();
-                // Kept so accounts saved with the old role names can still sign in.
-                case "OFFICER": return new Officer();
-                case "ADMIN": return new Admin();
                 default: throw new ArgumentException("UNKNOWN ROLE '" + role + "'.");
             }
         }

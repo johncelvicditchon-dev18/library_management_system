@@ -8,9 +8,10 @@ namespace oop_project.Models
 {
     /// <summary>
     /// Stores the LIBRARY RESOURCE CENTER EVALUATION FORM responses. One row in
-    /// evaluation_table describes the submission (role, optional name, time) and
-    /// one row in evaluation_answer_table keeps each 1-5 rating, so the answers
-    /// stay normalised and can be averaged per question or per section.
+    /// evaluation_table records the submission and optional account, one row in
+    /// evaluation_respondent_table records the role and name snapshot, and one row
+    /// in evaluation_answer_table keeps each 1-5 rating, so the answers stay
+    /// normalised and can be averaged per question or per section.
     ///
     /// The survey is opened and closed by the librarian per semester, so every
     /// submission is tagged with the period (evaluation_period_table) it belongs
@@ -71,8 +72,8 @@ namespace oop_project.Models
                     long evaluationId;
 
                     const string evaluationSql =
-                        "INSERT INTO `evaluation_table` (`account_id`, `period_id`, `respondent_role`, `respondent_name`, `submitted_at`) " +
-                        "VALUES (@accountId, @periodId, @role, @name, @submittedAt);";
+                        "INSERT INTO `evaluation_table` (`account_id`, `period_id`, `submitted_at`) " +
+                        "VALUES (@accountId, @periodId, @submittedAt);";
 
                     using (MySqlCommand command = new MySqlCommand(evaluationSql, connection, transaction))
                     {
@@ -80,29 +81,38 @@ namespace oop_project.Models
                             "@accountId",
                             accountId > 0 ? (object)accountId : DBNull.Value);
                         command.Parameters.AddWithValue("@periodId", period.PeriodId);
-                        command.Parameters.AddWithValue("@role", role);
-                        command.Parameters.AddWithValue("@name", name);
                         command.Parameters.AddWithValue("@submittedAt", DateTime.Now);
                         command.ExecuteNonQuery();
                         evaluationId = command.LastInsertedId;
                     }
 
+                    const string respondentSql =
+                        "INSERT INTO `evaluation_respondent_table` (`evaluation_id`, `role_id`, `respondent_name`) " +
+                        "VALUES (@evaluationId, " +
+                        "        (SELECT `role_id` FROM `role_table` WHERE `role_code` = @role), @name);";
+
+                    using (MySqlCommand command = new MySqlCommand(respondentSql, connection, transaction))
+                    {
+                        command.Parameters.AddWithValue("@evaluationId", evaluationId);
+                        command.Parameters.AddWithValue("@role", role);
+                        command.Parameters.AddWithValue("@name", name);
+                        command.ExecuteNonQuery();
+                    }
+
                     const string answerSql =
-                        "INSERT INTO `evaluation_answer_table` (`evaluation_id`, `section_no`, `question_no`, `rating`) " +
-                        "VALUES (@evaluationId, @section, @question, @rating);";
+                        "INSERT INTO `evaluation_answer_table` (`evaluation_id`, `question_id`, `rating`) " +
+                        "VALUES (@evaluationId, @questionId, @rating);";
 
                     using (MySqlCommand command = new MySqlCommand(answerSql, connection, transaction))
                     {
                         command.Parameters.Add("@evaluationId", MySqlDbType.Int32);
-                        command.Parameters.Add("@section", MySqlDbType.Int32);
-                        command.Parameters.Add("@question", MySqlDbType.Int32);
+                        command.Parameters.Add("@questionId", MySqlDbType.Int32);
                         command.Parameters.Add("@rating", MySqlDbType.Int32);
 
                         for (int index = 0; index < ratings.Length; index++)
                         {
                             command.Parameters["@evaluationId"].Value = evaluationId;
-                            command.Parameters["@section"].Value = (index / QuestionsPerSection) + 1;
-                            command.Parameters["@question"].Value = (index % QuestionsPerSection) + 1;
+                            command.Parameters["@questionId"].Value = index + 1;
                             command.Parameters["@rating"].Value = ratings[index];
                             command.ExecuteNonQuery();
                         }
@@ -217,7 +227,7 @@ namespace oop_project.Models
                 {
                     const string closeSql =
                         "UPDATE `evaluation_period_table` " +
-                        "SET `is_open` = 0, `closed_at` = @now " +
+                        "SET `closed_at` = @now " +
                         "WHERE `is_open` = 1;";
 
                     using (MySqlCommand command = new MySqlCommand(closeSql, connection, transaction))
@@ -232,7 +242,7 @@ namespace oop_project.Models
                     {
                         const string reopenSql =
                             "UPDATE `evaluation_period_table` " +
-                            "SET `is_open` = 1, `opened_at` = @now, `closed_at` = NULL " +
+                            "SET `opened_at` = @now, `closed_at` = NULL " +
                             "WHERE `period_id` = @periodId;";
 
                         using (MySqlCommand command = new MySqlCommand(reopenSql, connection, transaction))
@@ -245,8 +255,8 @@ namespace oop_project.Models
                     else
                     {
                         const string insertSql =
-                            "INSERT INTO `evaluation_period_table` (`semester`, `school_year`, `is_open`, `opened_at`) " +
-                            "VALUES (@semester, @schoolYear, 1, @now);";
+                            "INSERT INTO `evaluation_period_table` (`semester`, `school_year`, `opened_at`) " +
+                            "VALUES (@semester, @schoolYear, @now);";
 
                         using (MySqlCommand command = new MySqlCommand(insertSql, connection, transaction))
                         {
@@ -289,7 +299,7 @@ namespace oop_project.Models
 
                 const string sql =
                     "UPDATE `evaluation_period_table` " +
-                    "SET `is_open` = 0, `closed_at` = @now " +
+                    "SET `closed_at` = @now " +
                     "WHERE `period_id` = @periodId AND `is_open` = 1;";
 
                 using (MySqlCommand command = new MySqlCommand(sql, connection))
@@ -445,8 +455,9 @@ namespace oop_project.Models
         /// <summary>
         /// ANALYTICS: the people who answered one semester, listed the way the
         /// RESPONDENTS window shows them. The institute and program come from the
-        /// student or faculty profile, so they are empty for a staff member, and the
-        /// student id is only filled for a STUDENT account.
+        /// student or faculty profile and the office comes from the staff profile,
+        /// so a STAFF row shows its office instead of an institute. The student id
+        /// is only filled for a STUDENT account.
         /// </summary>
         public List<EvaluationRespondent> LoadRespondents(int periodId)
         {
@@ -463,22 +474,26 @@ namespace oop_project.Models
                 EnsureSchema(connection);
 
                 const string sql =
-                    "SELECT e.`respondent_name`, e.`respondent_role`, " +
+                    "SELECT er.`respondent_name`, rt.`role_code` AS `respondent_role`, " +
                     "       IFNULL(si.`school_id`, '') AS `school_id`, " +
                     "       IFNULL(p.`program_name`, '') AS `program_name`, " +
-                    "       IFNULL(i.`institute_name`, '') AS `institute_name` " +
+                    "       IFNULL(i.`institute_name`, '') AS `institute_name`, " +
+                    "       IFNULL(st.`office`, '') AS `office` " +
                     "FROM `evaluation_table` e " +
+                    "INNER JOIN `evaluation_respondent_table` er ON er.`evaluation_id` = e.`evaluation_id` " +
+                    "LEFT JOIN `role_table` rt ON rt.`role_id` = er.`role_id` " +
                     "LEFT JOIN `student_info_table` si ON si.`account_id` = e.`account_id` " +
                     "LEFT JOIN `faculty_info_table` fi ON fi.`account_id` = e.`account_id` " +
-                    "LEFT JOIN `institute_table` i " +
-                    "       ON i.`institute_id` = COALESCE(si.`institute_id`, fi.`institute_id`) " +
+                    "LEFT JOIN `staff_info_table` st ON st.`account_id` = e.`account_id` " +
                     "LEFT JOIN `program_table` p ON p.`program_id` = si.`program_id` " +
+                    "LEFT JOIN `institute_table` i " +
+                    "       ON i.`institute_id` = COALESCE(p.`institute_id`, fi.`institute_id`) " +
                     "WHERE e.`period_id` = @periodId " +
-                    "ORDER BY CASE e.`respondent_role` " +
+                    "ORDER BY CASE rt.`role_code` " +
                     "             WHEN 'STUDENT' THEN 1 " +
                     "             WHEN 'FACULTY' THEN 2 " +
                     "             ELSE 3 " +
-                    "         END, e.`respondent_name`;";
+                    "         END, er.`respondent_name`;";
 
                 using (MySqlCommand command = new MySqlCommand(sql, connection))
                 {
@@ -490,19 +505,14 @@ namespace oop_project.Models
                         {
                             string role = ReadText(reader, "respondent_role").ToUpperInvariant();
 
-                            // An OFFICER account is part of the staff group everywhere else.
-                            if (string.Equals(role, "OFFICER", StringComparison.Ordinal))
-                            {
-                                role = "STAFF";
-                            }
-
                             respondents.Add(new EvaluationRespondent
                             {
                                 Name = ReadText(reader, "respondent_name"),
                                 Role = role,
                                 StudentId = ReadText(reader, "school_id"),
                                 Program = ReadText(reader, "program_name"),
-                                Institute = ReadText(reader, "institute_name")
+                                Institute = ReadText(reader, "institute_name"),
+                                Office = ReadText(reader, "office")
                             });
                         }
                     }
@@ -566,10 +576,12 @@ namespace oop_project.Models
             MySqlConnection connection, EvaluationSummary summary, int? periodId)
         {
             string sql =
-                "SELECT `respondent_role`, COUNT(*) AS `total` " +
-                "FROM `evaluation_table` " +
-                (periodId.HasValue ? "WHERE `period_id` = @periodId " : string.Empty) +
-                "GROUP BY `respondent_role`;";
+                "SELECT rt.`role_code`, COUNT(*) AS `total` " +
+                "FROM `evaluation_table` e " +
+                "INNER JOIN `evaluation_respondent_table` er ON er.`evaluation_id` = e.`evaluation_id` " +
+                "INNER JOIN `role_table` rt ON rt.`role_id` = er.`role_id` " +
+                (periodId.HasValue ? "WHERE e.`period_id` = @periodId " : string.Empty) +
+                "GROUP BY rt.`role_code`;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
             {
@@ -603,7 +615,6 @@ namespace oop_project.Models
                                 summary.FacultyResponses += total;
                                 break;
                             case "STAFF":
-                            case "OFFICER":
                                 summary.StaffResponses += total;
                                 break;
                             default:
@@ -661,12 +672,13 @@ namespace oop_project.Models
             MySqlConnection connection, EvaluationSummary summary, int? periodId)
         {
             string sql =
-                "SELECT a.`section_no`, AVG(a.`rating`) AS `average_rating`, COUNT(*) AS `answers` " +
+                "SELECT q.`section_no`, AVG(a.`rating`) AS `average_rating`, COUNT(*) AS `answers` " +
                 "FROM `evaluation_answer_table` a " +
                 "INNER JOIN `evaluation_table` e ON e.`evaluation_id` = a.`evaluation_id` " +
+                "INNER JOIN `evaluation_question_table` q ON q.`question_id` = a.`question_id` " +
                 (periodId.HasValue ? "WHERE e.`period_id` = @periodId " : string.Empty) +
-                "GROUP BY a.`section_no` " +
-                "ORDER BY a.`section_no`;";
+                "GROUP BY q.`section_no` " +
+                "ORDER BY q.`section_no`;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
             {
@@ -718,68 +730,89 @@ namespace oop_project.Models
                 "`period_id` INT AUTO_INCREMENT PRIMARY KEY, " +
                 "`semester` VARCHAR(40) NOT NULL, " +
                 "`school_year` VARCHAR(20) NOT NULL, " +
-                "`is_open` TINYINT(1) NOT NULL DEFAULT 0, " +
                 "`opened_at` DATETIME NULL, " +
                 "`closed_at` DATETIME NULL, " +
-                "UNIQUE KEY `uq_evaluation_period` (`semester`, `school_year`)" +
-                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;";
+                "`is_open` TINYINT(1) AS (CASE WHEN `opened_at` IS NOT NULL AND `closed_at` IS NULL THEN 1 ELSE 0 END) STORED, " +
+                "`open_marker` TINYINT AS (CASE WHEN `opened_at` IS NOT NULL AND `closed_at` IS NULL THEN 1 ELSE NULL END) STORED, " +
+                "UNIQUE KEY `uq_evaluation_period` (`semester`, `school_year`), " +
+                "UNIQUE KEY `ux_single_open_period` (`open_marker`)" +
+                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;";
+
+            const string questionSql =
+                "CREATE TABLE IF NOT EXISTS `evaluation_question_table` (" +
+                "`question_id` INT AUTO_INCREMENT PRIMARY KEY, " +
+                "`section_no` INT NOT NULL, " +
+                "`question_no` INT NOT NULL, " +
+                "`question_text` VARCHAR(255) NOT NULL, " +
+                "UNIQUE KEY `ux_evaluation_question` (`section_no`, `question_no`)" +
+                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;";
 
             const string evaluationSql =
                 "CREATE TABLE IF NOT EXISTS `evaluation_table` (" +
                 "`evaluation_id` INT AUTO_INCREMENT PRIMARY KEY, " +
                 "`account_id` INT NULL, " +
-                "`period_id` INT NULL, " +
-                "`respondent_role` VARCHAR(20) NOT NULL, " +
-                "`respondent_name` VARCHAR(150) NOT NULL DEFAULT '', " +
+                "`period_id` INT NOT NULL, " +
                 "`submitted_at` DATETIME NOT NULL, " +
+                "UNIQUE KEY `uq_evaluation_period_account` (`period_id`, `account_id`), " +
                 "KEY `idx_evaluation_account` (`account_id`), " +
                 "KEY `idx_evaluation_period` (`period_id`), " +
-                "UNIQUE KEY `uq_evaluation_period_account` (`period_id`, `account_id`), " +
                 "CONSTRAINT `fk_evaluation_account` FOREIGN KEY (`account_id`) " +
-                "REFERENCES `account_table` (`account_id`) ON DELETE SET NULL" +
-                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;";
+                "REFERENCES `account_table` (`account_id`) ON DELETE SET NULL, " +
+                "CONSTRAINT `fk_evaluation_period` FOREIGN KEY (`period_id`) " +
+                "REFERENCES `evaluation_period_table` (`period_id`)" +
+                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;";
+
+            const string respondentSql =
+                "CREATE TABLE IF NOT EXISTS `evaluation_respondent_table` (" +
+                "`evaluation_id` INT PRIMARY KEY, " +
+                "`role_id` INT NOT NULL, " +
+                "`respondent_name` VARCHAR(150) NOT NULL DEFAULT '', " +
+                "KEY `idx_eval_respondent_role` (`role_id`), " +
+                "CONSTRAINT `fk_eval_respondent_evaluation` FOREIGN KEY (`evaluation_id`) " +
+                "REFERENCES `evaluation_table` (`evaluation_id`) ON DELETE CASCADE, " +
+                "CONSTRAINT `fk_eval_respondent_role` FOREIGN KEY (`role_id`) " +
+                "REFERENCES `role_table` (`role_id`)" +
+                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;";
 
             const string answerSql =
                 "CREATE TABLE IF NOT EXISTS `evaluation_answer_table` (" +
                 "`answer_id` INT AUTO_INCREMENT PRIMARY KEY, " +
                 "`evaluation_id` INT NOT NULL, " +
-                "`section_no` INT NOT NULL, " +
-                "`question_no` INT NOT NULL, " +
+                "`question_id` INT NOT NULL, " +
                 "`rating` TINYINT NOT NULL, " +
+                "UNIQUE KEY `ux_answer_evaluation_question` (`evaluation_id`, `question_id`), " +
                 "KEY `idx_answer_evaluation` (`evaluation_id`), " +
+                "KEY `idx_answer_question` (`question_id`), " +
                 "CONSTRAINT `fk_answer_evaluation` FOREIGN KEY (`evaluation_id`) " +
-                "REFERENCES `evaluation_table` (`evaluation_id`) ON DELETE CASCADE" +
-                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;";
+                "REFERENCES `evaluation_table` (`evaluation_id`) ON DELETE CASCADE, " +
+                "CONSTRAINT `fk_answer_question` FOREIGN KEY (`question_id`) " +
+                "REFERENCES `evaluation_question_table` (`question_id`), " +
+                "CONSTRAINT `chk_answer_rating` CHECK (`rating` BETWEEN 1 AND 5)" +
+                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;";
 
             Execute(connection, periodSql);
+            Execute(connection, questionSql);
             Execute(connection, evaluationSql);
+            Execute(connection, respondentSql);
             Execute(connection, answerSql);
 
-            // A database created before the semester periods existed keeps its old
-            // evaluation_table, so the period column and its keys are added in place.
-            if (!ColumnExists(connection, "evaluation_table", "period_id"))
-            {
-                Execute(connection,
-                    "ALTER TABLE `evaluation_table` ADD COLUMN `period_id` INT NULL AFTER `account_id`;");
-            }
+            UpgradePeriodSchema(connection);
+            UpgradeRespondentSchema(connection);
 
-            if (!IndexExists(connection, "evaluation_table", "idx_evaluation_period"))
+            // The 25 statements are reference data. The main schema file stores the
+            // real wording; this fallback only makes sure the ids exist.
+            for (int index = 1; index <= QuestionCount; index++)
             {
-                Execute(connection,
-                    "ALTER TABLE `evaluation_table` ADD KEY `idx_evaluation_period` (`period_id`);");
-            }
-
-            if (!IndexExists(connection, "evaluation_table", "uq_evaluation_period_account"))
-            {
-                try
+                using (MySqlCommand command = new MySqlCommand(
+                    "INSERT IGNORE INTO `evaluation_question_table` " +
+                    "(`question_id`, `section_no`, `question_no`, `question_text`) " +
+                    "VALUES (@id, @section, @question, @text);", connection))
                 {
-                    Execute(connection,
-                        "ALTER TABLE `evaluation_table` ADD UNIQUE KEY `uq_evaluation_period_account` (`period_id`, `account_id`);");
-                }
-                catch (MySqlException)
-                {
-                    // Old duplicates would block the unique key; the submit method
-                    // still checks the same rule before it inserts an answer.
+                    command.Parameters.AddWithValue("@id", index);
+                    command.Parameters.AddWithValue("@section", ((index - 1) / QuestionsPerSection) + 1);
+                    command.Parameters.AddWithValue("@question", ((index - 1) % QuestionsPerSection) + 1);
+                    command.Parameters.AddWithValue("@text", "QUESTION " + index);
+                    command.ExecuteNonQuery();
                 }
             }
 
@@ -791,6 +824,102 @@ namespace oop_project.Models
             using (MySqlCommand command = new MySqlCommand(sql, connection))
             {
                 command.ExecuteNonQuery();
+            }
+        }
+
+        private static void UpgradePeriodSchema(MySqlConnection connection)
+        {
+            if (!ColumnIsGenerated(connection, "evaluation_period_table", "is_open"))
+            {
+                const string closeExtraSql =
+                    "UPDATE `evaluation_period_table` SET `closed_at` = NOW() " +
+                    "WHERE `opened_at` IS NOT NULL AND `closed_at` IS NULL " +
+                    "AND `period_id` <> (SELECT `period_id` FROM (" +
+                    "    SELECT `period_id` FROM `evaluation_period_table` " +
+                    "    WHERE `opened_at` IS NOT NULL AND `closed_at` IS NULL " +
+                    "    ORDER BY `opened_at` DESC, `period_id` DESC LIMIT 1" +
+                    ") AS `latest_open_period`);";
+
+                Execute(connection, closeExtraSql);
+                Execute(connection, "ALTER TABLE `evaluation_period_table` DROP COLUMN `is_open`;");
+                Execute(connection,
+                    "ALTER TABLE `evaluation_period_table` ADD COLUMN `is_open` TINYINT(1) " +
+                    "AS (CASE WHEN `opened_at` IS NOT NULL AND `closed_at` IS NULL THEN 1 ELSE 0 END) STORED;");
+            }
+
+            if (!ColumnExists(connection, "evaluation_period_table", "open_marker"))
+            {
+                Execute(connection,
+                    "ALTER TABLE `evaluation_period_table` ADD COLUMN `open_marker` TINYINT " +
+                    "AS (CASE WHEN `opened_at` IS NOT NULL AND `closed_at` IS NULL THEN 1 ELSE NULL END) STORED;");
+            }
+
+            if (!IndexExists(connection, "evaluation_period_table", "ux_single_open_period"))
+            {
+                Execute(connection,
+                    "ALTER TABLE `evaluation_period_table` ADD UNIQUE KEY `ux_single_open_period` (`open_marker`);");
+            }
+        }
+
+        private static void UpgradeRespondentSchema(MySqlConnection connection)
+        {
+            if (!ColumnExists(connection, "evaluation_table", "role_id"))
+            {
+                return;
+            }
+
+            bool hasName = ColumnExists(connection, "evaluation_table", "respondent_name");
+            string nameColumn = hasName ? "`respondent_name`" : "''";
+
+            Execute(connection,
+                "INSERT IGNORE INTO `evaluation_respondent_table` (`evaluation_id`, `role_id`, `respondent_name`) " +
+                "SELECT `evaluation_id`, `role_id`, " + nameColumn + " FROM `evaluation_table`;");
+
+            if (ConstraintExists(connection, "evaluation_table", "fk_evaluation_role"))
+            {
+                Execute(connection, "ALTER TABLE `evaluation_table` DROP FOREIGN KEY `fk_evaluation_role`;");
+            }
+
+            if (IndexExists(connection, "evaluation_table", "idx_evaluation_role"))
+            {
+                Execute(connection, "ALTER TABLE `evaluation_table` DROP INDEX `idx_evaluation_role`;");
+            }
+
+            Execute(connection, "ALTER TABLE `evaluation_table` DROP COLUMN `role_id`;");
+
+            if (hasName)
+            {
+                Execute(connection, "ALTER TABLE `evaluation_table` DROP COLUMN `respondent_name`;");
+            }
+        }
+
+        private static bool ColumnIsGenerated(MySqlConnection connection, string tableName, string columnName)
+        {
+            const string sql =
+                "SELECT COUNT(*) FROM `information_schema`.`COLUMNS` " +
+                "WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = @table AND `COLUMN_NAME` = @column " +
+                "AND `GENERATION_EXPRESSION` <> '';";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@table", tableName);
+                command.Parameters.AddWithValue("@column", columnName);
+                return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
+            }
+        }
+
+        private static bool ConstraintExists(MySqlConnection connection, string tableName, string constraintName)
+        {
+            const string sql =
+                "SELECT COUNT(*) FROM `information_schema`.`TABLE_CONSTRAINTS` " +
+                "WHERE `CONSTRAINT_SCHEMA` = DATABASE() AND `TABLE_NAME` = @table " +
+                "AND `CONSTRAINT_NAME` = @constraint;";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@table", tableName);
+                command.Parameters.AddWithValue("@constraint", constraintName);
+                return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
             }
         }
 
@@ -856,15 +985,34 @@ namespace oop_project.Models
     /// <summary>
     /// One person who answered the survey in a semester, shown in the RESPONDENTS
     /// window. Institute, program and student id are empty when the role has no
-    /// such detail: faculty have an institute only, and staff have neither.
+    /// such detail: faculty have an institute only, and staff have an office
+    /// instead of an institute and no program or student id.
     /// </summary>
     public sealed class EvaluationRespondent
     {
         public string Name { get; set; } = string.Empty;
         public string Institute { get; set; } = string.Empty;
+        public string Office { get; set; } = string.Empty;
         public string Program { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public string StudentId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The value of the INSTITUTE/OFFICE column: a STAFF member has no
+        /// institute, so that column shows the office instead.
+        /// </summary>
+        public string InstituteOrOffice
+        {
+            get
+            {
+                if (string.Equals((Role ?? string.Empty).Trim(), "STAFF", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (Office ?? string.Empty).Trim();
+                }
+
+                return (Institute ?? string.Empty).Trim();
+            }
+        }
     }
 
     /// <summary>

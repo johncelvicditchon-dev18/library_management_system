@@ -1,11 +1,11 @@
-﻿
-using AForge.Video;
+﻿using AForge.Video;
 using AForge.Video.DirectShow;
 
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -21,15 +21,15 @@ namespace library_management_system.forms
     /// <summary>
     /// Automatic QR attendance scanner.
     ///
-    /// The form follows the reference layout: a large title, the camera feed in a
-    /// white rounded card and the scanned account name in the green display card
-    /// underneath. There are no buttons and no camera picker: the first available
-    /// camera starts as soon as the form is shown and every frame is scanned
-    /// automatically.
+    /// The page is a self-service kiosk: the institution header sits at the top,
+    /// the live camera preview is a large square card in the middle and the
+    /// scanned account is shown on the green result card underneath. The first
+    /// available camera starts as soon as the form is shown and every frame is
+    /// scanned automatically, so there are no start or stop buttons.
     ///
     /// The QR text is handed to <see cref="AttendanceDirectory.RecordEntry"/>, so
     /// only registered ACTIVE accounts are recorded. A repeated scan of the same
-    /// pass is ignored for a minute instead of flooding the display.
+    /// code is ignored for a minute instead of flooding the display.
     /// </summary>
     public partial class qr_code_scanner : Form
     {
@@ -47,6 +47,8 @@ namespace library_management_system.forms
 
         private System.Windows.Forms.Timer? _cameraProbeTimer;
         private System.Windows.Forms.Timer? _displayTimer;
+        private System.Windows.Forms.Timer? _clockTimer;
+
         private int _cameraIndex;
         private volatile bool _frameSeen;
         private DateTime _cameraProbeDeadline;
@@ -63,13 +65,16 @@ namespace library_management_system.forms
         public qr_code_scanner()
         {
             InitializeComponent();
+
+            DoubleBuffered = true;
+
             InitializeBarcodeReader();
 
-            // Soft shadows sit in the padding around the two white cards.
+            // Soft shadows sit in the padding around the two floating cards.
             cameraArea.Paint += (sender, args) => PaintCardShadow(args.Graphics, cameraCard.Bounds);
-            nameArea.Paint += (sender, args) => PaintCardShadow(args.Graphics, nameCard.Bounds);
+            resultArea.Paint += (sender, args) => PaintCardShadow(args.Graphics, resultCard.Bounds);
             cameraCard.Resize += (sender, args) => cameraArea.Invalidate();
-            nameCard.Resize += (sender, args) => nameArea.Invalidate();
+            resultCard.Resize += (sender, args) => resultArea.Invalidate();
 
             // The probe timer checks whether the camera that was just opened really
             // delivers frames. Virtual cameras (for example OBS when it is not
@@ -78,25 +83,185 @@ namespace library_management_system.forms
             _cameraProbeTimer = new System.Windows.Forms.Timer { Interval = 250 };
             _cameraProbeTimer.Tick += CameraProbeTimer_Tick;
 
-            // The scanned name and date/time stay on screen for two seconds, then
-            // the card clears itself so the next person can scan immediately.
-            _displayTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+            // The scanned name and date/time stay on screen for a few seconds,
+            // then the card clears itself so the next person can scan immediately.
+            _displayTimer = new System.Windows.Forms.Timer { Interval = 2800 };
             _displayTimer.Tick += DisplayTimer_Tick;
+
+            // Kiosk clock in the top right corner.
+            _clockTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+            _clockTimer.Tick += ClockTimer_Tick;
 
             FormClosing += qr_code_scanner_FormClosing;
 
-            // Kiosk layout: the scanner opens on the whole screen so the camera and
-            // the scanned name have the same proportions as the reference layout.
-            oop_project.ScreenMode.Apply(this);
+            UpdateClock();
+            _clockTimer.Start();
+
+            // Kiosk layout: the scanner opens on the whole screen so the square
+            // camera has as much room as the monitor allows.
+            oop_project.ScreenMode.Apply(this, new Size(1000, 700));
         }
 
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
 
+            ArrangeLayout();
+
             // AUTOMATIC START: opening the form is enough to detect and start the
             // camera. No camera list and no start / stop buttons are shown.
             StartAutomaticCamera();
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            ArrangeLayout();
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Esc closes the kiosk even when the camera view has the focus.
+            if (keyData == Keys.Escape && !isClosing)
+            {
+                Close();
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // ==========================================
+        // RESPONSIVE SQUARE LAYOUT
+        // ==========================================
+
+        /// <summary>
+        /// Places the header, the square camera card, the result card and the
+        /// status capsule. The camera keeps a 1:1 aspect ratio and grows to the
+        /// largest square that fits the window, so it is always as big as
+        /// possible without ever becoming a stretched rectangle.
+        /// </summary>
+        private void ArrangeLayout()
+        {
+            if (backdrop is null || cameraView is null || cameraCard is null ||
+                ClientSize.Width < 100 || ClientSize.Height < 100)
+            {
+                return;
+            }
+
+            int w = ClientSize.Width;
+            int h = ClientSize.Height;
+
+            float dpi = DeviceDpi / 96f;
+            int px(int value) => (int)Math.Round(value * dpi);
+
+            int padX = px(24);
+            int padTop = px(18);
+            int padBottom = px(18);
+
+            // ---- Compact app bar: logos + brand on the left, the page title in
+            // the middle and the clock on the right. Keeping the header to a
+            // single row leaves far more height for the camera.
+            int rowTop = padTop;
+            int rowHeight = px(70);
+
+            int logoSize = Math.Clamp(px(44), px(34), px(54));
+            int logoTop = rowTop + (rowHeight - logoSize) / 2;
+
+            tcgcLogoBadge.SetBounds(padX, logoTop, logoSize, logoSize);
+            lrcLogoBadge.SetBounds(tcgcLogoBadge.Right + px(8), logoTop, logoSize, logoSize);
+
+            int clockWidth = TextRenderer.MeasureText(
+                clockLabel.Text,
+                clockLabel.Font,
+                Size.Empty,
+                TextFormatFlags.NoPadding).Width + px(12);
+
+            clockWidth = Math.Clamp(clockWidth, px(150), px(280));
+
+            int clockLeft = w - padX - clockWidth;
+            clockLabel.SetBounds(clockLeft, rowTop + (rowHeight - px(24)) / 2, clockWidth, px(24));
+
+            // Brand block directly after the two seals.
+            int brandLeft = lrcLogoBadge.Right + px(14);
+            int brandWidth = px(184);
+            int brandTop = rowTop + (rowHeight - px(38)) / 2;
+
+            brandLabel.SetBounds(brandLeft, brandTop, brandWidth, px(20));
+            brandSubLabel.SetBounds(brandLeft, brandTop + px(20) + px(1), brandWidth, px(17));
+
+            // Title + subtitle are centred on the window whenever there is room,
+            // and are pushed aside instead of overlapping the brand or the clock.
+            int titleTextWidth = TextRenderer.MeasureText(
+                titleLabel.Text,
+                titleLabel.Font,
+                Size.Empty,
+                TextFormatFlags.NoPadding).Width;
+
+            int subtitleTextWidth = TextRenderer.MeasureText(
+                subtitleLabel.Text,
+                subtitleLabel.Font,
+                Size.Empty,
+                TextFormatFlags.NoPadding).Width;
+
+            int titleHeight = px(42);
+            int subtitleHeight = px(20);
+            int textBlockTop = rowTop + (rowHeight - titleHeight - subtitleHeight) / 2;
+
+            int textBlockWidth = Math.Max(titleTextWidth, subtitleTextWidth) + px(40);
+            int minTextLeft = brandLeft + brandWidth + px(16);
+            int maxTextLeft = clockLeft - px(16) - textBlockWidth;
+            int textLeft = Math.Clamp((w - textBlockWidth) / 2, minTextLeft, Math.Max(minTextLeft, maxTextLeft));
+
+            titleLabel.SetBounds(textLeft, textBlockTop, textBlockWidth, titleHeight);
+            subtitleLabel.SetBounds(textLeft, textBlockTop + titleHeight, textBlockWidth, subtitleHeight);
+
+            int headerBottom = rowTop + rowHeight;
+
+            // ---- Camera / result / status stack. The camera side is computed
+            // from the height that is left, then capped by the available width,
+            // so the card stays square and is never clipped.
+            int shadowPad = px(14);
+            int gapHeader = px(14);
+            int gapCamera = px(18);
+            int gapStatus = px(12);
+            int statusHeight = px(44);
+            int resultHeight = Math.Clamp((int)Math.Round(h * 0.125), px(104), px(132));
+
+            int availableHeight = h - headerBottom - gapHeader - resultHeight -
+                                  gapCamera - statusHeight - gapStatus - padBottom;
+            int availableWidth = w - padX * 2 - shadowPad * 2;
+
+            int cardSide = Math.Min(availableHeight, availableWidth);
+            cardSide = Math.Max(px(300), cardSide);
+
+            int cardLeft = (w - cardSide) / 2;
+            int cameraTop = headerBottom + gapHeader;
+
+            cameraArea.SetBounds(
+                cardLeft - shadowPad,
+                cameraTop - shadowPad,
+                cardSide + shadowPad * 2,
+                cardSide + shadowPad * 2);
+
+            cameraCard.SetBounds(shadowPad, shadowPad, cardSide, cardSide);
+
+            int resultTop = cameraTop + cardSide + gapCamera;
+
+            resultArea.SetBounds(
+                cardLeft - shadowPad,
+                resultTop - shadowPad,
+                cardSide + shadowPad * 2,
+                resultHeight + shadowPad * 2);
+
+            resultCard.SetBounds(shadowPad, shadowPad, cardSide, resultHeight);
+
+            int statusTop = resultTop + resultHeight + gapStatus;
+            statusPill.SetBounds(cardLeft, statusTop, cardSide, statusHeight);
+
+            backdrop.Invalidate();
+            cameraArea.Invalidate();
+            resultArea.Invalidate();
         }
 
         // ==========================================
@@ -132,6 +297,8 @@ namespace library_management_system.forms
             {
                 return;
             }
+
+            cameraView.ShowPlaceholder("DETECTING CAMERA", "LOOKING FOR AN AVAILABLE CAMERA");
 
             try
             {
@@ -175,6 +342,11 @@ namespace library_management_system.forms
             _frameSeen = false;
             _cameraProbeDeadline = DateTime.UtcNow.AddSeconds(2.5);
 
+            cameraView.ShowPlaceholder(
+                "CONNECTING TO CAMERA",
+                "CAMERA " + (index + 1).ToString(CultureInfo.InvariantCulture) +
+                " OF " + videoDevices.Count.ToString(CultureInfo.InvariantCulture));
+
             if (!TryStartCamera(index))
             {
                 TryCameraAt(index + 1);
@@ -182,8 +354,8 @@ namespace library_management_system.forms
             }
 
             SetStatus(
-                "CONNECTING TO CAMERA " + (index + 1).ToString() +
-                " OF " + videoDevices.Count.ToString() + "...",
+                "CONNECTING TO CAMERA " + (index + 1).ToString(CultureInfo.InvariantCulture) +
+                " OF " + videoDevices.Count.ToString(CultureInfo.InvariantCulture) + "...",
                 MutedText);
 
             _cameraProbeTimer?.Stop();
@@ -247,7 +419,7 @@ namespace library_management_system.forms
             if (_frameSeen)
             {
                 _cameraProbeTimer?.Stop();
-                SetStatus("CAMERA ACTIVE  •  POINT THE QR PASS TOWARD THE CAMERA.", MutedText);
+                SetStatus("CAMERA ACTIVE  •  POINT THE QR CODE TOWARD THE CAMERA.", MutedText);
                 return;
             }
 
@@ -264,16 +436,13 @@ namespace library_management_system.forms
 
         private void ShowCameraUnavailable(string message)
         {
+            message = (message ?? string.Empty).ToUpperInvariant();
+
             _displayTimer?.Stop();
 
-            cameraPlaceholder.Text = "CAMERA NOT DETECTED";
-            cameraPlaceholder.ForeColor = Color.FromArgb(156, 163, 175);
-            cameraPlaceholder.Visible = true;
-            cameraPlaceholder.BringToFront();
+            cameraView.ShowPlaceholder("CAMERA NOT DETECTED", "CONNECT A CAMERA AND REOPEN THE SCANNER");
 
-            nameLabel.Text = "SCANNER OFFLINE";
-            nameLabel.ForeColor = DangerText;
-
+            resultCard.ShowError("SCANNER OFFLINE", message, "OFFLINE");
             SetStatus(message, DangerText);
         }
 
@@ -329,7 +498,7 @@ namespace library_management_system.forms
 
         private void ShowPreview(Bitmap image)
         {
-            if (!cameraPreview.IsHandleCreated || cameraPreview.IsDisposed)
+            if (!cameraView.IsHandleCreated || cameraView.IsDisposed)
             {
                 image.Dispose();
                 return;
@@ -337,23 +506,17 @@ namespace library_management_system.forms
 
             try
             {
-                cameraPreview.BeginInvoke(new Action(() =>
+                cameraView.BeginInvoke(new Action(() =>
                 {
-                    if (isClosing || cameraPreview.IsDisposed)
+                    if (isClosing || cameraView.IsDisposed)
                     {
                         image.Dispose();
                         return;
                     }
 
-                    Image? oldImage = cameraPreview.Image;
-
-                    cameraPreview.Image = image;
-                    oldImage?.Dispose();
-
-                    if (cameraPlaceholder.Visible)
-                    {
-                        cameraPlaceholder.Visible = false;
-                    }
+                    // The control disposes the previous frame when it is replaced.
+                    cameraView.Frame = image;
+                    cameraView.Scanning = isScanning;
                 }));
             }
             catch
@@ -389,8 +552,8 @@ namespace library_management_system.forms
             {
                 DateTime now = DateTime.UtcNow;
 
-                // The same pass is not sent to MySQL again for a minute after it was
-                // recorded. A refused pass is retried, so a database hiccup does not
+                // The same code is not sent to MySQL again for a minute after it was
+                // recorded. A refused code is retried, so a database hiccup does not
                 // lock the user out for a whole minute.
                 accept = !(string.Equals(_lastCode, code, StringComparison.Ordinal) &&
                            (now - _lastCodeTime).TotalSeconds < 60);
@@ -418,7 +581,9 @@ namespace library_management_system.forms
             }
 
             isBusy = true;
-            SetStatus("VERIFYING THE QR PASS...", MutedText);
+
+            resultCard.ShowBusy("VERIFYING QR CODE", "CHECKING THE LIBRARY ACCOUNT", "VERIFYING");
+            SetStatus("VERIFYING THE QR CODE...", MutedText);
 
             try
             {
@@ -454,7 +619,7 @@ namespace library_management_system.forms
             }
             catch (Exception ex)
             {
-                ShowRefusalIfOpen("THE QR PASS COULD NOT BE RECORDED. " + ex.Message);
+                ShowRefusalIfOpen("THE QR CODE COULD NOT BE RECORDED. " + ex.Message);
             }
             finally
             {
@@ -468,12 +633,24 @@ namespace library_management_system.forms
         private void ShowScan(AttendanceScanResult scan)
         {
             AttendanceRow row = scan.Attendance;
+            string name = row.Name.ToUpperInvariant();
 
-            nameLabel.Text = row.Name.ToUpperInvariant();
-            nameLabel.ForeColor = SuccessGreen;
+            // Role, ID number and the server timestamp form one readable line.
+            // Faculty and staff read N/A in the ID NUMBER slot, like the table.
+            string detail = (row.Role + "  •  " + row.DisplayIdNumber + "  •  " + row.StampText)
+                .ToUpperInvariant();
 
-            // Only the date and time are shown next to the name, without the role.
-            SetStatus(row.StampText, scan.AlreadyRecorded ? WarningText : SuccessGreen);
+            if (scan.AlreadyRecorded)
+            {
+                resultCard.ShowDuplicate(name, detail, "ALREADY RECORDED");
+                SetStatus("ALREADY RECORDED  •  " + row.TimeText, WarningText);
+            }
+            else
+            {
+                resultCard.ShowSuccess(name, detail, "CHECKED IN");
+                SetStatus("ATTENDANCE RECORDED  •  " + row.TimeText, SuccessGreen);
+            }
+
             RestartDisplayTimer();
         }
 
@@ -484,10 +661,10 @@ namespace library_management_system.forms
                 return;
             }
 
-            nameLabel.Text = "SCAN REFUSED";
-            nameLabel.ForeColor = DangerText;
+            message = (message ?? string.Empty).ToUpperInvariant();
 
-            SetStatus((message ?? string.Empty).ToUpperInvariant(), DangerText);
+            resultCard.ShowError("SCAN REFUSED", message, "NOT RECORDED");
+            SetStatus(message, DangerText);
             RestartDisplayTimer();
         }
 
@@ -507,8 +684,7 @@ namespace library_management_system.forms
             }
 
             // Clear the previous result so the next person can scan right away.
-            nameLabel.Text = "WAITING FOR QR CODE...";
-            nameLabel.ForeColor = SuccessGreen;
+            resultCard.ShowIdle("WAITING FOR QR CODE", "POINT THE LIBRARY QR CODE AT THE CAMERA", "READY");
 
             if (isScanning && _frameSeen)
             {
@@ -526,8 +702,23 @@ namespace library_management_system.forms
 
         private void SetStatus(string message, Color color)
         {
-            statusLabel.Text = (message ?? string.Empty).ToUpperInvariant();
-            statusLabel.ForeColor = color;
+            statusPill.Message = (message ?? string.Empty).ToUpperInvariant();
+            statusPill.AccentColor = color;
+            statusPill.TextColor = color == MutedText
+                ? Color.FromArgb(71, 85, 105)
+                : color;
+        }
+
+        private void UpdateClock()
+        {
+            clockLabel.Text = DateTime.Now
+                .ToString("ddd, MMM d  •  h:mm tt", CultureInfo.InvariantCulture)
+                .ToUpperInvariant();
+        }
+
+        private void ClockTimer_Tick(object? sender, EventArgs e)
+        {
+            UpdateClock();
         }
 
         // ==========================================
@@ -542,16 +733,17 @@ namespace library_management_system.forms
             }
 
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-            for (int spread = 8; spread >= 1; spread--)
+            for (int spread = 12; spread >= 1; spread--)
             {
                 Rectangle shadow = card;
                 shadow.Inflate(spread, spread);
-                shadow.Offset(0, 3);
+                shadow.Offset(0, 3 + spread / 2);
 
-                int alpha = 3 + (8 - spread) * 2;
+                int alpha = 2 + (13 - spread);
 
-                using GraphicsPath path = oop_project.DrawHelper.CreateRoundedPath(shadow, 18 + spread);
+                using GraphicsPath path = oop_project.DrawHelper.CreateRoundedPath(shadow, 24 + spread);
                 using SolidBrush brush = new SolidBrush(Color.FromArgb(alpha, 15, 23, 42));
 
                 graphics.FillPath(brush, path);
@@ -565,6 +757,7 @@ namespace library_management_system.forms
         private void StopCamera()
         {
             isScanning = false;
+            cameraView.Scanning = false;
 
             if (videoSource == null)
             {
@@ -602,13 +795,13 @@ namespace library_management_system.forms
             _displayTimer?.Dispose();
             _displayTimer = null;
 
+            _clockTimer?.Stop();
+            _clockTimer?.Dispose();
+            _clockTimer = null;
+
             StopCamera();
 
-            if (cameraPreview.Image != null)
-            {
-                cameraPreview.Image.Dispose();
-                cameraPreview.Image = null;
-            }
+            cameraView.ClearFrame();
 
             barcodeReader = null;
         }

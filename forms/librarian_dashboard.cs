@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Windows.Forms;
@@ -44,6 +45,7 @@ namespace oop_project.forms
         private const string BookCoverColumnName = "bookCoverColumn";
         private const string RequestApproveColumnName = "requestApproveColumn";
         private const string RequestRejectColumnName = "requestRejectColumn";
+        private const string RequestClaimColumnName = "requestClaimColumn";
         private const string EditGlyph = "\uE70F";
         private const string DeleteGlyph = "\uE74D";
         private const string AccessGlyph = "\uE7E8";
@@ -75,28 +77,45 @@ namespace oop_project.forms
         private bool _attendanceLogOnline = true;
 
         // ANALYTICS tab: the page itself is declared in the designer so it appears in
-        // Visual Studio's View Designer. The two GDI+ charts are built in code.
+        // Visual Studio's View Designer. The header and the smooth GDI+ line charts
+        // are built in code because they are custom drawn.
         private Panel analyticsHead = null!;
         private Label analyticsTitle = null!;
-        private Label analyticsSubtitle = null!;
+
+        // The header carries no description or counter line, so this label only
+        // appears when the charts could not be loaded and the librarian has to be
+        // told why.
         private Label analyticsStatus = null!;
         private RoundedButton analyticsRefreshButton = null!;
-        private Panel programVisitsScroll = null!;
-        private HorizontalBarChart programVisitsChart = null!;
-        private HorizontalBarChart topBorrowersChart = null!;
+        private LineChart programVisitsChart = null!;
+        private LineChart topBorrowersChart = null!;
+        private LineChart mostBorrowedBooksChart = null!;
+
+        // ANALYTICS: hovering a point of the MOST BORROWED BOOKS curve fades in that
+        // book's cover, and hovering a TOP LIBRARY BOOK BORROWERS point fades in the
+        // borrower's initials. Both are read or drawn the first time they are hovered
+        // and kept here afterwards, so moving the mouse over the same point is instant.
+        private const int HoverCoverWidth = 62;
+        private const int HoverCoverHeight = 84;
+        private readonly Dictionary<int, Image> _bookCoverCache = new Dictionary<int, Image>();
+        private readonly Dictionary<string, Image> _borrowerAvatarCache =
+            new Dictionary<string, Image>(StringComparer.OrdinalIgnoreCase);
 
         // ANALYTICS: EVALUATION FORM FEEDBACK block. The KPI cards summarise who
         // answered the survey and the three charts show the respondent split and
         // the ratings the students, faculty and staff gave.
         private readonly EvaluationDirectory _evaluationDirectory = new EvaluationDirectory();
-        private StatCard evalTotalCard = null!;
-        private StatCard evalStudentCard = null!;
-        private StatCard evalFacultyCard = null!;
-        private StatCard evalStaffCard = null!;
-        private StatCard evalAverageCard = null!;
+        private AnalyticsStatCard evalTotalCard = null!;
+        private AnalyticsStatCard evalStudentCard = null!;
+        private AnalyticsStatCard evalFacultyCard = null!;
+        private AnalyticsStatCard evalStaffCard = null!;
         private DonutChart evaluationRoleChart = null!;
-        private HorizontalBarChart evaluationSectionChart = null!;
-        private HorizontalBarChart evaluationRatingChart = null!;
+        private LineChart evaluationSectionChart = null!;
+        private LineChart evaluationRatingChart = null!;
+
+        // ANALYTICS: the line charts stay readable by drawing the ten highest
+        // values of a ranking; the subtitle always says how many were left out.
+        private const int ChartPointLimit = 10;
 
         // ANALYTICS: the SEMESTER strip. The librarian opens one semester at a time,
         // closes it when the term ends and starts the next one; the combo lets the
@@ -129,7 +148,7 @@ namespace oop_project.forms
         private SearchBox requestsSearch = null!;
         private SearchBox booksSearch = null!;
         private SearchBox borrowedSearch = null!;
-        private List<BorrowRequestRow> _pendingRequests = new List<BorrowRequestRow>();
+        private List<BorrowRequestRow> _requestQueue = new List<BorrowRequestRow>();
 
         private int _booksShown;
         private int _booksTotal;
@@ -137,6 +156,14 @@ namespace oop_project.forms
         private int _borrowsTotal;
         private bool _requestsOnline = true;
         private Label requestsEmptyLabel = null!;
+
+        // The profile name shrinks instead of ending in "...". The fitted font is
+        // owned by the form and disposed when the window closes.
+        private const float ProfileNameMaxSize = 17f;
+        private const float ProfileNameMinSize = 8f;
+        private Font? _profileNameFont;
+        private float _profileNameSize = ProfileNameMaxSize;
+        private Image? _avatarImage;
 
         public int LoggedInAccountId { get; private set; }
         public string LoggedInRole { get; private set; } = string.Empty;
@@ -165,6 +192,15 @@ namespace oop_project.forms
             ApplyAccountDetails();
             changePasswordButton.Click += (s, e) => ShowChangePasswordDialog();
             editProfileButton.Click += (s, e) => ShowEditProfileDialog();
+
+            // PROFILE: the header and the identity card are re-aligned whenever the
+            // window changes size.
+            profileHeader.Resize += (s, e) => LayoutProfileHeader();
+            identityCard.Resize += (s, e) => LayoutProfileCard();
+            detailsCard.Resize += (s, e) => LayoutDetailsCard();
+            LayoutProfileHeader();
+            LayoutProfileCard();
+            LayoutDetailsCard();
             ConfigureGrids();
             BuildAttendanceTab();
             BuildAnalyticsTab();
@@ -172,6 +208,10 @@ namespace oop_project.forms
             LayoutRecordSearches();
 
             tabControl1.SelectedIndexChanged += tabControl1_SelectedIndexChanged;
+
+            // The ANALYTICS hover pictures live as long as the window, so they are
+            // released together with the form instead of leaking bitmaps.
+            Disposed += (s, e) => DisposeHoverImages();
 
             // Bring the attendance table up to date when the window is re-opened
             // from the scanner or from another application window.
@@ -213,25 +253,23 @@ namespace oop_project.forms
 
             profileName.Text = LoggedInFullName;
             avatarBadge.Initials = BuildInitials(LoggedInFullName);
-
-
+            FitProfileName();
 
             valueFullName.Text = LoggedInFullName;
-            valueUsername.Text = LoggedInUsername.Length > 0 ? LoggedInUsername : "\u2014";
-            valueRole.Text = ToDisplayCase(LoggedInRole);
-            valueStatus.Text = LoggedInStatus.Length > 0 ? ToDisplayCase(LoggedInStatus) : "\u2014";
+            valueRole.Text = LoggedInRole.ToUpperInvariant();
+            valueStatus.Text = LoggedInStatus.Length > 0 ? LoggedInStatus.ToUpperInvariant() : "\u2014";
 
             bool isActive = string.Equals(LoggedInStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase);
             valueStatus.ForeColor = isActive ? SuccessText : Color.FromArgb(180, 83, 9);
 
             LayoutHeaderCluster();
-            LayoutIdentityBadge();
+            LayoutProfileCard();
             ApplyAccountPermissions();
         }
 
         /// <summary>
-        /// Only the library staff (admin / officer / librarian) may approve or
-        /// deactivate an account; a student login sees a read only ACCOUNTS tab.
+        /// Only the library staff (librarian / staff) may approve or deactivate an
+        /// account; a student login sees a read only ACCOUNTS tab.
         /// </summary>
         private static bool IsStaffRole(string role)
         {
@@ -242,8 +280,7 @@ namespace oop_project.forms
 
             string value = role.ToUpperInvariant();
 
-            return value.Contains("ADMIN") || value.Contains("OFFICER") ||
-                   value.Contains("LIBRARIAN") || value.Contains("STAFF");
+            return value.Contains("LIBRARIAN") || value.Contains("STAFF");
         }
 
         private void ApplyAccountPermissions()
@@ -255,8 +292,6 @@ namespace oop_project.forms
             // Students and faculty still see the BOOKS and BORROWED BOOKS tabs, read only.
             addBookButton.Enabled = _canManageAccounts;
             borrowBookButton.Enabled = _canManageAccounts;
-            recordBorrowButton.Enabled = _canManageAccounts;
-            markReturnedButton.Enabled = _canManageAccounts;
         }
 
         /// <summary>
@@ -373,7 +408,8 @@ namespace oop_project.forms
                           string.Equals(name, DeleteColumnName, StringComparison.Ordinal) ||
                           string.Equals(name, AccessColumnName, StringComparison.Ordinal) ||
                           string.Equals(name, RequestApproveColumnName, StringComparison.Ordinal) ||
-                          string.Equals(name, RequestRejectColumnName, StringComparison.Ordinal);
+                          string.Equals(name, RequestRejectColumnName, StringComparison.Ordinal) ||
+                          string.Equals(name, RequestClaimColumnName, StringComparison.Ordinal);
 
             grid.Cursor = action ? Cursors.Hand : Cursors.Default;
         }
@@ -474,7 +510,7 @@ namespace oop_project.forms
 
             libraryAttendanceSubtitle = new Label
             {
-                Text = "Every QR pass scanned at the library office entrance. Only registered and approved accounts are recorded.",
+                Text = "Every QR code scanned at the library office entrance. Only registered and approved accounts are recorded.",
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 9F),
@@ -564,7 +600,7 @@ namespace oop_project.forms
 
             libraryAttendanceEmpty = new Label
             {
-                Text = "NO ATTENDANCE RECORDED YET.\r\nSCAN A STUDENT, FACULTY OR STAFF QR PASS WITH THE SCANNER.",
+                Text = "NO ATTENDANCE RECORDED YET.\r\nSCAN A STUDENT, FACULTY OR STAFF QR CODE WITH THE SCANNER.",
                 BackColor = Color.White,
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(148, 163, 184),
@@ -592,6 +628,14 @@ namespace oop_project.forms
             libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceId", "ATTENDANCE #", 9F, 90));
             libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceStamp", "DATE & TIME", 24F, 160));
             libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceName", "NAME", 30F, 150));
+
+            // ID NUMBER: the school ID recorded for a student. FACULTY, STAFF and
+            // the LIBRARIAN have none, so their cell reads N/A. The values keep the
+            // grid's left alignment and padding, so they line up under the header.
+            DataGridViewTextBoxColumn idNumberColumn =
+                CreateAttendanceColumn("libraryAttendanceIdNumber", "ID NUMBER", 14F, 110);
+            libraryAttendanceGrid.Columns.Add(idNumberColumn);
+
             libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceRole", "ROLE", 12F, 90));
             libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceProgram", "PROGRAM / OFFICE", 20F, 120));
             libraryAttendanceGrid.Columns.Add(CreateAttendanceColumn("libraryAttendanceInstitute", "INSTITUTE", 13F, 100));
@@ -626,9 +670,9 @@ namespace oop_project.forms
             // bands. That keeps every tab aligned at any window size.
             int left = attendanceGrid.Left;
             int right = attendanceGrid.Right;
-            int toolbarTop = recordBorrowButton.Top;
-            int toolbarHeight = Math.Max(32, recordBorrowButton.Height);
-            int buttonWidth = Math.Max(100, (recordBorrowButton.Width * 3) / 4);
+            int toolbarTop = attendanceReportButton.Top;
+            int toolbarHeight = Math.Max(32, attendanceReportButton.Height);
+            int buttonWidth = Math.Max(100, (attendanceReportButton.Width * 3) / 4);
 
             libraryAttendanceHeading.Location = new Point(left, booksHeading.Top);
             libraryAttendanceSubtitle.Location = new Point(left + 2, booksSubtitle.Top);
@@ -765,6 +809,7 @@ namespace oop_project.forms
                     visit.AttendanceId,
                     visit.StampText,
                     visit.Name,
+                    visit.DisplayIdNumber,
                     visit.Role,
                     visit.ProgramOrOffice,
                     visit.Institute);
@@ -772,6 +817,7 @@ namespace oop_project.forms
                 DataGridViewRow row = libraryAttendanceGrid.Rows[index];
                 row.Cells["libraryAttendanceRole"].Style.Font = StatusCellFont;
                 row.Cells["libraryAttendanceRole"].Style.ForeColor = RoleColor(visit.Role);
+                row.Cells["libraryAttendanceIdNumber"].Style.ForeColor = MutedText;
                 row.Cells["libraryAttendanceId"].Style.ForeColor = MutedText;
                 row.Cells["libraryAttendanceStamp"].ToolTipText = visit.StampText;
 
@@ -798,7 +844,7 @@ namespace oop_project.forms
             {
                 libraryAttendanceEmpty.Text = term.Length > 0
                     ? "NO MATCHING ATTENDANCE RECORDS.\r\nTRY ANOTHER NAME, ROLE, ID NUMBER OR DATE."
-                    : "NO ATTENDANCE RECORDED YET.\r\nSCAN A STUDENT, FACULTY OR STAFF QR PASS WITH THE SCANNER.";
+                    : "NO ATTENDANCE RECORDED YET.\r\nSCAN A STUDENT, FACULTY OR STAFF QR CODE WITH THE SCANNER.";
                 libraryAttendanceEmpty.BringToFront();
             }
 
@@ -826,9 +872,10 @@ namespace oop_project.forms
 
         private static bool MatchesAttendance(AttendanceRow visit, string term)
         {
-            // The table shows no ID NUMBER column, so the search only checks the
-            // columns that are visible.
+            // NAME, ID NUMBER, ROLE, PROGRAM / OFFICE, INSTITUTE and the date and
+            // time are the columns the table shows, so they are what SEARCH checks.
             return visit.Name.ToUpperInvariant().Contains(term) ||
+                   visit.DisplayIdNumber.ToUpperInvariant().Contains(term) ||
                    visit.Role.Contains(term) ||
                    visit.ProgramOrOffice.ToUpperInvariant().Contains(term) ||
                    visit.Institute.ToUpperInvariant().Contains(term) ||
@@ -843,7 +890,6 @@ namespace oop_project.forms
                 case "FACULTY":
                     return Color.FromArgb(37, 99, 235);
                 case "STAFF":
-                case "OFFICER":
                     return Color.FromArgb(194, 65, 12);
                 default:
                     return HeaderGreen;
@@ -1062,12 +1108,13 @@ namespace oop_project.forms
             BalanceColumn(accountRoleColumn, 16F, 100);
 
             staffGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            BalanceColumn(staffIdColumn, 6F, 60);
-            BalanceColumn(staffNameColumn, 28F, 150);
-            BalanceColumn(staffUsernameColumn, 18F, 110);
-            BalanceColumn(staffPasswordColumn, 16F, 110);
-            BalanceColumn(staffStatusColumn, 16F, 100);
-            BalanceColumn(staffRoleColumn, 16F, 100);
+            BalanceColumn(staffIdColumn, 5F, 60);
+            BalanceColumn(staffNameColumn, 24F, 150);
+            BalanceColumn(staffUsernameColumn, 15F, 110);
+            BalanceColumn(staffPasswordColumn, 13F, 110);
+            BalanceColumn(staffOfficeColumn, 20F, 130);
+            BalanceColumn(staffStatusColumn, 12F, 100);
+            BalanceColumn(staffRoleColumn, 11F, 100);
 
             facultyGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BalanceColumn(facultyIdColumn, 6F, 60);
@@ -1410,7 +1457,7 @@ namespace oop_project.forms
                 "NO BOOKS IN THE CATALOG YET.\r\nUSE + ADD BOOK TO REGISTER THE FIRST TITLE.");
             SetEmptyText(attendanceEmptyLabel, borrowTerm,
                 "NO BORROW RECORD MATCHES THE SEARCH.\r\nTRY ANOTHER TITLE, BORROWER, PROGRAM OR STATUS.",
-                "NO BORROW RECORDS YET.\r\nUSE RECORD BORROW TO LOG THE FIRST BORROW.");
+                "NO BORROW RECORDS YET.\r\nUSE BORROW BOOK IN THE BOOK CATALOG TAB TO LOG THE FIRST LOAN.");
 
             booksGrid.ClearSelection();
             attendanceGrid.ClearSelection();
@@ -1564,12 +1611,12 @@ namespace oop_project.forms
 
             try
             {
-                _pendingRequests = _requestDirectory.LoadPending();
+                _requestQueue = _requestDirectory.LoadQueue();
                 _requestsOnline = true;
             }
             catch (MySqlException)
             {
-                _pendingRequests = new List<BorrowRequestRow>();
+                _requestQueue = new List<BorrowRequestRow>();
                 _requestsOnline = false;
                 FillRequestGrid();
                 return;
@@ -1596,13 +1643,18 @@ namespace oop_project.forms
 
             if (_requestsOnline)
             {
-                foreach (BorrowRequestRow request in _pendingRequests)
+                foreach (BorrowRequestRow request in _requestQueue)
                 {
                     if (!MatchesTerm(term, request.BookTitle, request.StudentName, request.StudentIdText,
                                      request.ProgramText, request.RequestDateText, request.Status))
                     {
                         continue;
                     }
+
+                    // PENDING rows offer APPROVE / REJECT. APPROVED rows stay in the
+                    // queue with one CLAIM action until the student collects the books.
+                    bool pending = request.IsPending;
+                    bool approved = request.IsApproved;
 
                     int index = requestsGrid.Rows.Add(
                         request.RequestId,
@@ -1613,29 +1665,39 @@ namespace oop_project.forms
                         request.RequestDateText,
                         request.CopiesText,
                         request.Status,
-                        "APPROVE",
-                        "REJECT");
+                        pending ? "APPROVE" : "\u2014",
+                        pending ? "REJECT" : "\u2014",
+                        approved ? "CLAIM" : "\u2014");
 
                     DataGridViewRow row = requestsGrid.Rows[index];
                     row.Tag = request;
-                    row.Cells[requestStatusColumn.Index].Style.ForeColor = Color.FromArgb(180, 83, 9);
-                    row.Cells[requestStatusColumn.Index].Style.Font = StatusCellFont;
+
+                    DataGridViewCell statusCell = row.Cells[requestStatusColumn.Index];
+                    statusCell.Style.ForeColor = approved ? SuccessText : WarningText;
+                    statusCell.Style.Font = StatusCellFont;
+
                     row.Cells[RequestApproveColumnName].ToolTipText =
                         "Approve this request and create the borrow record.";
                     row.Cells[RequestRejectColumnName].ToolTipText =
                         "Reject this request without creating a borrow record.";
+                    row.Cells[RequestClaimColumnName].ToolTipText = approved
+                        ? "Confirm that the student personally received the books in the library."
+                        : "Available once the request is approved.";
                     shown++;
                 }
             }
+
+            int pendingCount = _requestQueue.Count(request => request.IsPending);
+            int readyCount = _requestQueue.Count(request => request.IsApproved);
 
             if (!_requestsOnline)
             {
                 requestsStatusLabel.Text = "MYSQL OFFLINE \u2022 REQUESTS CANNOT BE LOADED";
                 requestsStatusLabel.ForeColor = WarningText;
             }
-            else if (_pendingRequests.Count == 0)
+            else if (_requestQueue.Count == 0)
             {
-                requestsStatusLabel.Text = "NO PENDING REQUESTS. STUDENT REQUESTS WILL APPEAR HERE.";
+                requestsStatusLabel.Text = "NO PENDING OR READY-TO-CLAIM REQUESTS. STUDENT REQUESTS WILL APPEAR HERE.";
                 requestsStatusLabel.ForeColor = MutedText;
             }
             else if (shown == 0)
@@ -1647,13 +1709,14 @@ namespace oop_project.forms
             {
                 string countText = shown.ToString(CultureInfo.InvariantCulture);
 
-                if (shown != _pendingRequests.Count)
+                if (shown != _requestQueue.Count)
                 {
-                    countText += " OF " + _pendingRequests.Count.ToString(CultureInfo.InvariantCulture);
+                    countText += " OF " + _requestQueue.Count.ToString(CultureInfo.InvariantCulture);
                 }
 
-                requestsStatusLabel.Text = countText +
-                    " PENDING REQUEST(S). CLICK APPROVE OR REJECT ON A ROW.";
+                requestsStatusLabel.Text = countText + " REQUEST(S)  \u2022  " +
+                    pendingCount.ToString(CultureInfo.InvariantCulture) + " PENDING  \u2022  " +
+                    readyCount.ToString(CultureInfo.InvariantCulture) + " READY TO CLAIM";
                 requestsStatusLabel.ForeColor = MutedText;
             }
 
@@ -1666,7 +1729,7 @@ namespace oop_project.forms
             {
                 requestsEmptyLabel.Text = term.Length > 0
                     ? "NO REQUEST MATCHES THE SEARCH.\r\nTRY ANOTHER BOOK, NAME, PROGRAM OR STATUS."
-                    : "NO PENDING REQUESTS.\r\nSTUDENT REQUESTS WILL APPEAR HERE.";
+                    : "NO PENDING OR READY-TO-CLAIM REQUESTS.\r\nSTUDENT REQUESTS WILL APPEAR HERE.";
                 requestsEmptyLabel.BringToFront();
             }
 
@@ -1683,8 +1746,9 @@ namespace oop_project.forms
             string columnName = requestsGrid.Columns[e.ColumnIndex].Name;
             bool approve = string.Equals(columnName, RequestApproveColumnName, StringComparison.Ordinal);
             bool reject = string.Equals(columnName, RequestRejectColumnName, StringComparison.Ordinal);
+            bool claim = string.Equals(columnName, RequestClaimColumnName, StringComparison.Ordinal);
 
-            if (!approve && !reject)
+            if (!approve && !reject && !claim)
             {
                 return;
             }
@@ -1692,7 +1756,7 @@ namespace oop_project.forms
             if (!_canManageAccounts)
             {
                 MessageBox.Show(
-                    "ONLY LIBRARY STAFF ACCOUNTS CAN APPROVE OR REJECT BORROW REQUESTS.",
+                    "ONLY LIBRARY STAFF ACCOUNTS CAN APPROVE, REJECT OR CLAIM BORROW REQUESTS.",
                     "READ ONLY",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -1706,7 +1770,23 @@ namespace oop_project.forms
                 return;
             }
 
-            if (approve)
+            // The cells that do not apply to the row's state show a dash; clicking
+            // them should do nothing instead of opening a warning dialog.
+            if ((approve || reject) && !request.IsPending)
+            {
+                return;
+            }
+
+            if (claim && !request.IsApproved)
+            {
+                return;
+            }
+
+            if (claim)
+            {
+                ClaimBorrowRequest(request);
+            }
+            else if (approve)
             {
                 ApproveBorrowRequest(request);
             }
@@ -1718,6 +1798,12 @@ namespace oop_project.forms
 
         private void ApproveBorrowRequest(BorrowRequestRow request)
         {
+            if (!request.IsPending)
+            {
+                ShowError("REQUEST #" + request.RequestId + " IS NO LONGER PENDING.");
+                return;
+            }
+
             string copiesText = request.Copies == 1 ? "1 COPY" : request.Copies + " COPIES";
 
             DialogResult answer = MessageBox.Show(
@@ -1760,6 +1846,12 @@ namespace oop_project.forms
 
         private void RejectBorrowRequest(BorrowRequestRow request)
         {
+            if (!request.IsPending)
+            {
+                ShowError("REQUEST #" + request.RequestId + " IS NO LONGER PENDING.");
+                return;
+            }
+
             DialogResult answer = MessageBox.Show(
                 "REJECT REQUEST #" + request.RequestId + " FROM " +
                 request.StudentName.ToUpperInvariant() + "?\nNO LOAN WILL BE CREATED.",
@@ -1774,7 +1866,7 @@ namespace oop_project.forms
 
             try
             {
-                _requestDirectory.Reject(request, LoggedInAccountId, "Rejected by the librarian.");
+                _requestDirectory.Reject(request, LoggedInAccountId);
                 LoadBorrowRequests();
 
                 requestsStatusLabel.Text = "REQUEST #" + request.RequestId + " WAS REJECTED.";
@@ -1790,8 +1882,56 @@ namespace oop_project.forms
             }
         }
 
-        // ------------------------------------------------------- EDIT / DELETE
+        /// <summary>
+        /// Second step of the request workflow: the librarian confirms that the
+        /// student personally collected the approved books in the library. The
+        /// request becomes CLAIMED, which is the status MY REQUESTS then shows.
+        /// </summary>
+        private void ClaimBorrowRequest(BorrowRequestRow request)
+        {
+            if (!request.IsApproved)
+            {
+                ShowError(request.IsClaimed
+                    ? "REQUEST #" + request.RequestId + " HAS ALREADY BEEN CLAIMED."
+                    : "REQUEST #" + request.RequestId + " MUST BE APPROVED BEFORE IT CAN BE CLAIMED.");
+                return;
+            }
 
+            string copiesText = request.Copies == 1 ? "1 COPY" : request.Copies + " COPIES";
+
+            DialogResult answer = MessageBox.Show(
+                "CONFIRM THAT " + request.StudentName.ToUpperInvariant() + " PERSONALLY RECEIVED " +
+                copiesText + " OF \"" + request.BookTitle.ToUpperInvariant() + "\" IN THE LIBRARY?\n\n" +
+                "THE REQUEST WILL BE MARKED AS CLAIMED.",
+                "CONFIRM BOOK CLAIM",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (answer != DialogResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                _requestDirectory.Claim(request, LoggedInAccountId);
+                LoadBorrowRequests();
+
+                requestsStatusLabel.Text = "REQUEST #" + request.RequestId +
+                    " CLAIMED. THE STUDENT NOW SEES CLAIMED IN MY REQUESTS.";
+                requestsStatusLabel.ForeColor = SuccessText;
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+            {
+                ShowError(ex.Message);
+            }
+            catch (MySqlException ex)
+            {
+                ShowError("THE REQUEST COULD NOT BE MARKED AS CLAIMED.\n" + ex.Message);
+            }
+        }
+
+        // ------------------------------------------------------- EDIT / DELETE
         /// <summary>
         /// One click handler for the ACCESS, EDIT and DELETE icons of the tables. The
         /// column name decides the action; the row Tag carries the model object.
@@ -2014,6 +2154,10 @@ namespace oop_project.forms
                         dialog.BorrowerProgram,
                         dialog.BorrowerYearLevel,
                         dialog.BorrowerInstitute);
+
+                    // The pop up already worked out the role, so the borrower row is
+                    // updated with the role and (for STAFF) the office as well.
+                    borrower.ApplyRoleDetails(dialog.BorrowerRole, dialog.BorrowerOffice);
 
                     foreach (BorrowRecord record in group.Records)
                     {
@@ -2324,7 +2468,7 @@ namespace oop_project.forms
                 {
                     staffTotal++;
 
-                    if (!MatchesTerm(staffTerm, row.Name, row.Username, row.Status, row.Role))
+                    if (!MatchesTerm(staffTerm, row.Name, row.Username, row.Office, row.Status, row.Role))
                     {
                         continue;
                     }
@@ -2334,6 +2478,7 @@ namespace oop_project.forms
                         row.Name,
                         row.Username,
                         "\u2022\u2022\u2022\u2022\u2022\u2022",
+                        row.Office,
                         row.Status,
                         row.Role,
                         AccessGlyph,
@@ -2501,14 +2646,14 @@ namespace oop_project.forms
             if (available.Count == 0)
             {
                 MessageBox.Show(
-                    "THERE ARE NO AVAILABLE BOOKS TO BORROW.\nADD A BOOK TO THE CATALOG FIRST, OR MARK A LOAN AS RETURNED.",
+                    "THERE ARE NO AVAILABLE BOOKS TO BORROW.\nADD A BOOK TO THE CATALOG FIRST, OR SET A LOAN'S RETURNED DATE IN THE BORROWED BOOKS TAB.",
                     "NO BOOKS AVAILABLE",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
                 return;
             }
 
-            using (BorrowBookDialog dialog = new BorrowBookDialog(available))
+            using (BorrowBookDialog dialog = new BorrowBookDialog(available, _catalog.AvailableCopyCount))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK || dialog.SelectedBook == null)
                 {
@@ -2520,13 +2665,26 @@ namespace oop_project.forms
                     // The pop up collected the borrowers_table attributes; the model
                     // validates them before LibraryCatalog writes the two tables.
                     Borrower borrower = new Borrower(
-                        dialog.BorrowerName,
+                        dialog.BorrowerLastName,
+                        dialog.BorrowerFirstName,
+                        dialog.BorrowerMiddleName,
                         dialog.BorrowerIdNumber,
                         dialog.BorrowerProgram,
                         dialog.BorrowerYearLevel,
-                        dialog.BorrowerInstitute);
+                        dialog.BorrowerInstitute,
+                        dialog.BorrowerRole,
+                        dialog.BorrowerOffice,
+                        dialog.BorrowerContactNumber);
 
-                    _catalog.RecordBorrow(dialog.SelectedBook, borrower, dialog.DateBorrowed);
+                    // One borrow row per copy, so every copy keeps its own RETURNED
+                    // date and the AVAILABLE COPY count follows the loans.
+                    int copies = Math.Max(1, dialog.CopiesToBorrow);
+
+                    for (int copy = 0; copy < copies; copy++)
+                    {
+                        _catalog.RecordBorrow(dialog.SelectedBook, borrower, dialog.DateBorrowed);
+                    }
+
                     _catalog.SyncDaysBorrowed();
                     RefreshCatalogViews();
                     ApplyCatalogStatus();
@@ -2541,56 +2699,6 @@ namespace oop_project.forms
                     ShowError(ex.Message);
                 }
             }
-        }
-
-        private void markReturnedButton_Click(object? sender, EventArgs e)
-        {
-            if (attendanceGrid.CurrentRow == null || !(attendanceGrid.CurrentRow.Tag is BorrowedBookGroup group))
-            {
-                MessageBox.Show(
-                    "SELECT A BORROW RECORD IN THE TABLE FIRST.",
-                    "NO RECORD SELECTED",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return;
-            }
-
-            List<BorrowRecord> openCopies = group.OpenRecords;
-
-            if (openCopies.Count == 0)
-            {
-                MessageBox.Show(
-                    "THAT RECORD IS ALREADY MARKED AS RETURNED.",
-                    "ALREADY RETURNED",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return;
-            }
-
-            string copiesText = openCopies.Count == 1
-                ? "1 COPY"
-                : openCopies.Count + " COPIES";
-
-            DialogResult answer = MessageBox.Show(
-                "MARK " + copiesText + " OF \"" + group.BookTitle.ToUpperInvariant() + "\" AS RETURNED TODAY?",
-                "CONFIRM RETURN",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
-
-            if (answer != DialogResult.Yes)
-            {
-                return;
-            }
-
-            foreach (BorrowRecord record in openCopies)
-            {
-                _catalog.MarkReturned(record);
-            }
-
-            _catalog.SyncDaysBorrowed();
-            RefreshCatalogViews();
-            ApplyCatalogStatus();
-            ShowCatalogWarning();
         }
 
         private void generateReportButton_Click(object? sender, EventArgs e)
@@ -2830,6 +2938,7 @@ namespace oop_project.forms
         private void ApplyProfileRecord(AccountRow row)
         {
             valueDateCreated.Text = row.DateCreated;
+            ApplyProfileAvatar(row);
 
             bool isStudent = row.IsStudent;
             bool isFaculty = row.IsFaculty;
@@ -2863,11 +2972,6 @@ namespace oop_project.forms
                 captionInstitute.Text = "INSTITUTE";
                 valueInstitute.Text = ProfileValue(row.Institute);
             }
-
-            bool showRecord = (isStudent || isFaculty) && row.HasProfile;
-            recordDivider.Visible = showRecord;
-
-            HideRecordRows();
         }
 
         // AccountRow uses "-" for an empty value; the profile card shows a dash
@@ -2875,26 +2979,6 @@ namespace oop_project.forms
         private static string ProfileValue(string? value)
         {
             return string.IsNullOrWhiteSpace(value) || value == "-" ? "\u2014" : value.Trim();
-        }
-
-        // Only the rows a role actually has are shown, without leaving blank gaps.
-        private void StackRecordRows(Label[] captions, Label[] values)
-        {
-
-        }
-
-
-        private void HideRecordRows()
-        {
-            Label[] labels =
-            {
-
-            };
-
-            foreach (Label label in labels)
-            {
-                label.Visible = false;
-            }
         }
 
         private void ShowError(string message)
@@ -2927,31 +3011,152 @@ namespace oop_project.forms
             accountNameLabel.Top = ScaleValue(24);
         }
 
-        private void LayoutIdentityBadge()
+        // PROFILE HEADER: the title and the subtitle span the page; the two profile
+        // actions now sit inside the identity card under the picture.
+        private void LayoutProfileHeader()
+        {
+            if (profileHeader == null || profileTitleLabel == null)
+            {
+                return;
+            }
+
+            profileSubtitleLabel.Width = Math.Max(160, profileHeader.ClientSize.Width - 8);
+        }
+
+        // IDENTITY CARD: the picture, name and role badge sit above CHANGE PASSWORD
+        // and EDIT MY INFO, all centred as one block inside the card.
+        private void LayoutProfileCard()
         {
             if (identityCard == null)
             {
                 return;
             }
 
-            if (profileRoleBadge != null)
+            int width = identityCard.ClientSize.Width;
+            int height = identityCard.ClientSize.Height;
+
+            if (width <= 0 || height <= 0)
             {
-                profileRoleBadge.Left = (identityCard.ClientSize.Width - profileRoleBadge.Width) / 2;
+                return;
             }
 
-            if (securityCaption != null)
+            const int buttonHeight = 44;
+            int avatarSize = Math.Clamp(width * 2 / 5, 120, 170);
+            int nameHeight = 34;
+
+            int blockHeight = avatarSize + 4 + nameHeight + 4 + profileRoleBadge.Height +
+                              12 + 1 + 12 + buttonHeight + 10 + buttonHeight;
+            int top = Math.Max(24, (height - blockHeight) / 2);
+
+            avatarBadge.SetBounds((width - avatarSize) / 2, top, avatarSize, avatarSize);
+
+            profileName.SetBounds(18, avatarBadge.Bottom + 4, Math.Max(80, width - 36), nameHeight);
+
+            profileRoleBadge.Top = profileName.Bottom + 4;
+            profileRoleBadge.Left = (width - profileRoleBadge.Width) / 2;
+
+            identityDivider.SetBounds(40, profileRoleBadge.Bottom + 12, Math.Max(40, width - 80), 1);
+
+            int buttonWidth = Math.Min(240, Math.Max(140, width - 120));
+            int buttonLeft = (width - buttonWidth) / 2;
+
+            changePasswordButton.SetBounds(
+                buttonLeft,
+                identityDivider.Bottom + 12,
+                buttonWidth,
+                buttonHeight);
+
+            editProfileButton.SetBounds(
+                buttonLeft,
+                changePasswordButton.Bottom + 10,
+                buttonWidth,
+                buttonHeight);
+
+            FitProfileName();
+        }
+
+        // ACCOUNT DETAILS: the six read only rows share the height of the card, so a
+        // taller window spreads them instead of leaving a gap above the footer.
+        private void LayoutDetailsCard()
+        {
+            if (detailsCard == null || profileFooter == null)
             {
-                securityCaption.Left = (identityCard.ClientSize.Width - securityCaption.Width) / 2;
+                return;
             }
 
-            if (changePasswordButton != null)
+            int width = detailsCard.ClientSize.Width;
+            int height = detailsCard.ClientSize.Height;
+
+            if (width <= 0 || height <= 0)
             {
-                changePasswordButton.Left = (identityCard.ClientSize.Width - changePasswordButton.Width) / 2;
+                return;
             }
 
-            if (editProfileButton != null)
+            int dividerWidth = Math.Max(40, width - 68);
+            detailsTopDivider.SetBounds(34, 92, dividerWidth, 1);
+
+            profileFooter.Left = 34;
+            profileFooter.Top = height - 28;
+            profileFooter.MaximumSize = new Size(dividerWidth, 0);
+
+            Label[] captions =
             {
-                editProfileButton.Left = (identityCard.ClientSize.Width - editProfileButton.Width) / 2;
+                captionFullName,
+                captionRole,
+                captionStatus,
+                captionProgramOffice,
+                captionInstitute,
+                captionDateCreated
+            };
+
+            Label[] values =
+            {
+                valueFullName,
+                valueRole,
+                valueStatus,
+                valueProgramOffice,
+                valueInstitute,
+                valueDateCreated
+            };
+
+            Panel[] dividers =
+            {
+                dividerRow1,
+                dividerRow2,
+                dividerRow3,
+                dividerRow4,
+                dividerRow5,
+                dividerRow6
+            };
+
+            int rowTop = 92;
+            int rowsBottom = profileFooter.Top - 8;
+            int step = Math.Max(52, (rowsBottom - rowTop) / captions.Length);
+
+            int captionWidth = Math.Min(300, Math.Max(120, width / 2 - 40));
+            int valueLeft = 340;
+            int valueWidth = Math.Max(120, width - valueLeft - 34);
+
+            for (int index = 0; index < captions.Length; index++)
+            {
+                captions[index].SetBounds(
+                    34,
+                    rowTop + Math.Max(0, (step - 34) / 2),
+                    captionWidth,
+                    34);
+
+                values[index].SetBounds(
+                    valueLeft,
+                    rowTop + Math.Max(0, (step - 44) / 2),
+                    valueWidth,
+                    44);
+
+                if (index < dividers.Length)
+                {
+                    dividers[index].SetBounds(34, rowTop + step, dividerWidth, 1);
+                }
+
+                rowTop += step;
             }
         }
 
@@ -2960,6 +3165,79 @@ namespace oop_project.forms
             using ChangePasswordDialog dialog =
                 new ChangePasswordDialog(LoggedInAccountId, LoggedInUsername, LoggedInRole);
             dialog.ShowDialog(this);
+        }
+
+        /// <summary>
+        /// Shrinks the profile name until the whole name fits on one line, so a
+        /// long name is shown in full instead of ending in "...".
+        /// </summary>
+        private void FitProfileName()
+        {
+            if (profileName == null)
+            {
+                return;
+            }
+
+            string name = profileName.Text ?? string.Empty;
+            int available = Math.Max(60, profileName.Width - 12);
+            float size = ProfileNameMaxSize;
+
+            while (size > ProfileNameMinSize)
+            {
+                using (var probe = new Font("Segoe UI", size, FontStyle.Bold))
+                {
+                    Size measured = TextRenderer.MeasureText(
+                        name,
+                        probe,
+                        Size.Empty,
+                        TextFormatFlags.NoPadding);
+
+                    if (measured.Width <= available)
+                    {
+                        break;
+                    }
+                }
+
+                size -= 0.5f;
+            }
+
+            if (Math.Abs(size - _profileNameSize) < 0.01f)
+            {
+                return;
+            }
+
+            Font? previous = _profileNameFont;
+            _profileNameFont = new Font("Segoe UI", size, FontStyle.Bold);
+            _profileNameSize = size;
+            profileName.Font = _profileNameFont;
+            previous?.Dispose();
+        }
+
+        /// <summary>Shows the portrait saved through EDIT MY INFO, or the initials.</summary>
+        private void ApplyProfileAvatar(AccountRow row)
+        {
+            if (avatarBadge == null)
+            {
+                return;
+            }
+
+            Image? next = ProfilePicture.Load(row.ProfilePicture);
+            Image? previous = _avatarImage;
+            _avatarImage = next;
+            avatarBadge.Picture = next;
+            previous?.Dispose();
+            avatarBadge.Invalidate();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+
+            _avatarImage?.Dispose();
+            _avatarImage = null;
+
+            _profileNameFont?.Dispose();
+            _profileNameFont = null;
         }
 
         // SELF SERVICE: the signed in librarian may update every personal detail of
@@ -3013,7 +3291,9 @@ namespace oop_project.forms
                         dialog.Institute,
                         dialog.ContactNumber,
                         dialog.Address,
-                        dialog.Office);
+                        dialog.Office,
+                        dialog.ProfilePictureChanged ? dialog.ProfilePicture : null,
+                        dialog.ProfilePictureChanged);
 
                     // Keep the header, the sign in name and the profile card in
                     // step with the values that were just saved.
@@ -3072,21 +3352,13 @@ namespace oop_project.forms
             return (parts[0].Substring(0, 1) + parts[parts.Length - 1].Substring(0, 1)).ToUpperInvariant();
         }
 
-        private static string ToDisplayCase(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return "—";
-            }
-
-            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.ToLowerInvariant());
-        }
-
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             LayoutHeaderCluster();
-            LayoutIdentityBadge();
+            LayoutProfileHeader();
+            LayoutProfileCard();
+            LayoutDetailsCard();
             LayoutRecordSearches();
         }
 
@@ -3094,8 +3366,8 @@ namespace oop_project.forms
 
         /// <summary>
         /// Fills the ANALYTICS tab declared in the designer. The page is visible in
-        /// Visual Studio's View Designer; the header, the refresh button and the two
-        /// GDI+ horizontal bar charts are created here because they are custom drawn.
+        /// Visual Studio's View Designer; the header, the KPI tiles and the smooth
+        /// line charts are created here because they are custom drawn.
         /// </summary>
         private void BuildAnalyticsTab()
         {
@@ -3118,7 +3390,7 @@ namespace oop_project.forms
             {
                 BackColor = Color.White,
                 Dock = DockStyle.Top,
-                Height = ScaleValue(86)
+                Height = ScaleValue(88)
             };
 
             analyticsTitle = new Label
@@ -3127,21 +3399,9 @@ namespace oop_project.forms
                 BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 23, 42),
-                Location = new Point(2, 2),
+                Location = new Point(8, 29),
                 Size = new Size(520, 30),
                 Text = "LIBRARY ANALYTICS",
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            analyticsSubtitle = new Label
-            {
-                AutoEllipsis = true,
-                BackColor = Color.Transparent,
-                Font = new Font("Segoe UI", 8.75F),
-                ForeColor = MutedText,
-                Location = new Point(2, 32),
-                Size = new Size(760, 22),
-                Text = "LIBRARY VISITS, TOP BORROWERS AND THE EVALUATION FORM FEEDBACK FROM STUDENTS, FACULTY AND STAFF.",
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
@@ -3151,10 +3411,11 @@ namespace oop_project.forms
                 BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
                 ForeColor = MutedText,
-                Location = new Point(2, 56),
+                Location = new Point(8, 60),
                 Size = new Size(500, 18),
                 Text = string.Empty,
-                TextAlign = ContentAlignment.MiddleLeft
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = false
             };
 
             analyticsRefreshButton = new RoundedButton
@@ -3167,21 +3428,29 @@ namespace oop_project.forms
                 HoverColor = Color.FromArgb(21, 128, 61),
                 NormalColor = Color.FromArgb(22, 163, 74),
                 PressedColor = Color.FromArgb(20, 83, 45),
-                Size = new Size(130, 44),
+                Size = new Size(130, 40),
                 Text = "REFRESH",
                 UseVisualStyleBackColor = false
             };
             analyticsRefreshButton.FlatAppearance.BorderSize = 0;
             analyticsRefreshButton.Click += (s, e) => LoadAnalytics();
 
+            // A hairline under the header separates the title block from the cards.
+            Panel headDivider = new Panel
+            {
+                BackColor = Color.FromArgb(226, 232, 240),
+                Dock = DockStyle.Bottom,
+                Height = 1
+            };
+
             analyticsHead.Controls.Add(analyticsTitle);
-            analyticsHead.Controls.Add(analyticsSubtitle);
             analyticsHead.Controls.Add(analyticsStatus);
             analyticsHead.Controls.Add(analyticsRefreshButton);
+            analyticsHead.Controls.Add(headDivider);
             analyticsHead.Resize += (s, e) => LayoutAnalyticsHead();
             LayoutAnalyticsHead();
 
-            // The page scrolls: the KPI strip, the two original charts and the
+            // The page scrolls: the KPI strip, the three usage charts and the
             // evaluation feedback block need more height than a laptop screen.
             Panel analyticsScroll = new Panel
             {
@@ -3190,22 +3459,34 @@ namespace oop_project.forms
                 Dock = DockStyle.Fill
             };
 
+            const int KpiHeight = 100;
+            const int ChartHeight = 306;
+            const int EvaluationHeadHeight = 74;
+            const int FeedbackHeight = 370;
+            const int StackGap = 12;
+
             TableLayoutPanel body = new TableLayoutPanel
             {
                 AutoSize = false,
                 BackColor = Color.White,
                 ColumnCount = 1,
                 Dock = DockStyle.Top,
-                Height = 936,
+                Height = 6 + KpiHeight +
+                         ChartHeight + StackGap +
+                         ChartHeight + StackGap +
+                         ChartHeight + StackGap +
+                         EvaluationHeadHeight + FeedbackHeight + 16,
                 Padding = new Padding(0, 6, 0, 16),
-                RowCount = 4
+                RowCount = 6
             };
 
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 88F));
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 366F));
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 386F));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, KpiHeight));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, ChartHeight + StackGap));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, ChartHeight + StackGap));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, ChartHeight + StackGap));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, EvaluationHeadHeight));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, FeedbackHeight));
 
             // ------------------------------------------------- EVALUATION KPIs
             // One summary card per respondent group, so the librarian can see at a
@@ -3213,90 +3494,67 @@ namespace oop_project.forms
             TableLayoutPanel kpiStrip = new TableLayoutPanel
             {
                 BackColor = Color.White,
-                ColumnCount = 5,
+                ColumnCount = 4,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
                 RowCount = 1
             };
 
-            for (int index = 0; index < 5; index++)
+            for (int index = 0; index < 4; index++)
             {
-                kpiStrip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+                kpiStrip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             }
 
             evalTotalCard = CreateEvaluationCard("EVALUATION RESPONSES", HeaderGreen);
             evalStudentCard = CreateEvaluationCard("STUDENT RESPONDENTS", Color.FromArgb(22, 163, 74));
             evalFacultyCard = CreateEvaluationCard("FACULTY RESPONDENTS", Color.FromArgb(37, 99, 235));
             evalStaffCard = CreateEvaluationCard("STAFF RESPONDENTS", Color.FromArgb(194, 65, 12));
-            evalAverageCard = CreateEvaluationCard("OVERALL AVERAGE (OUT OF 5)", Color.FromArgb(147, 51, 234));
+
+            // The last card drops its right margin so the strip ends flush with the
+            // chart cards below it.
+            evalStaffCard.Margin = new Padding(0);
 
             kpiStrip.Controls.Add(evalTotalCard, 0, 0);
             kpiStrip.Controls.Add(evalStudentCard, 1, 0);
             kpiStrip.Controls.Add(evalFacultyCard, 2, 0);
             kpiStrip.Controls.Add(evalStaffCard, 3, 0);
-            kpiStrip.Controls.Add(evalAverageCard, 4, 0);
 
-            // ------------------------------------------- VISITS / BORROWERS ROW
-            TableLayoutPanel chartsRow = new TableLayoutPanel
+            // ------------------------------------------- USAGE CHARTS
+            // The visits curve, the borrower curve and the book bars share the page
+            // width and one height, so they line up with each other and with the
+            // cards below.
+            programVisitsChart = new LineChart
             {
                 BackColor = Color.White,
-                ColumnCount = 2,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 0, 10),
-                RowCount = 1
-            };
-
-            chartsRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            chartsRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-
-            programVisitsChart = new HorizontalBarChart
-            {
-                BackColor = Color.White,
-                BarBottomColor = Color.FromArgb(6, 78, 59),
-                BarTopColor = Color.FromArgb(34, 197, 94),
-                Dock = DockStyle.Top,
                 EmptyText = "NO PROGRAMS HAVE BEEN REGISTERED YET.",
-                Subtitle = "ALL PROGRAMS RANKED BY LIBRARY VISITS",
+                LineColor = Color.FromArgb(22, 163, 74),
+                Subtitle = "STUDENT VISITS TO THE LIBRARY, BY PROGRAM",
                 Title = "LIBRARY VISITS BY PROGRAM"
             };
 
-            topBorrowersChart = new HorizontalBarChart
+            topBorrowersChart = new LineChart
             {
                 BackColor = Color.White,
-                BarBottomColor = Color.FromArgb(15, 118, 110),
-                BarTopColor = Color.FromArgb(45, 212, 191),
-                Dock = DockStyle.Fill,
                 EmptyText = "NO BORROW RECORDS HAVE BEEN RECORDED YET.",
-                Subtitle = "STUDENT BORROWERS RANKED BY THE NUMBER OF BOOKS BORROWED",
+                HoverImageProvider = LoadBorrowerAvatar,
+                LineColor = Color.FromArgb(13, 148, 136),
+                Subtitle = "THE STUDENTS WHO BORROWED THE MOST BOOKS",
                 Title = "TOP LIBRARY BOOK BORROWERS"
             };
 
-            RoundedCard programCard = new RoundedCard
+            // ------------------------------------------ MOST BORROWED BOOKS
+            // A line chart like the two above, plus a hover preview: pointing at a
+            // book's point fades in its cover, so the librarian can recognise the
+            // title without reading the angled axis label.
+            mostBorrowedBooksChart = new LineChart
             {
                 BackColor = Color.White,
-                BorderColor = Color.FromArgb(226, 232, 240),
-                CornerRadius = 16,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 9, 0),
-                Padding = new Padding(1)
+                EmptyText = "NO BOOK HAS BEEN BORROWED YET.",
+                HoverImageProvider = LoadBookCover,
+                LineColor = Color.FromArgb(37, 99, 235),
+                Subtitle = "THE BOOKS BORROWED THE MOST TIMES",
+                Title = "MOST BORROWED BOOKS"
             };
-
-            // The program list is complete, so its chart scrolls inside the card
-            // when there are more programs than the card can show at once.
-            programVisitsScroll = new Panel
-            {
-                AutoScroll = true,
-                BackColor = Color.White,
-                Dock = DockStyle.Fill
-            };
-            programVisitsScroll.Controls.Add(programVisitsChart);
-            programVisitsScroll.Resize += (s, e) => SizeProgramVisitsChart();
-            programCard.Controls.Add(programVisitsScroll);
-
-            RoundedCard borrowerCard = CreateAnalyticsCard(topBorrowersChart, new Padding(9, 0, 0, 0));
-
-            chartsRow.Controls.Add(programCard, 0, 0);
-            chartsRow.Controls.Add(borrowerCard, 1, 0);
 
             // --------------------------------------------- EVALUATION BLOCK HEAD
             Panel evaluationHead = new Panel
@@ -3312,7 +3570,7 @@ namespace oop_project.forms
                 BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 11.5F, FontStyle.Bold),
                 ForeColor = HeaderGreen,
-                Location = new Point(2, 8),
+                Location = new Point(8, 8),
                 Size = new Size(600, 24),
                 Text = "EVALUATION FORM FEEDBACK",
                 TextAlign = ContentAlignment.MiddleLeft
@@ -3328,7 +3586,7 @@ namespace oop_project.forms
                 BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(2, 34),
+                Location = new Point(8, 34),
                 Size = new Size(520, 20),
                 Text = "NO EVALUATION PERIOD HAS BEEN OPENED YET.",
                 TextAlign = ContentAlignment.MiddleLeft
@@ -3436,57 +3694,52 @@ namespace oop_project.forms
                 Title = "RESPONSES BY RESPONDENT"
             };
 
-            evaluationSectionChart = new HorizontalBarChart
+            evaluationSectionChart = new LineChart
             {
                 AxisSteps = 5,
                 BackColor = Color.White,
-                BarBottomColor = Color.FromArgb(30, 64, 175),
-                BarTopColor = Color.FromArgb(96, 165, 250),
                 EmptyText = "NO EVALUATION ANSWERS HAVE BEEN SUBMITTED YET.",
+                LineColor = Color.FromArgb(37, 99, 235),
                 MaximumValue = 5,
                 Subtitle = "MEAN SCORE PER SECTION (5 = EXCELLENT)",
                 Title = "AVERAGE RATING",
                 ValueDecimals = 2
             };
 
-            evaluationRatingChart = new HorizontalBarChart
+            evaluationRatingChart = new LineChart
             {
-                AxisSteps = 5,
                 BackColor = Color.White,
-                BarBottomColor = Color.FromArgb(154, 52, 18),
-                BarTopColor = Color.FromArgb(251, 146, 60),
                 EmptyText = "NO EVALUATION ANSWERS HAVE BEEN SUBMITTED YET.",
-                Subtitle = "EVERY RATING GIVEN, FROM 5 (EXCELLENT) TO 1 (POOR)",
+                LineColor = Color.FromArgb(234, 88, 12),
+                Subtitle = "EVERY RATING GIVEN, FROM 1 (POOR) TO 5 (EXCELLENT)",
                 Title = "FEEDBACK RATING DISTRIBUTION"
             };
 
+            body.Controls.Add(kpiStrip, 0, 0);
+            body.Controls.Add(CreateAnalyticsCard(programVisitsChart, new Padding(0, 0, 0, StackGap)), 0, 1);
+            body.Controls.Add(CreateAnalyticsCard(topBorrowersChart, new Padding(0, 0, 0, StackGap)), 0, 2);
+            body.Controls.Add(CreateAnalyticsCard(mostBorrowedBooksChart, new Padding(0, 0, 0, StackGap)), 0, 3);
+            body.Controls.Add(evaluationHead, 0, 4);
+            body.Controls.Add(feedbackRow, 0, 5);
+
             feedbackRow.Controls.Add(
-                CreateAnalyticsCard(evaluationRoleChart, new Padding(0, 0, 9, 0)), 0, 0);
+                CreateAnalyticsCard(evaluationRoleChart, new Padding(0, 0, 12, 0)), 0, 0);
             feedbackRow.Controls.Add(
-                CreateAnalyticsCard(evaluationSectionChart, new Padding(0, 0, 9, 0)), 1, 0);
+                CreateAnalyticsCard(evaluationSectionChart, new Padding(0, 0, 12, 0)), 1, 0);
             feedbackRow.Controls.Add(
                 CreateAnalyticsCard(evaluationRatingChart, new Padding(0, 0, 0, 0)), 2, 0);
-
-            body.Controls.Add(kpiStrip, 0, 0);
-            body.Controls.Add(chartsRow, 0, 1);
-            body.Controls.Add(evaluationHead, 0, 2);
-            body.Controls.Add(feedbackRow, 0, 3);
 
             analyticsScroll.Controls.Add(body);
             analyticsTab.Controls.Add(analyticsScroll);
             analyticsTab.Controls.Add(analyticsHead);
         }
 
-        private static RoundedCard CreateAnalyticsCard(Control content, Padding margin)
+        private static AnalyticsCard CreateAnalyticsCard(Control content, Padding margin)
         {
-            RoundedCard card = new RoundedCard
+            AnalyticsCard card = new AnalyticsCard
             {
-                BackColor = Color.White,
-                BorderColor = Color.FromArgb(226, 232, 240),
-                CornerRadius = 16,
                 Dock = DockStyle.Fill,
-                Margin = margin,
-                Padding = new Padding(1)
+                Margin = margin
             };
 
             content.Dock = DockStyle.Fill;
@@ -3495,14 +3748,14 @@ namespace oop_project.forms
             return card;
         }
 
-        private static StatCard CreateEvaluationCard(string caption, Color accent)
+        private static AnalyticsStatCard CreateEvaluationCard(string caption, Color accent)
         {
-            return new StatCard
+            return new AnalyticsStatCard
             {
                 AccentColor = accent,
                 Caption = caption,
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0, 0, 10, 0),
+                Margin = new Padding(0, 0, 12, 0),
                 Value = "\u2014"
             };
         }
@@ -3510,7 +3763,7 @@ namespace oop_project.forms
         private void LayoutAnalyticsHead()
         {
             if (analyticsHead == null || analyticsRefreshButton == null ||
-                analyticsTitle == null || analyticsSubtitle == null || analyticsStatus == null)
+                analyticsTitle == null || analyticsStatus == null)
             {
                 return;
             }
@@ -3518,12 +3771,11 @@ namespace oop_project.forms
             int right = analyticsHead.ClientSize.Width;
 
             analyticsRefreshButton.Left = Math.Max(0, right - analyticsRefreshButton.Width - 2);
-            analyticsRefreshButton.Top = 10;
+            analyticsRefreshButton.Top = 24;
 
             int textWidth = Math.Max(240, analyticsRefreshButton.Left - 16);
 
             analyticsTitle.Width = textWidth;
-            analyticsSubtitle.Width = textWidth;
             analyticsStatus.Width = textWidth;
         }
 
@@ -3976,7 +4228,8 @@ namespace oop_project.forms
 
         private void LoadAnalytics()
         {
-            if (programVisitsChart == null || topBorrowersChart == null || analyticsStatus == null)
+            if (programVisitsChart == null || topBorrowersChart == null ||
+                mostBorrowedBooksChart == null || analyticsStatus == null)
             {
                 return;
             }
@@ -3987,10 +4240,38 @@ namespace oop_project.forms
             {
                 List<ChartItem> programs = LoadProgramVisitChart();
                 List<ChartItem> borrowers = LoadTopBorrowerChart();
+                List<ChartItem> books = LoadMostBorrowedBookChart();
+                List<ChartItem> topPrograms = TakeChartPoints(programs);
 
-                programVisitsChart.SetData(programs);
+                // The subtitle always says how many rows the curve shows, so the
+                // librarian knows when a long program list is summarised.
+                programVisitsChart.Subtitle = programs.Count > topPrograms.Count
+                    ? "TOP " + topPrograms.Count + " OF " + programs.Count + " PROGRAMS BY STUDENT VISITS"
+                    : "STUDENT VISITS TO THE LIBRARY, BY PROGRAM";
+                programVisitsChart.SetData(topPrograms);
+
+                topBorrowersChart.Subtitle = borrowers.Count == 1
+                    ? "THE STUDENT WHO BORROWED THE MOST BOOKS"
+                    : "THE " + Math.Min(ChartPointLimit, borrowers.Count) + " STUDENTS WHO BORROWED THE MOST BOOKS";
                 topBorrowersChart.SetData(borrowers);
-                SizeProgramVisitsChart();
+
+                // The bars are ranked the same way and start at the highest count,
+                // so the longest bar is always the book borrowed the most times.
+                if (books.Count == 0)
+                {
+                    mostBorrowedBooksChart.Subtitle = "THE BOOKS BORROWED THE MOST TIMES";
+                }
+                else if (books.Count == 1)
+                {
+                    mostBorrowedBooksChart.Subtitle = "THE BOOK BORROWED THE MOST TIMES";
+                }
+                else
+                {
+                    mostBorrowedBooksChart.Subtitle =
+                        "THE " + Math.Min(ChartPointLimit, books.Count) + " BOOKS BORROWED THE MOST TIMES";
+                }
+
+                mostBorrowedBooksChart.SetData(books);
 
                 // The survey lives in its own tables, so a missing or unreadable
                 // evaluation schema only empties the feedback block instead of
@@ -4016,40 +4297,51 @@ namespace oop_project.forms
                     feedback = null;
                 }
 
-                string status = "UPDATED " +
-                                DateTime.Now.ToString("hh:mm tt", CultureInfo.InvariantCulture) +
-                                "   \u2022   " + programs.Count + " PROGRAMS" +
-                                "   \u2022   " + borrowers.Count + " BORROWERS";
-
                 if (feedback != null)
                 {
                     ApplyEvaluationSummary(feedback);
-                    status += "   \u2022   " + feedback.TotalResponses + " EVALUATION RESPONSES";
+                    SetAnalyticsStatus(string.Empty, WarningText);
                 }
                 else
                 {
                     ResetEvaluationSummary();
-                    status += feedbackPeriod.HasValue
-                        ? "   \u2022   EVALUATION FEEDBACK UNAVAILABLE"
-                        : "   \u2022   NO EVALUATION SEMESTER YET";
-                }
 
-                analyticsStatus.Text = status;
-                analyticsStatus.ForeColor = feedback != null ? SuccessText : WarningText;
+                    // A semester that has no answers yet is a normal state, so only a
+                    // semester that exists but cannot be read raises a warning.
+                    SetAnalyticsStatus(
+                        feedbackPeriod.HasValue ? "EVALUATION FEEDBACK UNAVAILABLE" : string.Empty,
+                        WarningText);
+                }
             }
             catch (MySqlException)
             {
                 programVisitsChart.SetData(new List<ChartItem>());
                 topBorrowersChart.SetData(new List<ChartItem>());
+                mostBorrowedBooksChart.SetData(new List<ChartItem>());
                 ResetEvaluationSummary();
-                SizeProgramVisitsChart();
-                analyticsStatus.Text = "MYSQL OFFLINE \u2022 THE CHARTS CANNOT BE LOADED";
-                analyticsStatus.ForeColor = WarningText;
+                SetAnalyticsStatus("MYSQL OFFLINE \u2022 THE CHARTS CANNOT BE LOADED", WarningText);
             }
             finally
             {
                 analyticsRefreshButton.Enabled = true;
             }
+        }
+
+        /// <summary>
+        /// Shows or clears the single line under the ANALYTICS title. The header is
+        /// deliberately free of counters and timestamps, so the line is only used to
+        /// explain why the charts could not be refreshed.
+        /// </summary>
+        private void SetAnalyticsStatus(string text, Color color)
+        {
+            if (analyticsStatus == null)
+            {
+                return;
+            }
+
+            analyticsStatus.Text = text ?? string.Empty;
+            analyticsStatus.ForeColor = color;
+            analyticsStatus.Visible = analyticsStatus.Text.Length > 0;
         }
 
         /// <summary>
@@ -4083,13 +4375,6 @@ namespace oop_project.forms
             if (evalStaffCard != null)
             {
                 evalStaffCard.Value = summary.StaffResponses.ToString("N0", CultureInfo.CurrentCulture);
-            }
-
-            if (evalAverageCard != null)
-            {
-                evalAverageCard.Value = summary.TotalAnswers == 0
-                    ? "\u2014"
-                    : summary.OverallAverage.ToString("0.00", CultureInfo.CurrentCulture);
             }
 
             if (evaluationRoleChart != null)
@@ -4142,13 +4427,15 @@ namespace oop_project.forms
             {
                 List<ChartItem> ratings = new List<ChartItem>();
 
+                // The curve rises from 1 (POOR) to 5 (EXCELLENT), so the line
+                // reads left to right the same way the scale does.
                 if (summary.TotalAnswers > 0)
                 {
-                    ratings.Add(new ChartItem("5  \u2022  EXCELLENT", summary.RatingCounts[5]));
-                    ratings.Add(new ChartItem("4  \u2022  VERY GOOD", summary.RatingCounts[4]));
-                    ratings.Add(new ChartItem("3  \u2022  GOOD", summary.RatingCounts[3]));
-                    ratings.Add(new ChartItem("2  \u2022  FAIR", summary.RatingCounts[2]));
                     ratings.Add(new ChartItem("1  \u2022  POOR", summary.RatingCounts[1]));
+                    ratings.Add(new ChartItem("2  \u2022  FAIR", summary.RatingCounts[2]));
+                    ratings.Add(new ChartItem("3  \u2022  GOOD", summary.RatingCounts[3]));
+                    ratings.Add(new ChartItem("4  \u2022  VERY GOOD", summary.RatingCounts[4]));
+                    ratings.Add(new ChartItem("5  \u2022  EXCELLENT", summary.RatingCounts[5]));
                 }
 
                 evaluationRatingChart.SetData(ratings);
@@ -4164,21 +4451,19 @@ namespace oop_project.forms
         }
 
         /// <summary>
-        /// Gives the program chart enough height to show every program, so the
-        /// card scrolls instead of dropping the programs that do not fit.
+        /// Keeps the ten highest values of a ranked list, so a long program or
+        /// borrower list still turns into a readable curve with room for labels.
         /// </summary>
-        private void SizeProgramVisitsChart()
+        private static List<ChartItem> TakeChartPoints(List<ChartItem> items)
         {
-            if (programVisitsScroll == null || programVisitsChart == null)
+            List<ChartItem> top = new List<ChartItem>(Math.Min(ChartPointLimit, items.Count));
+
+            for (int index = 0; index < items.Count && index < ChartPointLimit; index++)
             {
-                return;
+                top.Add(items[index]);
             }
 
-            // 18 top padding + 58 title/subtitle + 28 axis + 18 bottom padding.
-            int rows = Math.Max(1, programVisitsChart.ItemCount);
-            int preferredHeight = 122 + (rows * 34);
-
-            programVisitsChart.Height = Math.Max(programVisitsScroll.ClientSize.Height, preferredHeight);
+            return top;
         }
 
         /// <summary>
@@ -4194,7 +4479,9 @@ namespace oop_project.forms
                 "SELECT p.`program_name`, COUNT(a.`attendance_id`) AS `visits` " +
                 "FROM `program_table` p " +
                 "LEFT JOIN `student_info_table` s ON s.`program_id` = p.`program_id` " +
-                "LEFT JOIN `attendance_table` a ON a.`account_id` = s.`account_id` AND a.`role` = 'STUDENT' " +
+                "LEFT JOIN `account_role_table` ar ON ar.`account_id` = s.`account_id` " +
+                "LEFT JOIN `role_table` rt ON rt.`role_id` = ar.`role_id` " +
+                "LEFT JOIN `attendance_table` a ON a.`account_id` = s.`account_id` AND rt.`role_code` = 'STUDENT' " +
                 "GROUP BY p.`program_id`, p.`program_name` " +
                 "ORDER BY `visits` DESC, p.`program_name` ASC;";
 
@@ -4270,13 +4557,16 @@ namespace oop_project.forms
         private static List<ChartItem> LoadTopBorrowerChart()
         {
             const string sql =
-                "SELECT b.`borrower_name`, COUNT(t.`borrow_id`) AS `total` " +
+                "SELECT CONCAT(b.`last_name`, ', ', b.`first_name`, " +
+                "              CASE WHEN b.`middle_name` IS NULL OR b.`middle_name` = '' THEN '' " +
+                "                   ELSE CONCAT(' ', b.`middle_name`) END) AS `borrower_name`, " +
+                "       COUNT(t.`borrow_id`) AS `total` " +
                 "FROM `borrowers_table` b " +
                 "INNER JOIN `borrow_transactions_table` t ON t.`borrower_id` = b.`borrower_id` " +
                 "INNER JOIN `student_info_table` s ON s.`school_id` = b.`id_number` " +
-                "GROUP BY b.`borrower_id`, b.`borrower_name` " +
+                "GROUP BY b.`borrower_id`, b.`last_name`, b.`first_name`, b.`middle_name` " +
                 "HAVING COUNT(t.`borrow_id`) > 0 " +
-                "ORDER BY `total` DESC, b.`borrower_name` ASC " +
+                "ORDER BY `total` DESC, `borrower_name` ASC " +
                 "LIMIT 10;";
 
             List<ChartItem> items = new List<ChartItem>();
@@ -4309,12 +4599,237 @@ namespace oop_project.forms
             return items;
         }
 
+        /// <summary>
+        /// SQL #3: ranks the catalog by how many times each book was borrowed.
+        /// Every borrow_transactions_table row is one loan, so the book with the
+        /// most rows is the most borrowed one. The HAVING clause keeps books that
+        /// were never borrowed out of the chart, and the LIMIT matches the number
+        /// of points the chart can label.
+        /// </summary>
+        private static List<ChartItem> LoadMostBorrowedBookChart()
+        {
+            string sql =
+                "SELECT b.`book_id`, b.`book_title`, COUNT(t.`borrow_id`) AS `total` " +
+                "FROM `books_table` b " +
+                "INNER JOIN `borrow_transactions_table` t ON t.`book_id` = b.`book_id` " +
+                "GROUP BY b.`book_id`, b.`book_title` " +
+                "HAVING COUNT(t.`borrow_id`) > 0 " +
+                "ORDER BY `total` DESC, b.`book_title` ASC " +
+                "LIMIT " + ChartPointLimit + ";";
+
+            List<ChartItem> items = new List<ChartItem>();
+
+            using (MySqlConnection connection = Authentication.OpenConnection())
+            {
+                connection.Open();
+
+                using (MySqlCommand command = new MySqlCommand(sql, connection))
+                using (MySqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        int bookId = reader.IsDBNull(0)
+                            ? 0
+                            : Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture);
+
+                        string label = reader.IsDBNull(1)
+                            ? "UNTITLED BOOK"
+                            : (Convert.ToString(reader.GetValue(1), CultureInfo.InvariantCulture) ?? string.Empty).Trim();
+
+                        int value = reader.IsDBNull(2)
+                            ? 0
+                            : Convert.ToInt32(reader.GetValue(2), CultureInfo.InvariantCulture);
+
+                        if (label.Length > 0 && value > 0)
+                        {
+                            // The book id rides along as the tag, so the hover preview
+                            // can fetch exactly this title's cover from books_table.
+                            items.Add(new ChartItem(label.ToUpperInvariant(), value, bookId));
+                        }
+                    }
+                }
+            }
+
+            return items;
+        }
+
+        /// <summary>
+        /// ANALYTICS: the cover shown when a MOST BORROWED BOOKS point is hovered.
+        /// The first hover reads books_table.book_image for that book, shrinks it to
+        /// the preview size and caches it; a title without a stored picture gets the
+        /// neutral placeholder instead of an empty box.
+        /// </summary>
+        private Image? LoadBookCover(ChartItem item)
+        {
+            int bookId = item.Tag is int ? (int)item.Tag : 0;
+
+            if (bookId <= 0)
+            {
+                return BookImage.CreateThumbnail(null, HoverCoverWidth, HoverCoverHeight, true);
+            }
+
+            Image? thumbnail;
+
+            if (_bookCoverCache.TryGetValue(bookId, out thumbnail))
+            {
+                return thumbnail;
+            }
+
+            thumbnail = BookImage.CreateThumbnail(
+                LoadBookCoverBytes(bookId), HoverCoverWidth, HoverCoverHeight, true);
+
+            _bookCoverCache[bookId] = thumbnail;
+
+            return thumbnail;
+        }
+
+        /// <summary>
+        /// Reads one cover straight from books_table. A hover happens long after the
+        /// charts loaded, but the server can still go away, so a failed read simply
+        /// falls back to the placeholder cover instead of breaking the mouse move.
+        /// </summary>
+        private static byte[]? LoadBookCoverBytes(int bookId)
+        {
+            const string sql =
+                "SELECT `book_image` FROM `books_table` WHERE `book_id` = @bookId LIMIT 1;";
+
+            try
+            {
+                using (MySqlConnection connection = Authentication.OpenConnection())
+                {
+                    connection.Open();
+
+                    using (MySqlCommand command = new MySqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@bookId", bookId);
+
+                        return command.ExecuteScalar() as byte[];
+                    }
+                }
+            }
+            catch (MySqlException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// ANALYTICS: the initials shown when a TOP LIBRARY BOOK BORROWERS point is
+        /// hovered. A borrower has no picture, so a round badge carries their initials
+        /// instead. The badge is built once per name and kept with the book covers.
+        /// </summary>
+        private Image LoadBorrowerAvatar(ChartItem item)
+        {
+            string name = item.Label ?? string.Empty;
+
+            if (_borrowerAvatarCache.TryGetValue(name, out Image? avatar))
+            {
+                return avatar;
+            }
+
+            avatar = CreateInitialsAvatar(BorrowerInitials(name), HoverCoverWidth);
+            _borrowerAvatarCache[name] = avatar;
+
+            return avatar;
+        }
+
+        /// <summary>Draws a round avatar badge with the borrower's initials.</summary>
+        private static Bitmap CreateInitialsAvatar(string initials, int size)
+        {
+            int side = Math.Max(24, size);
+            Bitmap bitmap = new Bitmap(side, side);
+
+            using (Graphics graphics = Graphics.FromImage(bitmap))
+            {
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                graphics.Clear(Color.Transparent);
+
+                Rectangle bounds = new Rectangle(0, 0, side - 1, side - 1);
+
+                using (GraphicsPath circle = DrawHelper.CreateRoundedPath(bounds, side / 2))
+                using (LinearGradientBrush fill = new LinearGradientBrush(
+                    bounds,
+                    Color.FromArgb(15, 118, 110),
+                    Color.FromArgb(13, 148, 136),
+                    LinearGradientMode.Vertical))
+                {
+                    graphics.FillPath(fill, circle);
+                }
+
+                using Font font = new Font("Segoe UI", side * 0.36f, FontStyle.Bold, GraphicsUnit.Pixel);
+                using SolidBrush brush = new SolidBrush(Color.White);
+                using StringFormat format = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                };
+
+                graphics.DrawString(initials, font, brush, new RectangleF(0, 0, side, side), format);
+            }
+
+            return bitmap;
+        }
+
+        /// <summary>
+        /// Initials of a borrower label written as LAST, FIRST MIDDLE: the last name
+        /// and the first name give the two letters, e.g. DITCHON, JOHN CARL -> DJ.
+        /// </summary>
+        private static string BorrowerInitials(string label)
+        {
+            string name = (label ?? string.Empty).Trim();
+
+            if (name.Length == 0)
+            {
+                return "?";
+            }
+
+            int comma = name.IndexOf(',');
+
+            if (comma > 0)
+            {
+                string last = name.Substring(0, comma).Trim();
+                string rest = name.Substring(comma + 1).Trim();
+                int space = rest.IndexOf(' ');
+                string first = space > 0 ? rest.Substring(0, space) : rest;
+
+                if (last.Length > 0 && first.Length > 0)
+                {
+                    return (last.Substring(0, 1) + first.Substring(0, 1)).ToUpperInvariant();
+                }
+            }
+
+            return BuildInitials(name);
+        }
+
+        /// <summary>
+        /// Releases the cached covers and avatars when the dashboard closes. They are
+        /// only held for the hover preview, so nothing else needs them afterwards.
+        /// </summary>
+        private void DisposeHoverImages()
+        {
+            foreach (Image cover in _bookCoverCache.Values)
+            {
+                cover.Dispose();
+            }
+
+            _bookCoverCache.Clear();
+
+            foreach (Image avatar in _borrowerAvatarCache.Values)
+            {
+                avatar.Dispose();
+            }
+
+            _borrowerAvatarCache.Clear();
+        }
+
         private sealed class ChartItem
         {
-            public ChartItem(string label, double value)
+            public ChartItem(string label, double value, object? tag = null)
             {
                 Label = label;
                 Value = value;
+                Tag = tag;
             }
 
             public string Label { get; }
@@ -4322,18 +4837,253 @@ namespace oop_project.forms
             // A double keeps whole counts (visits, borrowers, responses) and the
             // 1-5 section means in the same item type.
             public double Value { get; }
+
+            // Optional row id behind the item. The MOST BORROWED BOOKS chart keeps
+            // the book id here so hovering a point can fetch that cover.
+            public object? Tag { get; }
         }
 
         /// <summary>
-        /// Professional horizontal bar chart drawn with GDI+ (no external chart
-        /// package): title, subtitle, grid, rounded track and a gradient bar for
-        /// every row, with the value printed at the end of the bar.
+        /// Soft shadow + white rounded body shared by every ANALYTICS card. The
+        /// shadow is painted inside the control (the page is white like the card),
+        /// so the cards keep a crisp 1 px edge and need no transparency support.
         /// </summary>
-        private sealed class HorizontalBarChart : Control
+        private static void PaintAnalyticsSurface(Graphics graphics, Size size, int radius, Color border)
+        {
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.Clear(Color.White);
+
+            const int inset = 6;
+
+            if (size.Width <= (inset * 2) + 24 || size.Height <= (inset * 2) + 24)
+            {
+                return;
+            }
+
+            Rectangle body = new Rectangle(
+                inset,
+                inset - 2,
+                size.Width - (inset * 2),
+                size.Height - (inset * 2) + 2);
+
+            // Four 1 px rings with a low alpha build the soft shadow under the body.
+            for (int layer = 4; layer >= 1; layer--)
+            {
+                Rectangle ring = new Rectangle(
+                    body.X - layer,
+                    body.Y - layer + 2,
+                    body.Width + (layer * 2),
+                    body.Height + (layer * 2));
+
+                using GraphicsPath shadowPath = DrawHelper.CreateRoundedPath(ring, radius + layer);
+                using Pen shadowPen = new Pen(Color.FromArgb(layer == 1 ? 18 : 9, 15, 23, 42), 1f);
+                graphics.DrawPath(shadowPen, shadowPath);
+            }
+
+            using (GraphicsPath card = DrawHelper.CreateRoundedPath(body, radius))
+            {
+                using (SolidBrush fill = new SolidBrush(Color.White))
+                {
+                    graphics.FillPath(fill, card);
+                }
+
+                using Pen edge = new Pen(border, 1f);
+                graphics.DrawPath(edge, card);
+            }
+        }
+
+        /// <summary>Rounded card with a subtle drop shadow used by the ANALYTICS tab.</summary>
+        private sealed class AnalyticsCard : Panel
+        {
+            private int _cornerRadius = 16;
+            private Color _borderColor = Color.FromArgb(226, 232, 240);
+
+            public AnalyticsCard()
+            {
+                SetStyle(ControlStyles.UserPaint |
+                         ControlStyles.AllPaintingInWmPaint |
+                         ControlStyles.OptimizedDoubleBuffer |
+                         ControlStyles.ResizeRedraw, true);
+
+                BackColor = Color.White;
+                Padding = new Padding(8);
+            }
+
+            public int CornerRadius
+            {
+                get { return _cornerRadius; }
+                set { _cornerRadius = Math.Max(0, value); Invalidate(); }
+            }
+
+            public Color BorderColor
+            {
+                get { return _borderColor; }
+                set { _borderColor = value; Invalidate(); }
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                PaintAnalyticsSurface(e.Graphics, ClientSize, _cornerRadius, _borderColor);
+            }
+        }
+
+        /// <summary>
+        /// KPI tile of the ANALYTICS tab: rounded white card with a soft shadow, a
+        /// coloured accent bar, the caption and the large value.
+        /// </summary>
+        private sealed class AnalyticsStatCard : Control
+        {
+            private string _caption = "TOTAL";
+            private string _value = "\u2014";
+            private Color _accentColor = Color.FromArgb(22, 163, 74);
+
+            public AnalyticsStatCard()
+            {
+                SetStyle(ControlStyles.UserPaint |
+                         ControlStyles.AllPaintingInWmPaint |
+                         ControlStyles.OptimizedDoubleBuffer |
+                         ControlStyles.ResizeRedraw, true);
+
+                BackColor = Color.White;
+                Margin = new Padding(0, 0, 12, 0);
+                TabStop = false;
+            }
+
+            public string Caption
+            {
+                get { return _caption; }
+                set { _caption = value ?? string.Empty; Invalidate(); }
+            }
+
+            public string Value
+            {
+                get { return _value; }
+                set { _value = value ?? string.Empty; Invalidate(); }
+            }
+
+            public Color AccentColor
+            {
+                get { return _accentColor; }
+                set { _accentColor = value; Invalidate(); }
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Graphics graphics = e.Graphics;
+                PaintAnalyticsSurface(graphics, ClientSize, 16, Color.FromArgb(226, 232, 240));
+
+                const int inset = 6;
+                Rectangle body = new Rectangle(
+                    inset,
+                    inset - 2,
+                    Width - (inset * 2),
+                    Height - (inset * 2) + 2);
+
+                if (body.Width < 110 || body.Height < 54)
+                {
+                    return;
+                }
+
+                Rectangle accent = new Rectangle(body.X + 14, body.Y + 18, 4, Math.Max(14, body.Height - 36));
+
+                using (GraphicsPath accentPath = DrawHelper.CreateRoundedPath(accent, 2))
+                using (SolidBrush accentBrush = new SolidBrush(AccentColor))
+                {
+                    graphics.FillPath(accentBrush, accentPath);
+                }
+
+                using Font captionFont = new Font("Segoe UI", 7.25F, FontStyle.Bold);
+                TextRenderer.DrawText(
+                    graphics,
+                    (Caption ?? string.Empty).ToUpperInvariant(),
+                    captionFont,
+                    new Rectangle(body.X + 27, body.Y + 14, body.Width - 40, 16),
+                    Color.FromArgb(100, 116, 139),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+                using Font valueFont = new Font("Segoe UI", 20F, FontStyle.Bold);
+                TextRenderer.DrawText(
+                    graphics,
+                    Value ?? "\u2014",
+                    valueFont,
+                    new Rectangle(body.X + 26, body.Y + 32, body.Width - 38, 36),
+                    Color.FromArgb(15, 23, 42),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            }
+        }
+
+        /// <summary>
+        /// Draws the title and the colour dotted subtitle at the top of an ANALYTICS
+        /// chart. The line and bar cards share this heading, so every chart in the
+        /// tab reads as part of the same family.
+        /// </summary>
+        private static void DrawChartHeading(
+            Graphics graphics,
+            string title,
+            string subtitle,
+            Color accent,
+            int left,
+            int top,
+            int right)
+        {
+            using Font titleFont = new Font("Segoe UI", 11.25F, FontStyle.Bold);
+            using Font subtitleFont = new Font("Segoe UI", 8F);
+
+            TextRenderer.DrawText(
+                graphics,
+                title,
+                titleFont,
+                new Rectangle(left, top, Math.Max(40, right - left), 24),
+                Color.FromArgb(15, 23, 42),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+            // A colour dot in front of the subtitle ties the card to its data.
+            using (GraphicsPath dot = DrawHelper.CreateRoundedPath(new Rectangle(left, top + 36, 7, 7), 3))
+            using (SolidBrush dotBrush = new SolidBrush(accent))
+            {
+                graphics.FillPath(dotBrush, dot);
+            }
+
+            TextRenderer.DrawText(
+                graphics,
+                subtitle,
+                subtitleFont,
+                new Rectangle(left + 13, top + 29, Math.Max(40, right - left - 13), 20),
+                Color.FromArgb(100, 116, 139),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+
+        /// <summary>
+        /// Smooth line chart drawn with GDI+ (no external chart package), used for
+        /// every ANALYTICS figure: title, subtitle in the chart colour, clean axis
+        /// ticks, subtle gridlines, a soft gradient area under the curve, visible
+        /// points and a value label above each point. A chart that sets
+        /// <see cref="HoverImageProvider"/> also fades a small picture card in when a
+        /// point is hovered.
+        /// </summary>
+        private sealed class LineChart : Control
         {
             private List<ChartItem> _items = new List<ChartItem>();
 
-            public HorizontalBarChart()
+            // Hover preview: the chart that sets HoverImageProvider fades a small
+            // picture card in next to the point under the mouse. The card is built
+            // once per hover, then blended with a rising alpha so the hover reads as
+            // a smooth fade instead of a pop.
+            private readonly System.Windows.Forms.Timer _previewTimer =
+                new System.Windows.Forms.Timer();
+            private readonly Dictionary<ChartItem, Image?> _previewImages =
+                new Dictionary<ChartItem, Image?>();
+
+            private PointF[] _points = Array.Empty<PointF>();
+            private Rectangle _plotArea;
+            private float _columnWidth;
+            private int _previewIndex = -1;
+            private Image? _previewImage;
+            private Bitmap? _previewCard;
+            private float _previewOpacity;
+            private bool _previewHiding;
+
+            public LineChart()
             {
                 SetStyle(ControlStyles.UserPaint |
                          ControlStyles.AllPaintingInWmPaint |
@@ -4342,14 +5092,16 @@ namespace oop_project.forms
 
                 BackColor = Color.White;
                 Font = new Font("Segoe UI", 9F);
-                Padding = new Padding(22, 18, 22, 18);
+                Padding = new Padding(18, 14, 18, 10);
+
+                _previewTimer.Interval = 16;
+                _previewTimer.Tick += (s, e) => AdvancePreview();
             }
 
             public string Title { get; set; } = string.Empty;
             public string Subtitle { get; set; } = string.Empty;
             public string EmptyText { get; set; } = "NO DATA TO DISPLAY YET.";
-            public Color BarTopColor { get; set; } = Color.FromArgb(34, 197, 94);
-            public Color BarBottomColor { get; set; } = Color.FromArgb(6, 78, 59);
+            public Color LineColor { get; set; } = Color.FromArgb(22, 163, 74);
 
             // A fixed maximum keeps the 1-5 rating scale honest (the axis always
             // runs from 0 to 5), while a step count of 5 keeps its ticks whole.
@@ -4357,15 +5109,158 @@ namespace oop_project.forms
             public int AxisSteps { get; set; } = 4;
             public int ValueDecimals { get; set; }
 
+            // Returns the picture shown beside the hovered point. When it is null the
+            // chart keeps the classic behaviour and shows no hover card at all.
+            public Func<ChartItem, Image?>? HoverImageProvider { get; set; }
+
             public void SetData(List<ChartItem> items)
             {
                 _items = items ?? new List<ChartItem>();
+                _points = Array.Empty<PointF>();
+                _previewImages.Clear();
+                HidePreview();
                 Invalidate();
             }
 
             public int ItemCount
             {
                 get { return _items.Count; }
+            }
+
+            protected override void OnMouseMove(MouseEventArgs e)
+            {
+                base.OnMouseMove(e);
+
+                if (HoverImageProvider == null || _points.Length == 0)
+                {
+                    return;
+                }
+
+                int index = HitTest(e.Location);
+
+                if (index < 0)
+                {
+                    HidePreview();
+                    return;
+                }
+
+                if (index == _previewIndex && !_previewHiding)
+                {
+                    return;
+                }
+
+                _previewIndex = index;
+                _previewHiding = false;
+                _previewImage = ResolvePreviewImage(_items[index]);
+                DisposePreviewCard();
+                _previewTimer.Start();
+                Invalidate();
+            }
+
+            protected override void OnMouseLeave(EventArgs e)
+            {
+                base.OnMouseLeave(e);
+                HidePreview();
+            }
+
+            protected override void OnResize(EventArgs e)
+            {
+                base.OnResize(e);
+                DisposePreviewCard();
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    _previewTimer.Stop();
+                    _previewTimer.Dispose();
+                    DisposePreviewCard();
+                }
+
+                base.Dispose(disposing);
+            }
+
+            /// <summary>
+            /// The point closest to the mouse. Anywhere inside the plot counts, so the
+            /// librarian does not have to land exactly on the 8 px marker; the column
+            /// around the nearest point decides which book is previewed.
+            /// </summary>
+            private int HitTest(Point location)
+            {
+                if (_points.Length == 0 || !_plotArea.Contains(location))
+                {
+                    return -1;
+                }
+
+                int best = -1;
+                float bestDistance = float.MaxValue;
+
+                for (int index = 0; index < _points.Length; index++)
+                {
+                    float distance = Math.Abs(location.X - _points[index].X);
+
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        best = index;
+                    }
+                }
+
+                return bestDistance <= Math.Max(28f, _columnWidth) ? best : -1;
+            }
+
+            private Image? ResolvePreviewImage(ChartItem item)
+            {
+                Image? image;
+
+                if (_previewImages.TryGetValue(item, out image))
+                {
+                    return image;
+                }
+
+                image = HoverImageProvider?.Invoke(item);
+                _previewImages[item] = image;
+
+                return image;
+            }
+
+            /// <summary>Starts (or finishes) the fade in or the fade out of the card.</summary>
+            private void AdvancePreview()
+            {
+                _previewOpacity = _previewHiding
+                    ? Math.Max(0f, _previewOpacity - 0.2f)
+                    : Math.Min(1f, _previewOpacity + 0.16f);
+
+                if (!_previewHiding && _previewOpacity >= 1f)
+                {
+                    _previewTimer.Stop();
+                }
+                else if (_previewHiding && _previewOpacity <= 0f)
+                {
+                    _previewTimer.Stop();
+                    _previewIndex = -1;
+                    _previewImage = null;
+                    DisposePreviewCard();
+                }
+
+                Invalidate();
+            }
+
+            /// <summary>
+            /// Fades the card out instead of removing it at once, so moving the mouse
+            /// off a point is as smooth as moving onto it.
+            /// </summary>
+            private void HidePreview()
+            {
+                if (_previewIndex < 0 || _previewHiding)
+                {
+                    return;
+                }
+
+                _previewHiding = true;
+                _previewTimer.Start();
+                Invalidate();
             }
 
             protected override void OnPaint(PaintEventArgs e)
@@ -4375,153 +5270,524 @@ namespace oop_project.forms
                 graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
                 graphics.Clear(BackColor);
 
-                int left = Padding.Left + 6;
+                int left = Padding.Left;
+                int right = Width - Padding.Right;
                 int top = Padding.Top;
 
-                using Font titleFont = new Font("Segoe UI", 11.5F, FontStyle.Bold);
-                using Font subtitleFont = new Font("Segoe UI", 8.25F);
-                using Font labelFont = new Font("Segoe UI", 8.75F);
-                using Font tickFont = new Font("Segoe UI", 7.75F);
-                using Font valueFont = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+                using Font subtitleFont = new Font("Segoe UI", 8F);
+                using Font tickFont = new Font("Segoe UI", 7.5F);
+                using Font labelFont = new Font("Segoe UI", 7.25F);
+                using Font valueFont = new Font("Segoe UI", 8F, FontStyle.Bold);
 
-                TextRenderer.DrawText(graphics, Title, titleFont,
-                    new Rectangle(left, top, Math.Max(40, Width - left - Padding.Right), 24),
-                    Color.FromArgb(15, 23, 42),
-                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                DrawChartHeading(graphics, Title, Subtitle, LineColor, left, top, right);
 
-                TextRenderer.DrawText(graphics, Subtitle, subtitleFont,
-                    new Rectangle(left, top + 26, Math.Max(40, Width - left - Padding.Right), 18),
-                    Color.FromArgb(100, 116, 139),
-                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                int plotTop = top + 60;
+                int plotLeft = left + 38;
+                int plotRight = right - 4;
+                const int HorizontalLabelHeight = 34;
 
-                int chartTop = top + 58;
-                int axisHeight = 28;
-                int chartBottom = Height - Padding.Bottom - axisHeight;
+                if (plotRight - plotLeft < 70 ||
+                    Height - Padding.Bottom - HorizontalLabelHeight - plotTop < 56)
+                {
+                    return;
+                }
 
                 if (_items.Count == 0)
                 {
-                    TextRenderer.DrawText(graphics, EmptyText, subtitleFont,
-                        new Rectangle(left, chartTop, Math.Max(40, Width - left - Padding.Right), Math.Max(24, chartBottom - chartTop)),
+                    _points = Array.Empty<PointF>();
+
+                    TextRenderer.DrawText(
+                        graphics,
+                        EmptyText,
+                        subtitleFont,
+                        new Rectangle(left, plotTop, Math.Max(40, right - left),
+                            Math.Max(30, Height - Padding.Bottom - HorizontalLabelHeight - plotTop)),
                         Color.FromArgb(148, 163, 184),
                         TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+
                     return;
                 }
 
-                if (chartBottom - chartTop < 80)
-                {
-                    return;
-                }
+                double maximum = 0;
 
-                int labelWidth = Math.Max(140, (int)Math.Round((Width - left - Padding.Right) * 0.38));
-                int plotLeft = left + labelWidth;
-                int plotRight = Width - Padding.Right - 46;
-
-                if (plotRight - plotLeft < 80)
-                {
-                    plotLeft = left + Math.Max(70, labelWidth / 2);
-                    plotRight = Width - Padding.Right - 30;
-                }
-
-                double maxValue = 1;
                 foreach (ChartItem item in _items)
                 {
-                    maxValue = Math.Max(maxValue, item.Value);
+                    maximum = Math.Max(maximum, item.Value);
                 }
 
-                double niceMax = MaximumValue > 0 ? MaximumValue : NiceMaximum(maxValue);
-                int rowHeight = Math.Min(46, Math.Max(22, (chartBottom - chartTop) / _items.Count));
-                int blockHeight = rowHeight * _items.Count;
-                int rowsTop = chartTop + Math.Max(0, (chartBottom - chartTop - blockHeight) / 2);
+                double axisMax;
+                int axisSteps;
+                BuildAxis(maximum, out axisMax, out axisSteps);
 
-                // Alternating row wash first, so the grid lines stay visible.
-                for (int index = 0; index < _items.Count; index++)
+                int count = _items.Count;
+                double columnWidth = (plotRight - plotLeft) / (double)count;
+
+                // When a flat row of category names would run into itself, the
+                // labels are turned on an angle instead of being cut or overlapped,
+                // so the chart stays readable at any window width.
+                int widestLabel = MeasureWidestLabel();
+                bool rotateLabels = count > 1 && widestLabel > columnWidth - 4;
+                const float LabelAngle = -35F;
+                double labelRadians = Math.Abs(LabelAngle) * Math.PI / 180.0;
+                int labelHeight = HorizontalLabelHeight;
+
+                if (rotateLabels)
                 {
-                    if ((index % 2) == 1)
+                    // The angled labels end at their point and run down to the
+                    // left, so the plot gives up room on the left instead of
+                    // letting the first name run under the card edge.
+                    int leftSpan = (int)Math.Ceiling(Math.Cos(labelRadians) * widestLabel) + 6;
+                    int extraLeft = Math.Max(0, leftSpan - (plotLeft - left));
+
+                    if (extraLeft < (plotRight - plotLeft) - 160)
                     {
-                        using SolidBrush wash = new SolidBrush(Color.FromArgb(248, 250, 252));
-                        graphics.FillRectangle(wash, new Rectangle(left - 2, rowsTop + (index * rowHeight),
-                            Math.Max(1, Width - left - Padding.Right + 2), rowHeight));
+                        plotLeft += extraLeft;
+                        columnWidth = (plotRight - plotLeft) / (double)count;
                     }
+
+                    int needed = 18 + (int)Math.Ceiling(Math.Sin(labelRadians) * widestLabel);
+                    int available = Math.Max(40, Height - Padding.Bottom - plotTop - 56);
+                    labelHeight = Math.Min(available, Math.Min(110, needed));
                 }
 
-                using (Pen gridPen = new Pen(Color.FromArgb(229, 231, 235), 1f))
-                using (Pen baselinePen = new Pen(Color.FromArgb(203, 213, 225), 1.2f))
+                int plotBottom = Height - Padding.Bottom - labelHeight;
+                int plotHeight = plotBottom - plotTop;
+
+                using (Pen gridPen = new Pen(Color.FromArgb(241, 245, 249), 1f))
+                using (Pen baselinePen = new Pen(Color.FromArgb(226, 232, 240), 1.2f))
                 {
-                    int steps = Math.Max(1, AxisSteps);
-
-                    for (int step = 0; step <= steps; step++)
+                    for (int step = 0; step <= axisSteps; step++)
                     {
-                        int x = plotLeft + (int)Math.Round((plotRight - plotLeft) * step / (double)steps);
-                        graphics.DrawLine(gridPen, x, rowsTop - 4, x, rowsTop + blockHeight);
+                        int y = plotBottom - (int)Math.Round(plotHeight * step / (double)axisSteps);
 
-                        double tickValue = niceMax * step / steps;
-                        string tick = Math.Abs(tickValue - Math.Round(tickValue)) < 0.001
-                            ? ((long)Math.Round(tickValue)).ToString(CultureInfo.InvariantCulture)
-                            : tickValue.ToString("0.#", CultureInfo.InvariantCulture);
+                        if (step > 0)
+                        {
+                            graphics.DrawLine(gridPen, plotLeft, y, plotRight, y);
+                        }
 
-                        TextRenderer.DrawText(graphics, tick, tickFont,
-                            new Rectangle(x - 30, rowsTop + blockHeight + 4, 60, 16),
+                        TextRenderer.DrawText(
+                            graphics,
+                            FormatTick(axisMax * step / axisSteps),
+                            tickFont,
+                            new Rectangle(left, y - 9, plotLeft - left - 10, 18),
                             Color.FromArgb(148, 163, 184),
-                            TextFormatFlags.HorizontalCenter | TextFormatFlags.Top);
+                            TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
                     }
 
-                    graphics.DrawLine(baselinePen, plotLeft, rowsTop + blockHeight, plotRight, rowsTop + blockHeight);
+                    graphics.DrawLine(baselinePen, plotLeft, plotBottom, plotRight, plotBottom);
                 }
 
-                int barHeight = Math.Min(24, Math.Max(12, rowHeight - 12));
+                PointF[] points = new PointF[count];
 
-                for (int index = 0; index < _items.Count; index++)
+                for (int index = 0; index < count; index++)
                 {
-                    ChartItem item = _items[index];
-                    int rowTop = rowsTop + (index * rowHeight);
-                    int barTop = rowTop + ((rowHeight - barHeight) / 2);
-
-                    string caption = (index + 1).ToString(CultureInfo.InvariantCulture) + ".  " + item.Label;
-
-                    TextRenderer.DrawText(graphics, caption, labelFont,
-                        new Rectangle(left, rowTop, Math.Max(40, labelWidth - 14), rowHeight),
-                        Color.FromArgb(51, 65, 85),
-                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-                    using (GraphicsPath trackPath = oop_project.DrawHelper.CreateRoundedPath(
-                               new Rectangle(plotLeft, barTop, Math.Max(1, plotRight - plotLeft), barHeight),
-                               Math.Max(2, barHeight / 2)))
-                    using (SolidBrush trackBrush = new SolidBrush(Color.FromArgb(241, 245, 249)))
-                    {
-                        graphics.FillPath(trackBrush, trackPath);
-                    }
-
-                    int barWidth = (int)Math.Round((plotRight - plotLeft) * (item.Value / (double)niceMax));
-
-                    if (barWidth > 0)
-                    {
-                        barWidth = Math.Max(barHeight, barWidth);
-
-                        using GraphicsPath barPath = oop_project.DrawHelper.CreateRoundedPath(
-                            new Rectangle(plotLeft, barTop, barWidth, barHeight),
-                            Math.Max(2, barHeight / 2));
-
-                        using LinearGradientBrush barBrush = new LinearGradientBrush(
-                            new Rectangle(plotLeft, barTop, Math.Max(1, barWidth), Math.Max(1, barHeight)),
-                            BarTopColor, BarBottomColor, LinearGradientMode.Vertical);
-
-                        graphics.FillPath(barBrush, barPath);
-                    }
-
-                    string valueText = FormatValue(item.Value);
-                    int valueLeft = plotLeft + barWidth + 8;
-                    int valueWidth = Math.Max(24, Width - Padding.Right - valueLeft);
-
-                    if (valueLeft >= Width - Padding.Right - 4)
-                    {
-                        valueLeft = plotLeft + Math.Max(8, barWidth - 34);
-                    }
-
-                    TextRenderer.DrawText(graphics, valueText, valueFont,
-                        new Rectangle(valueLeft, rowTop, valueWidth, rowHeight),
-                        Color.FromArgb(6, 78, 59),
-                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                    double value = Math.Max(0, _items[index].Value);
+                    float x = (float)(plotLeft + (columnWidth * (index + 0.5)));
+                    float y = (float)(plotBottom - (plotHeight * Math.Min(1.0, value / axisMax)));
+                    points[index] = new PointF(x, y);
                 }
+
+                // The hover hit test reuses the geometry this paint just worked out,
+                // so the picture always lands on the point it belongs to.
+                _points = points;
+                _plotArea = new Rectangle(plotLeft, plotTop, plotRight - plotLeft, plotBottom - plotTop);
+                _columnWidth = (float)columnWidth;
+
+                // Soft area under the curve, from the line colour to white.
+                using (GraphicsPath area = new GraphicsPath())
+                {
+                    AddCurve(area, points);
+                    area.AddLine(points[count - 1].X, plotBottom, points[0].X, plotBottom);
+                    area.CloseFigure();
+
+                    using LinearGradientBrush areaBrush = new LinearGradientBrush(
+                        new Rectangle(plotLeft, plotTop, Math.Max(1, plotRight - plotLeft), Math.Max(1, plotHeight)),
+                        Color.FromArgb(64, LineColor),
+                        Color.FromArgb(6, LineColor),
+                        LinearGradientMode.Vertical);
+
+                    graphics.FillPath(areaBrush, area);
+                }
+
+                using (GraphicsPath curve = new GraphicsPath())
+                {
+                    AddCurve(curve, points);
+
+                    using Pen linePen = new Pen(LineColor, 2.6f)
+                    {
+                        LineJoin = LineJoin.Round,
+                        StartCap = LineCap.Round,
+                        EndCap = LineCap.Round
+                    };
+
+                    graphics.DrawPath(linePen, curve);
+                }
+
+                using (Pen pointRing = new Pen(LineColor, 2.2f))
+                using (SolidBrush pointFill = new SolidBrush(Color.White))
+                {
+                    // One value has no line to follow, so a dashed guideline shows
+                    // its level across the whole plot instead of a lonely dot.
+                    if (count == 1)
+                    {
+                        using Pen guidePen = new Pen(Color.FromArgb(110, LineColor), 1.2f)
+                        {
+                            DashStyle = DashStyle.Dash
+                        };
+
+                        graphics.DrawLine(guidePen, plotLeft, points[0].Y, plotRight, points[0].Y);
+                    }
+
+                    for (int index = 0; index < count; index++)
+                    {
+                        PointF point = points[index];
+                        int valueTop = (int)Math.Round(point.Y) - 24;
+                        int valueLeft = (int)Math.Round(point.X) - 30;
+
+                        if (valueTop < plotTop - 4)
+                        {
+                            valueTop = (int)Math.Round(point.Y) + 8;
+                        }
+
+                        // Keep the value label inside the plot area, so the last
+                        // point never pushes its number over the card edge.
+                        valueLeft = Math.Min(Math.Max(valueLeft, left), Math.Max(left, right - 60));
+
+                        TextRenderer.DrawText(
+                            graphics,
+                            FormatValue(_items[index].Value),
+                            valueFont,
+                            new Rectangle(valueLeft, valueTop, 60, 18),
+                            Color.FromArgb(51, 65, 85),
+                            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+
+                        graphics.FillEllipse(pointFill, point.X - 4.2f, point.Y - 4.2f, 8.4f, 8.4f);
+                        graphics.DrawEllipse(pointRing, point.X - 4.2f, point.Y - 4.2f, 8.4f, 8.4f);
+                    }
+                }
+
+                // The category names sit under their points and wrap onto two lines,
+                // or turn on an angle when a flat row would not fit.
+                if (rotateLabels)
+                {
+                    using Font angledFont = new Font("Segoe UI", 7.25F);
+                    using SolidBrush angledBrush = new SolidBrush(Color.FromArgb(71, 85, 105));
+                    using StringFormat angledFormat = new StringFormat(StringFormatFlags.NoWrap)
+                    {
+                        Alignment = StringAlignment.Far,
+                        LineAlignment = StringAlignment.Near
+                    };
+
+                    for (int index = 0; index < count; index++)
+                    {
+                        GraphicsState state = graphics.Save();
+                        graphics.TranslateTransform(points[index].X - 1, plotBottom + 8);
+                        graphics.RotateTransform(LabelAngle);
+                        graphics.DrawString(
+                            _items[index].Label,
+                            angledFont,
+                            angledBrush,
+                            new RectangleF(-300F, 0F, 300F, 18F),
+                            angledFormat);
+                        graphics.Restore(state);
+                    }
+                }
+                else
+                {
+                    for (int index = 0; index < count; index++)
+                    {
+                        int labelX = (int)Math.Round(points[index].X - (columnWidth / 2)) + 1;
+                        int labelWidth = Math.Max(24, (int)Math.Round(columnWidth) - 2);
+
+                        TextRenderer.DrawText(
+                            graphics,
+                            _items[index].Label,
+                            labelFont,
+                            new Rectangle(labelX, plotBottom + 8, labelWidth, labelHeight - 8),
+                            Color.FromArgb(71, 85, 105),
+                            TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak);
+                    }
+                }
+
+                // The hover picture is painted last so it floats above the curve,
+                // its points and its labels instead of being hidden behind them.
+                DrawPreview(graphics);
+            }
+
+            /// <summary>
+            /// Paints the hover card: the picture on the left, the label and the value
+            /// on the right. The whole card is one bitmap, so the fading alpha applies
+            /// to the picture and the text together.
+            /// </summary>
+            private void DrawPreview(Graphics graphics)
+            {
+                if (_previewIndex < 0 || _previewIndex >= _items.Count ||
+                    _previewIndex >= _points.Length || _previewOpacity <= 0.01f)
+                {
+                    return;
+                }
+
+                if (_previewCard == null)
+                {
+                    _previewCard = BuildPreviewCard(_items[_previewIndex], _previewImage);
+                }
+
+                int left = Padding.Left;
+                int right = Width - Padding.Right;
+                PointF point = _points[_previewIndex];
+
+                // A soft halo on the hovered point ties the floating card to the
+                // data it belongs to, so a wide chart never leaves the librarian
+                // guessing which book is previewed.
+                float haloRadius = 8f + (2f * _previewOpacity);
+
+                using (SolidBrush halo = new SolidBrush(
+                    Color.FromArgb((int)(44 * _previewOpacity), LineColor)))
+                using (Pen haloRing = new Pen(
+                    Color.FromArgb((int)(150 * _previewOpacity), LineColor), 1.6f))
+                {
+                    graphics.FillEllipse(
+                        halo,
+                        point.X - haloRadius,
+                        point.Y - haloRadius,
+                        haloRadius * 2,
+                        haloRadius * 2);
+
+                    graphics.DrawEllipse(
+                        haloRing,
+                        point.X - haloRadius,
+                        point.Y - haloRadius,
+                        haloRadius * 2,
+                        haloRadius * 2);
+                }
+
+                // The card floats above its point and slides up a few pixels while it
+                // fades in, which reads as a smooth hover instead of a pop.
+                int x = (int)Math.Round(point.X - (_previewCard.Width / 2f));
+                int y = (int)Math.Round(point.Y - _previewCard.Height - 18 - ((1f - _previewOpacity) * 6));
+
+                if (y < 4)
+                {
+                    y = (int)Math.Round(point.Y + 18 + ((1f - _previewOpacity) * 6));
+                }
+
+                x = Math.Min(Math.Max(x, left), Math.Max(left, right - _previewCard.Width));
+
+                using ImageAttributes attributes = new ImageAttributes();
+                attributes.SetColorMatrix(
+                    new ColorMatrix { Matrix33 = _previewOpacity },
+                    ColorMatrixFlag.Default,
+                    ColorAdjustType.Bitmap);
+
+                graphics.DrawImage(
+                    _previewCard,
+                    new Rectangle(x, y, _previewCard.Width, _previewCard.Height),
+                    0,
+                    0,
+                    _previewCard.Width,
+                    _previewCard.Height,
+                    GraphicsUnit.Pixel,
+                    attributes);
+            }
+
+            private static Bitmap BuildPreviewCard(ChartItem item, Image? cover)
+            {
+                const int CoverWidth = 62;
+                const int CoverHeight = 84;
+                const int PaddingSize = 12;
+                const int CardWidth = 280;
+
+                using Font titleFont = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+                using Font countFont = new Font("Segoe UI", 8F, FontStyle.Bold);
+
+                int textWidth = CardWidth - (PaddingSize * 3) - CoverWidth;
+
+                // GDI+ measures the wrapped title itself, so the height the card is
+                // built with is exactly the height the title is drawn with. Three
+                // lines is the cap; a longer title ends with an ellipsis.
+                int titleHeight;
+                using (Bitmap scratch = new Bitmap(1, 1))
+                using (Graphics measure = Graphics.FromImage(scratch))
+                {
+                    SizeF measured = measure.MeasureString(
+                        item.Label, titleFont, new SizeF(textWidth, 600f));
+
+                    titleHeight = (int)Math.Ceiling(Math.Min(
+                        measured.Height,
+                        titleFont.GetHeight(measure) * 3));
+                }
+
+                int contentHeight = Math.Max(CoverHeight, titleHeight + 6 + 16);
+                int cardHeight = contentHeight + (PaddingSize * 2);
+
+                Bitmap card = new Bitmap(CardWidth, cardHeight);
+
+                using (Graphics graphics = Graphics.FromImage(card))
+                {
+                    graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+                    // Anti aliased grayscale text is used instead of ClearType: the
+                    // card is composited with a fading alpha, and sub pixel colours
+                    // would fringe while it fades in.
+                    graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                    graphics.Clear(Color.Transparent);
+
+                    using (GraphicsPath body = DrawHelper.CreateRoundedPath(
+                        new Rectangle(0, 0, CardWidth - 1, cardHeight - 1), 10))
+                    {
+                        using SolidBrush fill = new SolidBrush(Color.White);
+                        using Pen edge = new Pen(Color.FromArgb(203, 213, 225), 1f);
+
+                        graphics.FillPath(fill, body);
+                        graphics.DrawPath(edge, body);
+                    }
+
+                    Rectangle coverBox = new Rectangle(
+                        PaddingSize,
+                        PaddingSize + ((contentHeight - CoverHeight) / 2),
+                        CoverWidth,
+                        CoverHeight);
+
+                    if (cover != null)
+                    {
+                        // Book covers already arrive at the cover size, while the
+                        // borrower avatar is square: fitting keeps both undistorted.
+                        graphics.DrawImage(cover, FitInside(cover.Size, coverBox));
+                    }
+
+                    int textLeft = PaddingSize + CoverWidth + PaddingSize;
+
+                    using (SolidBrush titleBrush = new SolidBrush(Color.FromArgb(15, 23, 42)))
+                    using (StringFormat titleFormat = new StringFormat(StringFormatFlags.LineLimit)
+                    {
+                        Trimming = StringTrimming.EllipsisWord
+                    })
+                    {
+                        graphics.DrawString(
+                            item.Label,
+                            titleFont,
+                            titleBrush,
+                            new RectangleF(textLeft, PaddingSize, textWidth, titleHeight + 2),
+                            titleFormat);
+                    }
+
+                    string loans = ((long)Math.Round(item.Value)).ToString(CultureInfo.InvariantCulture) +
+                                   (item.Value == 1 ? " BORROW" : " BORROWS");
+
+                    // GDI+ text is used for both lines: TextRenderer draws GDI text
+                    // that ghosts on the transparent card bitmap, while DrawString
+                    // stays crisp and keeps the transparent rounded corners.
+                    using (SolidBrush loansBrush = new SolidBrush(Color.FromArgb(37, 99, 235)))
+                    {
+                        graphics.DrawString(
+                            loans,
+                            countFont,
+                            loansBrush,
+                            new PointF(textLeft, PaddingSize + titleHeight + 6));
+                    }
+                }
+
+                return card;
+            }
+
+            /// <summary>
+            /// Centres a picture inside the card's picture box without stretching it,
+            /// so the square borrower avatar and the portrait book cover both keep
+            /// their true proportions.
+            /// </summary>
+            private static Rectangle FitInside(Size source, Rectangle box)
+            {
+                if (source.Width <= 0 || source.Height <= 0)
+                {
+                    return box;
+                }
+
+                double scale = Math.Min((double)box.Width / source.Width, (double)box.Height / source.Height);
+                int width = Math.Max(1, (int)Math.Round(source.Width * scale));
+                int height = Math.Max(1, (int)Math.Round(source.Height * scale));
+
+                return new Rectangle(
+                    box.X + ((box.Width - width) / 2),
+                    box.Y + ((box.Height - height) / 2),
+                    width,
+                    height);
+            }
+
+            private void DisposePreviewCard()
+            {
+                if (_previewCard == null)
+                {
+                    return;
+                }
+
+                _previewCard.Dispose();
+                _previewCard = null;
+            }
+
+            private int MeasureWidestLabel()
+            {
+                using Font measureFont = new Font("Segoe UI", 7.25F);
+                int widest = 0;
+
+                foreach (ChartItem item in _items)
+                {
+                    int width = TextRenderer.MeasureText(
+                        item.Label,
+                        measureFont,
+                        new Size(int.MaxValue, 18),
+                        TextFormatFlags.SingleLine | TextFormatFlags.NoPadding).Width;
+
+                    widest = Math.Max(widest, width);
+                }
+
+                return widest;
+            }
+
+            private static void AddCurve(GraphicsPath path, PointF[] points)
+            {
+                if (points.Length == 1)
+                {
+                    // A single point has no line yet; the marker shows it.
+                    path.AddLine(points[0].X - 0.5f, points[0].Y, points[0].X + 0.5f, points[0].Y);
+                    return;
+                }
+
+                if (points.Length == 2)
+                {
+                    path.AddLine(points[0], points[1]);
+                    return;
+                }
+
+                // Smooth Bezier curve whose control points are clamped inside the
+                // two values they connect. A plain cardinal spline would dip under
+                // the baseline between two low points, which would draw data that
+                // does not exist.
+                for (int index = 0; index < points.Length - 1; index++)
+                {
+                    PointF previous = index == 0 ? points[index] : points[index - 1];
+                    PointF current = points[index];
+                    PointF next = points[index + 1];
+                    PointF after = index + 2 < points.Length ? points[index + 2] : next;
+
+                    float firstX = current.X + ((next.X - previous.X) / 6F);
+                    float firstY = current.Y + ((next.Y - previous.Y) / 6F);
+                    float secondX = next.X - ((after.X - current.X) / 6F);
+                    float secondY = next.Y - ((after.Y - current.Y) / 6F);
+
+                    float low = Math.Min(current.Y, next.Y);
+                    float high = Math.Max(current.Y, next.Y);
+
+                    path.AddBezier(
+                        current,
+                        new PointF(firstX, Clamp(firstY, low, high)),
+                        new PointF(secondX, Clamp(secondY, low, high)),
+                        next);
+                }
+            }
+
+            private static float Clamp(float value, float minimum, float maximum)
+            {
+                return value < minimum ? minimum : value > maximum ? maximum : value;
             }
 
             private string FormatValue(double value)
@@ -4535,15 +5801,104 @@ namespace oop_project.forms
                     CultureInfo.InvariantCulture);
             }
 
-            private static double NiceMaximum(double maximum)
+            private static string FormatTick(double value)
             {
-                if (maximum <= 4)
+                if (Math.Abs(value - Math.Round(value)) < 0.001)
                 {
-                    return 4;
+                    return ((long)Math.Round(value)).ToString(CultureInfo.InvariantCulture);
                 }
 
-                double step = Math.Ceiling(maximum / 4.0);
-                return step * 4;
+                return value.ToString("0.##", CultureInfo.InvariantCulture);
+            }
+
+            /// <summary>
+            /// Chooses a round axis maximum (and a matching tick count) so the
+            /// labels read 0 / 2 / 4 / 6 instead of 0 / 1.7 / 3.4 / 5.1.
+            /// </summary>
+            private void BuildAxis(double maximum, out double axisMax, out int axisSteps)
+            {
+                axisSteps = Math.Max(2, AxisSteps);
+
+                if (MaximumValue > 0)
+                {
+                    axisMax = MaximumValue;
+                    return;
+                }
+
+                if (maximum <= 0)
+                {
+                    axisMax = axisSteps;
+                    return;
+                }
+
+                bool wholeNumbers = ValueDecimals <= 0;
+                double bestMax = double.MaxValue;
+                int bestSteps = axisSteps;
+
+                for (int candidate = 3; candidate <= 6; candidate++)
+                {
+                    double step = NiceStep(maximum / candidate, wholeNumbers);
+                    double candidateMax = step * candidate;
+
+                    if (candidateMax < maximum - 0.0001 || candidateMax >= bestMax)
+                    {
+                        continue;
+                    }
+
+                    bestMax = candidateMax;
+                    bestSteps = candidate;
+                }
+
+                if (bestMax >= double.MaxValue)
+                {
+                    bestMax = maximum;
+                    bestSteps = axisSteps;
+                }
+
+                axisMax = bestMax;
+                axisSteps = bestSteps;
+            }
+
+            private static double NiceStep(double raw, bool wholeNumbers)
+            {
+                if (raw <= 0)
+                {
+                    return 1;
+                }
+
+                double magnitude = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+                double normalized = raw / magnitude;
+                double step;
+
+                if (normalized <= 1)
+                {
+                    step = 1;
+                }
+                else if (normalized <= 2)
+                {
+                    step = 2;
+                }
+                else if (!wholeNumbers && normalized <= 2.5)
+                {
+                    step = 2.5;
+                }
+                else if (normalized <= 5)
+                {
+                    step = 5;
+                }
+                else
+                {
+                    step = 10;
+                }
+
+                step *= magnitude;
+
+                if (wholeNumbers)
+                {
+                    step = Math.Max(1, Math.Ceiling(step));
+                }
+
+                return step;
             }
         }
 

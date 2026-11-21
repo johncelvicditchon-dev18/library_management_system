@@ -9,7 +9,7 @@ namespace oop_project.Models
 {
     /// <summary>
     /// One entry in the library office attendance log. The librarian records it by
-    /// scanning the QR pass that a student, faculty member or staff member shows
+    /// scanning the QR code that a student, faculty member or staff member shows
     /// at the entrance.
     /// </summary>
     public class AttendanceRow
@@ -43,6 +43,25 @@ namespace oop_project.Models
             ScanTime = scanTime;
         }
 
+        /// <summary>
+        /// The ID NUMBER column. Only a student owns a school ID, so faculty,
+        /// staff and the librarian show N/A instead of their internal account
+        /// key. A student without a recorded school id shows a dash. The rule
+        /// lives here so the grid, the scanner card and the PDF always agree.
+        /// </summary>
+        public string DisplayIdNumber
+        {
+            get
+            {
+                if (!IsStudent)
+                {
+                    return "N/A";
+                }
+
+                return IdNumber.StartsWith("ACCOUNT-", StringComparison.Ordinal) ? "—" : IdNumber;
+            }
+        }
+
         public bool IsStudent
         {
             get { return Role == "STUDENT"; }
@@ -55,7 +74,7 @@ namespace oop_project.Models
 
         public bool IsStaff
         {
-            get { return Role == "STAFF" || Role == "OFFICER"; }
+            get { return Role == "STAFF"; }
         }
 
         public bool IsToday
@@ -104,7 +123,7 @@ namespace oop_project.Models
     /// All SQL for the library office attendance log. Only the LIBRARIAN scans a
     /// pass; students, faculty and staff read their own visit history.
     ///
-    /// The QR pass contains an "ACCOUNT: n" line, so the scanner (which behaves
+    /// The QR code contains an "ACCOUNT: n" line, so the scanner (which behaves
     /// like a keyboard) can send the whole text and this directory picks the
     /// account id out of it. A bare account number is accepted as well for a
     /// manual entry at the desk.
@@ -125,24 +144,25 @@ namespace oop_project.Models
         // LIBRARIAN no longer keeps an office, so both columns show "—" for them.
         private const string ProgramOfficeSelect =
             "CASE " +
-            "  WHEN COALESCE(r.`role`, 'STUDENT') = 'STUDENT' THEN COALESCE(p.`program_name`, '—') " +
-            "  WHEN COALESCE(r.`role`, 'STUDENT') IN ('STAFF', 'OFFICER') THEN COALESCE(st.`office`, '—') " +
+            "  WHEN COALESCE(rt.`role_code`, 'STUDENT') = 'STUDENT' THEN COALESCE(p.`program_name`, '—') " +
+            "  WHEN COALESCE(rt.`role_code`, 'STUDENT') = 'STAFF' THEN COALESCE(st.`office`, '—') " +
             "  ELSE '—' " +
             "END";
 
         private const string AttendanceSelect =
             "SELECT t.`attendance_id`, t.`account_id`, a.`name`, " +
-            "       COALESCE(r.`role`, 'STUDENT'), " +
+            "       COALESCE(rt.`role_code`, 'STUDENT'), " +
             "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)), " +
             "       " + ProgramOfficeSelect + ", " +
             "       COALESCE(i.`institute_code`, fi.`institute_code`, '—'), " +
             "       t.`scan_time` " +
             "FROM `attendance_table` t " +
             "JOIN `account_table` a ON a.`account_id` = t.`account_id` " +
-            "LEFT JOIN `account_role_table` r ON r.`account_id` = a.`account_id` " +
+            "LEFT JOIN `account_role_table` ar ON ar.`account_id` = a.`account_id` " +
+            "LEFT JOIN `role_table` rt ON rt.`role_id` = ar.`role_id` " +
             "LEFT JOIN `student_info_table` s ON s.`account_id` = a.`account_id` " +
             "LEFT JOIN `program_table` p ON p.`program_id` = s.`program_id` " +
-            "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` " +
+            "LEFT JOIN `institute_table` i ON i.`institute_id` = p.`institute_id` " +
             "LEFT JOIN `faculty_info_table` f ON f.`account_id` = a.`account_id` " +
             "LEFT JOIN `institute_table` fi ON fi.`institute_id` = f.`institute_id` " +
             "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` ";
@@ -175,13 +195,12 @@ namespace oop_project.Models
                 }
 
                 const string insertSql =
-                    "INSERT INTO `attendance_table` (`account_id`, `scan_time`, `role`) " +
-                    "VALUES (@accountId, NOW(), @role);";
+                    "INSERT INTO `attendance_table` (`account_id`, `scan_time`) " +
+                    "VALUES (@accountId, NOW());";
 
                 using (MySqlCommand command = new MySqlCommand(insertSql, connection))
                 {
                     command.Parameters.AddWithValue("@accountId", accountId);
-                    command.Parameters.AddWithValue("@role", account.Role);
                     command.ExecuteNonQuery();
 
                     AttendanceRow row = new AttendanceRow(
@@ -230,7 +249,7 @@ namespace oop_project.Models
             if (term.Length > 0)
             {
                 sql += "WHERE (a.`name` LIKE @search OR " +
-                       "       COALESCE(r.`role`, 'STUDENT') LIKE @search OR " +
+                       "       COALESCE(rt.`role_code`, 'STUDENT') LIKE @search OR " +
                        "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)) LIKE @search OR " +
                        "       " + ProgramOfficeSelect + " LIKE @search OR " +
                        "       COALESCE(i.`institute_code`, fi.`institute_code`, '—') LIKE @search OR " +
@@ -269,17 +288,16 @@ namespace oop_project.Models
 
             const string sql =
                 "CREATE TABLE IF NOT EXISTS `attendance_table` (" +
-                "  `attendance_id` INT(11) NOT NULL AUTO_INCREMENT," +
-                "  `account_id` INT(11) NOT NULL," +
+                "  `attendance_id` INT NOT NULL AUTO_INCREMENT," +
+                "  `account_id` INT NOT NULL," +
                 "  `scan_time` DATETIME NOT NULL," +
-                "  `role` VARCHAR(20) NOT NULL," +
                 "  PRIMARY KEY (`attendance_id`)," +
                 "  KEY `idx_attendance_account` (`account_id`)," +
                 "  KEY `idx_attendance_time` (`scan_time`)," +
                 "  CONSTRAINT `fk_attendance_account`" +
                 "      FOREIGN KEY (`account_id`) REFERENCES `account_table` (`account_id`)" +
                 "      ON DELETE CASCADE" +
-                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;";
+                ") ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
             {
@@ -331,7 +349,7 @@ namespace oop_project.Models
 
             if (value.Length == 0)
             {
-                throw new ArgumentException("SCAN A QR PASS OR TYPE AN ACCOUNT NUMBER FIRST.");
+                throw new ArgumentException("SCAN A QR CODE OR TYPE AN ACCOUNT NUMBER FIRST.");
             }
 
             // A manual entry at the desk is just the account number.
@@ -356,15 +374,17 @@ namespace oop_project.Models
         private static AccountSnapshot LoadAccount(MySqlConnection connection, int accountId)
         {
             const string sql =
-                "SELECT a.`account_id`, a.`name`, COALESCE(r.`role`, 'STUDENT'), COALESCE(r.`status`, 'PENDING'), " +
+                "SELECT a.`account_id`, a.`name`, COALESCE(rt.`role_code`, 'STUDENT'), COALESCE(ast.`status_code`, 'PENDING'), " +
                 "       COALESCE(NULLIF(s.`school_id`, ''), CONCAT('ACCOUNT-', a.`account_id`)), " +
                 "       " + ProgramOfficeSelect + ", " +
                 "       COALESCE(i.`institute_code`, fi.`institute_code`, '—') " +
                 "FROM `account_table` a " +
-                "LEFT JOIN `account_role_table` r ON r.`account_id` = a.`account_id` " +
+                "LEFT JOIN `account_role_table` ar ON ar.`account_id` = a.`account_id` " +
+                "LEFT JOIN `role_table` rt ON rt.`role_id` = ar.`role_id` " +
+                "LEFT JOIN `account_status_table` ast ON ast.`status_id` = ar.`status_id` " +
                 "LEFT JOIN `student_info_table` s ON s.`account_id` = a.`account_id` " +
                 "LEFT JOIN `program_table` p ON p.`program_id` = s.`program_id` " +
-                "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` " +
+                "LEFT JOIN `institute_table` i ON i.`institute_id` = p.`institute_id` " +
                 "LEFT JOIN `faculty_info_table` f ON f.`account_id` = a.`account_id` " +
                 "LEFT JOIN `institute_table` fi ON fi.`institute_id` = f.`institute_id` " +
                 "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` " +

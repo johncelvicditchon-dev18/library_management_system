@@ -161,12 +161,14 @@ namespace oop_project.forms
 
             try
             {
-                string role;
-                string status;
-                string name;
-                string accountUsername;
-                string schoolId;
-                int accountId;
+                string role = "STUDENT";
+                string status = "PENDING";
+                string name = username;
+                string accountUsername = username;
+                string schoolId = string.Empty;
+                string storedPassword = string.Empty;
+                int accountId = 0;
+                bool found = false;
 
                 // The credentials are read first and the reader is closed before
                 // the semester checks run, because a MySQL connection cannot run a
@@ -176,51 +178,61 @@ namespace oop_project.forms
                     conn.Open();
 
                     const string query =
-                        "SELECT a.account_id, a.`name`, a.`username`, ar.`role`, ar.`status`, " +
+                        "SELECT a.account_id, a.`name`, a.`username`, a.`password`, " +
+                        "       rt.`role_code` AS `role`, st.`status_code` AS `status`, " +
                         "       IFNULL(s.`school_id`, '') AS school_id " +
                         "FROM account_table a " +
                         "LEFT JOIN account_role_table ar ON ar.account_id = a.account_id " +
+                        "LEFT JOIN role_table rt ON rt.role_id = ar.role_id " +
+                        "LEFT JOIN account_status_table st ON st.status_id = ar.status_id " +
                         "LEFT JOIN student_info_table s ON s.account_id = a.account_id " +
-                        "WHERE BINARY a.username = BINARY @username AND BINARY a.`password` = BINARY @password " +
-                        "LIMIT 1;";
+                        "WHERE BINARY a.username = BINARY @username LIMIT 1;";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@username", username);
-                        cmd.Parameters.AddWithValue("@password", password);
 
                         using (MySqlDataReader reader = cmd.ExecuteReader())
                         {
-                            if (!reader.Read())
+                            if (reader.Read())
                             {
-                                Authentication.ShowMessage(
-                                    "INCORRECT USERNAME OR PASSWORD.",
-                                    "SIGN IN FAILED",
-                                    MessageBoxButtons.OK,
-                                    MessageBoxIcon.Warning);
-                                passwordField.FocusInput();
-                                passwordField.Input.SelectAll();
-                                return;
+                                found = true;
+                                accountId = reader.GetInt32(reader.GetOrdinal("account_id"));
+                                storedPassword = reader.IsDBNull(reader.GetOrdinal("password"))
+                                    ? string.Empty
+                                    : reader.GetString("password");
+                                role = reader.IsDBNull(reader.GetOrdinal("role"))
+                                    ? "STUDENT"
+                                    : reader.GetString("role");
+                                status = reader.IsDBNull(reader.GetOrdinal("status"))
+                                    ? "PENDING"
+                                    : reader.GetString("status");
+                                name = reader.IsDBNull(reader.GetOrdinal("name"))
+                                    ? username
+                                    : reader.GetString("name");
+                                accountUsername = reader.IsDBNull(reader.GetOrdinal("username"))
+                                    ? username
+                                    : reader.GetString("username");
+                                schoolId = reader.IsDBNull(reader.GetOrdinal("school_id"))
+                                    ? string.Empty
+                                    : reader.GetString("school_id");
                             }
-
-                            role = reader.IsDBNull(reader.GetOrdinal("role"))
-                                ? "STUDENT"
-                                : reader.GetString("role");
-                            status = reader.IsDBNull(reader.GetOrdinal("status"))
-                                ? "PENDING"
-                                : reader.GetString("status");
-                            name = reader.IsDBNull(reader.GetOrdinal("name"))
-                                ? username
-                                : reader.GetString("name");
-                            accountUsername = reader.IsDBNull(reader.GetOrdinal("username"))
-                                ? username
-                                : reader.GetString("username");
-                            schoolId = reader.IsDBNull(reader.GetOrdinal("school_id"))
-                                ? string.Empty
-                                : reader.GetString("school_id");
-                            accountId = reader.GetInt32(reader.GetOrdinal("account_id"));
                         }
                     }
+                }
+
+                // SECURITY: the typed password is checked against the PBKDF2
+                // hash, or against the plain text saved by an older build.
+                if (!found || !PasswordHasher.Verify(password, storedPassword))
+                {
+                    Authentication.ShowMessage(
+                        "INCORRECT USERNAME OR PASSWORD.",
+                        "SIGN IN FAILED",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    passwordField.FocusInput();
+                    passwordField.Input.SelectAll();
+                    return;
                 }
 
                 if (!string.Equals(status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
@@ -250,12 +262,6 @@ namespace oop_project.forms
 
                 string normalizedRole = role.Trim().ToUpperInvariant();
 
-                // An OFFICER account belongs to the staff group.
-                if (normalizedRole == "OFFICER")
-                {
-                    normalizedRole = "STAFF";
-                }
-
                 if (normalizedRole != "STUDENT" &&
                     normalizedRole != "FACULTY" &&
                     normalizedRole != "STAFF")
@@ -266,6 +272,13 @@ namespace oop_project.forms
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return;
+                }
+
+                // MIGRATION: a plain text row becomes a hash on the first correct
+                // sign in, so the stored copy never stays readable.
+                if (PasswordHasher.NeedsUpgrade(storedPassword))
+                {
+                    PasswordHasher.UpgradeStoredPassword(accountId, password);
                 }
 
                 // SEMESTER GATE: the survey is answered only for a semester the

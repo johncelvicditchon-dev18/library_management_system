@@ -11,13 +11,22 @@ namespace oop_project
         public static GraphicsPath CreateRoundedPath(Rectangle bounds, int radius)
         {
             var path = new GraphicsPath();
-            int diameter = Math.Max(2, radius * 2);
 
-            if (bounds.Width <= diameter || bounds.Height <= diameter)
+            if (bounds.Width <= 2 || bounds.Height <= 2)
             {
-                path.AddRectangle(bounds);
+                if (bounds.Width > 0 && bounds.Height > 0)
+                {
+                    path.AddRectangle(bounds);
+                }
+
                 return path;
             }
+
+            // The corner diameter can never exceed the shorter side. Clamping it
+            // keeps a capsule (radius = half the height) round instead of falling
+            // back to a plain rectangle, which made pills look cut at the corners.
+            int diameter = Math.Max(2, radius * 2);
+            diameter = Math.Min(diameter, Math.Min(bounds.Width, bounds.Height));
 
             path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
             path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);

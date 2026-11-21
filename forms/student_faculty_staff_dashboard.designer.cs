@@ -21,7 +21,7 @@ namespace oop_project.forms
         {
             rootGrid = new TableLayoutPanel();
             headerPanel = new PatronHeaderPanel();
-            _logout = new RoundedButton();
+            _logout = new SignOutButton();
             _headerRole = new PillBadge();
             _headerName = new Label();
             _headerAvatar = new AvatarBadge();
@@ -36,34 +36,37 @@ namespace oop_project.forms
             editProfileButton = new RoundedButton();
             profileColumns = new TableLayoutPanel();
             profileIdentityCard = new Panel();
-            _schoolIdValue = new Label();
-            idNumberCaption = new Label();
-            _programValue = new Label();
-            programCaption = new Label();
-            _yearValue = new Label();
-            yearCaption = new Label();
-            _instituteValue = new Label();
-            instituteCaption = new Label();
-            _contactValue = new Label();
-            contactCaption = new Label();
-            _addressValue = new Label();
-            addressCaption = new Label();
-            identityDivider = new Panel();
-            _profileRole = new PillBadge();
-            _profileMeta = new Label();
-            _profileName = new Label();
-            _profileAvatar = new AvatarBadge();
-            identityHeading = new Label();
-            profileQrCard = new Panel();
-            qrKeepPrivate = new Label();
-            qrStepThree = new Label();
-            qrStepTwo = new Label();
-            qrStepOne = new Label();
-            qrHowTo = new Label();
-            qrDivider = new Panel();
+            downloadQrButton = new RoundedButton();
             _qrCaption = new Label();
             _qrPicture = new PictureBox();
             qrHeading = new Label();
+            identityDivider = new Panel();
+            profileRoleBadge = new PillBadge();
+            _profileName = new Label();
+            _profileAvatar = new AvatarBadge();
+            profileDetailsCard = new Panel();
+            profileFooter = new Label();
+            dividerRow6 = new Panel();
+            _addressValue = new Label();
+            addressCaption = new Label();
+            dividerRow5 = new Panel();
+            _contactValue = new Label();
+            contactCaption = new Label();
+            dividerRow4 = new Panel();
+            _instituteValue = new Label();
+            instituteCaption = new Label();
+            dividerRow3 = new Panel();
+            _yearValue = new Label();
+            yearCaption = new Label();
+            dividerRow2 = new Panel();
+            _programValue = new Label();
+            programCaption = new Label();
+            dividerRow1 = new Panel();
+            _schoolIdValue = new Label();
+            idNumberCaption = new Label();
+            detailsTopDivider = new Panel();
+            detailsSubtitle = new Label();
+            detailsHeading = new Label();
             tabPageAttendance = new TabPage();
             _attendancePage = new Panel();
             attendanceGrid = new TableLayoutPanel();
@@ -105,9 +108,6 @@ namespace oop_project.forms
             requestsRefresh = new RoundedButton();
             requestsStatRow = new FlowLayoutPanel();
             _requestStatTotal = new StatCard();
-            _requestStatPending = new StatCard();
-            _requestStatApproved = new StatCard();
-            _requestStatClosed = new StatCard();
             requestsListHost = new Panel();
             _requestFlow = new FlowLayoutPanel();
             _requestsEmpty = new EmptyState();
@@ -135,7 +135,7 @@ namespace oop_project.forms
             profileHead.SuspendLayout();
             profileColumns.SuspendLayout();
             profileIdentityCard.SuspendLayout();
-            profileQrCard.SuspendLayout();
+            profileDetailsCard.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)_qrPicture).BeginInit();
             tabPageAttendance.SuspendLayout();
             _attendancePage.SuspendLayout();
@@ -197,24 +197,13 @@ namespace oop_project.forms
             // 
             _logout.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             _logout.BackColor = Color.Transparent;
-            _logout.CornerRadius = 11;
-            _logout.DisabledTextColor = Color.FromArgb(248, 250, 252);
-            _logout.FlatAppearance.BorderSize = 0;
-            _logout.FlatStyle = FlatStyle.Flat;
-            _logout.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            _logout.ForeColor = Color.White;
+            _logout.CornerRadius = 14;
             _logout.HoverColor = Color.FromArgb(194, 65, 12);
-            _logout.IconFallbackGlyph = "";
-            _logout.IconGlyph = "";
-            _logout.IconSize = 16F;
-            _logout.Location = new Point(2036, 30);
+            _logout.Location = new Point(2114, 24);
             _logout.Name = "_logout";
-            _logout.NormalColor = Color.FromArgb(234, 88, 12);
             _logout.PressedColor = Color.FromArgb(154, 52, 18);
-            _logout.Size = new Size(124, 40);
+            _logout.Size = new Size(46, 46);
             _logout.TabIndex = 1;
-            _logout.Text = "LOGOUT";
-            _logout.UseVisualStyleBackColor = false;
             // 
             // _headerRole
             // 
@@ -324,11 +313,11 @@ namespace oop_project.forms
             // 
             profileSubtitle.AutoEllipsis = true;
             profileSubtitle.ForeColor = Color.FromArgb(100, 116, 139);
-            profileSubtitle.Location = new Point(2, 53);
+            profileSubtitle.Location = new Point(2, 62);
             profileSubtitle.Name = "profileSubtitle";
             profileSubtitle.Size = new Size(794, 22);
             profileSubtitle.TabIndex = 0;
-            profileSubtitle.Text = "SCAN THE QR CODE UPON ENTERING THE LRC OFFICE TO RECORD ATTENDANCE.";
+            profileSubtitle.Text = "THE INFORMATION BELOW COMES FROM YOUR LIBRARY ACCOUNT.";
             // 
             // profileTitle
             // 
@@ -354,7 +343,7 @@ namespace oop_project.forms
             changePasswordButton.IconFallbackGlyph = "";
             changePasswordButton.IconGlyph = "";
             changePasswordButton.IconSize = 16F;
-            changePasswordButton.Location = new Point(126, 10);
+            changePasswordButton.Location = new Point(866, 10);
             changePasswordButton.Name = "changePasswordButton";
             changePasswordButton.NormalColor = Color.FromArgb(241, 245, 249);
             changePasswordButton.PressedColor = Color.FromArgb(203, 213, 225);
@@ -376,7 +365,7 @@ namespace oop_project.forms
             editProfileButton.IconFallbackGlyph = "";
             editProfileButton.IconGlyph = "";
             editProfileButton.IconSize = 16F;
-            editProfileButton.Location = new Point(316, 10);
+            editProfileButton.Location = new Point(1054, 10);
             editProfileButton.Name = "editProfileButton";
             editProfileButton.NormalColor = Color.FromArgb(22, 163, 74);
             editProfileButton.PressedColor = Color.FromArgb(20, 83, 45);
@@ -391,7 +380,7 @@ namespace oop_project.forms
             profileColumns.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 440F));
             profileColumns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             profileColumns.Controls.Add(profileIdentityCard, 0, 0);
-            profileColumns.Controls.Add(profileQrCard, 1, 0);
+            profileColumns.Controls.Add(profileDetailsCard, 1, 0);
             profileColumns.Dock = DockStyle.Fill;
             profileColumns.Location = new Point(3, 95);
             profileColumns.Name = "profileColumns";
@@ -402,24 +391,14 @@ namespace oop_project.forms
             // 
             // profileIdentityCard
             // 
-            profileIdentityCard.Controls.Add(_schoolIdValue);
-            profileIdentityCard.Controls.Add(idNumberCaption);
-            profileIdentityCard.Controls.Add(_programValue);
-            profileIdentityCard.Controls.Add(programCaption);
-            profileIdentityCard.Controls.Add(_yearValue);
-            profileIdentityCard.Controls.Add(yearCaption);
-            profileIdentityCard.Controls.Add(_instituteValue);
-            profileIdentityCard.Controls.Add(instituteCaption);
-            profileIdentityCard.Controls.Add(_contactValue);
-            profileIdentityCard.Controls.Add(contactCaption);
-            profileIdentityCard.Controls.Add(_addressValue);
-            profileIdentityCard.Controls.Add(addressCaption);
+            profileIdentityCard.Controls.Add(downloadQrButton);
+            profileIdentityCard.Controls.Add(_qrCaption);
+            profileIdentityCard.Controls.Add(_qrPicture);
+            profileIdentityCard.Controls.Add(qrHeading);
             profileIdentityCard.Controls.Add(identityDivider);
-            profileIdentityCard.Controls.Add(_profileRole);
-            profileIdentityCard.Controls.Add(_profileMeta);
+            profileIdentityCard.Controls.Add(profileRoleBadge);
             profileIdentityCard.Controls.Add(_profileName);
             profileIdentityCard.Controls.Add(_profileAvatar);
-            profileIdentityCard.Controls.Add(identityHeading);
             profileIdentityCard.Dock = DockStyle.Fill;
             profileIdentityCard.Location = new Point(0, 0);
             profileIdentityCard.Margin = new Padding(0, 0, 18, 0);
@@ -427,361 +406,400 @@ namespace oop_project.forms
             profileIdentityCard.Size = new Size(422, 517);
             profileIdentityCard.TabIndex = 0;
             // 
-            // _schoolIdValue
-            // 
-            _schoolIdValue.AutoEllipsis = true;
-            _schoolIdValue.BackColor = Color.White;
-            _schoolIdValue.Font = new Font("Segoe UI", 8.75F);
-            _schoolIdValue.ForeColor = Color.FromArgb(15, 23, 42);
-            _schoolIdValue.Location = new Point(164, 280);
-            _schoolIdValue.Name = "_schoolIdValue";
-            _schoolIdValue.Size = new Size(232, 22);
-            _schoolIdValue.TabIndex = 0;
-            _schoolIdValue.Text = "-";
-            _schoolIdValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // idNumberCaption
-            // 
-            idNumberCaption.AutoSize = true;
-            idNumberCaption.BackColor = Color.White;
-            idNumberCaption.Font = new Font("Segoe UI", 7.75F, FontStyle.Bold);
-            idNumberCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            idNumberCaption.Location = new Point(26, 280);
-            idNumberCaption.MinimumSize = new Size(0, 22);
-            idNumberCaption.Name = "idNumberCaption";
-            idNumberCaption.Size = new Size(80, 22);
-            idNumberCaption.TabIndex = 1;
-            idNumberCaption.Text = "ID NUMBER";
-            idNumberCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _programValue
-            // 
-            _programValue.AutoEllipsis = true;
-            _programValue.BackColor = Color.White;
-            _programValue.Font = new Font("Segoe UI", 8.75F);
-            _programValue.ForeColor = Color.FromArgb(15, 23, 42);
-            _programValue.Location = new Point(164, 316);
-            _programValue.Name = "_programValue";
-            _programValue.Size = new Size(232, 22);
-            _programValue.TabIndex = 2;
-            _programValue.Text = "-";
-            _programValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // programCaption
-            // 
-            programCaption.AutoSize = true;
-            programCaption.BackColor = Color.White;
-            programCaption.Font = new Font("Segoe UI", 7.75F, FontStyle.Bold);
-            programCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            programCaption.Location = new Point(26, 316);
-            programCaption.MinimumSize = new Size(0, 22);
-            programCaption.Name = "programCaption";
-            programCaption.Size = new Size(129, 22);
-            programCaption.TabIndex = 3;
-            programCaption.Text = "PROGRAM / OFFICE";
-            programCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _yearValue
-            // 
-            _yearValue.AutoEllipsis = true;
-            _yearValue.BackColor = Color.White;
-            _yearValue.Font = new Font("Segoe UI", 8.75F);
-            _yearValue.ForeColor = Color.FromArgb(15, 23, 42);
-            _yearValue.Location = new Point(164, 352);
-            _yearValue.Name = "_yearValue";
-            _yearValue.Size = new Size(232, 22);
-            _yearValue.TabIndex = 4;
-            _yearValue.Text = "-";
-            _yearValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // yearCaption
-            // 
-            yearCaption.AutoSize = true;
-            yearCaption.BackColor = Color.White;
-            yearCaption.Font = new Font("Segoe UI", 7.75F, FontStyle.Bold);
-            yearCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            yearCaption.Location = new Point(26, 352);
-            yearCaption.MinimumSize = new Size(0, 22);
-            yearCaption.Name = "yearCaption";
-            yearCaption.Size = new Size(40, 22);
-            yearCaption.TabIndex = 5;
-            yearCaption.Text = "YEAR";
-            yearCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _instituteValue
-            // 
-            _instituteValue.AutoEllipsis = true;
-            _instituteValue.BackColor = Color.White;
-            _instituteValue.Font = new Font("Segoe UI", 8.75F);
-            _instituteValue.ForeColor = Color.FromArgb(15, 23, 42);
-            _instituteValue.Location = new Point(164, 388);
-            _instituteValue.Name = "_instituteValue";
-            _instituteValue.Size = new Size(232, 22);
-            _instituteValue.TabIndex = 6;
-            _instituteValue.Text = "-";
-            _instituteValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // instituteCaption
-            // 
-            instituteCaption.AutoSize = true;
-            instituteCaption.BackColor = Color.White;
-            instituteCaption.Font = new Font("Segoe UI", 7.75F, FontStyle.Bold);
-            instituteCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            instituteCaption.Location = new Point(26, 388);
-            instituteCaption.MinimumSize = new Size(0, 22);
-            instituteCaption.Name = "instituteCaption";
-            instituteCaption.Size = new Size(73, 22);
-            instituteCaption.TabIndex = 7;
-            instituteCaption.Text = "INSTITUTE";
-            instituteCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _contactValue
-            // 
-            _contactValue.AutoEllipsis = true;
-            _contactValue.BackColor = Color.White;
-            _contactValue.Font = new Font("Segoe UI", 8.75F);
-            _contactValue.ForeColor = Color.FromArgb(15, 23, 42);
-            _contactValue.Location = new Point(164, 424);
-            _contactValue.Name = "_contactValue";
-            _contactValue.Size = new Size(232, 22);
-            _contactValue.TabIndex = 8;
-            _contactValue.Text = "-";
-            _contactValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // contactCaption
-            // 
-            contactCaption.AutoSize = true;
-            contactCaption.BackColor = Color.White;
-            contactCaption.Font = new Font("Segoe UI", 7.75F, FontStyle.Bold);
-            contactCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            contactCaption.Location = new Point(26, 424);
-            contactCaption.MinimumSize = new Size(0, 22);
-            contactCaption.Name = "contactCaption";
-            contactCaption.Size = new Size(68, 22);
-            contactCaption.TabIndex = 9;
-            contactCaption.Text = "CONTACT";
-            contactCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _addressValue
-            // 
-            _addressValue.AutoEllipsis = true;
-            _addressValue.BackColor = Color.White;
-            _addressValue.Font = new Font("Segoe UI", 8.75F);
-            _addressValue.ForeColor = Color.FromArgb(15, 23, 42);
-            _addressValue.Location = new Point(164, 460);
-            _addressValue.Name = "_addressValue";
-            _addressValue.Size = new Size(232, 22);
-            _addressValue.TabIndex = 10;
-            _addressValue.Text = "-";
-            _addressValue.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // addressCaption
-            // 
-            addressCaption.AutoSize = true;
-            addressCaption.BackColor = Color.White;
-            addressCaption.Font = new Font("Segoe UI", 7.75F, FontStyle.Bold);
-            addressCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            addressCaption.Location = new Point(26, 460);
-            addressCaption.MinimumSize = new Size(0, 22);
-            addressCaption.Name = "addressCaption";
-            addressCaption.Size = new Size(66, 22);
-            addressCaption.TabIndex = 11;
-            addressCaption.Text = "ADDRESS";
-            addressCaption.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // identityDivider
-            // 
-            identityDivider.BackColor = Color.FromArgb(226, 232, 240);
-            identityDivider.Location = new Point(26, 266);
-            identityDivider.Name = "identityDivider";
-            identityDivider.Size = new Size(370, 1);
-            identityDivider.TabIndex = 12;
-            // 
-            // _profileRole
-            // 
-            _profileRole.BackColor = Color.White;
-            _profileRole.BorderColor = Color.FromArgb(167, 243, 208);
-            _profileRole.FillColor = Color.FromArgb(220, 252, 231);
-            _profileRole.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            _profileRole.Location = new Point(0, 226);
-            _profileRole.Name = "_profileRole";
-            _profileRole.Size = new Size(113, 34);
-            _profileRole.TabIndex = 13;
-            _profileRole.TabStop = false;
-            _profileRole.Text = "STUDENT";
-            _profileRole.TextColor = Color.FromArgb(4, 120, 87);
-            // 
-            // _profileMeta
-            // 
-            _profileMeta.AutoEllipsis = true;
-            _profileMeta.BackColor = Color.White;
-            _profileMeta.Font = new Font("Segoe UI", 8.5F);
-            _profileMeta.ForeColor = Color.FromArgb(71, 85, 105);
-            _profileMeta.Location = new Point(26, 198);
-            _profileMeta.Name = "_profileMeta";
-            _profileMeta.Size = new Size(370, 22);
-            _profileMeta.TabIndex = 14;
-            _profileMeta.Text = "STUDENT";
-            _profileMeta.TextAlign = ContentAlignment.MiddleCenter;
-            // 
-            // _profileName
-            // 
-            _profileName.AutoEllipsis = true;
-            _profileName.BackColor = Color.White;
-            _profileName.Font = new Font("Segoe UI", 14.5F, FontStyle.Bold);
-            _profileName.ForeColor = Color.FromArgb(6, 78, 59);
-            _profileName.Location = new Point(26, 154);
-            _profileName.Name = "_profileName";
-            _profileName.Size = new Size(370, 44);
-            _profileName.TabIndex = 15;
-            _profileName.Text = "PATRON";
-            _profileName.TextAlign = ContentAlignment.MiddleCenter;
-            // 
             // _profileAvatar
             // 
-            _profileAvatar.BackColor = Color.White;
+            _profileAvatar.BackColor = Color.Transparent;
             _profileAvatar.FillBottomColor = Color.FromArgb(4, 90, 66);
             _profileAvatar.FillTopColor = Color.FromArgb(34, 197, 94);
             _profileAvatar.Initials = "PA";
             _profileAvatar.InitialsColor = Color.White;
-            _profileAvatar.Location = new Point(163, 48);
+            _profileAvatar.Location = new Point(141, 16);
             _profileAvatar.Name = "_profileAvatar";
             _profileAvatar.RingColor = Color.FromArgb(70, 255, 255, 255);
-            _profileAvatar.Size = new Size(96, 96);
-            _profileAvatar.TabIndex = 16;
+            _profileAvatar.Size = new Size(140, 140);
+            _profileAvatar.TabIndex = 1;
             _profileAvatar.TabStop = false;
             // 
-            // identityHeading
+            // _profileName
             // 
-            identityHeading.AutoSize = true;
-            identityHeading.BackColor = Color.White;
-            identityHeading.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            identityHeading.ForeColor = Color.FromArgb(4, 120, 87);
-            identityHeading.Location = new Point(26, 20);
-            identityHeading.Name = "identityHeading";
-            identityHeading.Size = new Size(95, 20);
-            identityHeading.TabIndex = 17;
-            identityHeading.Text = "MY PROFILE";
+            _profileName.AutoEllipsis = true;
+            _profileName.BackColor = Color.Transparent;
+            _profileName.Font = new Font("Segoe UI", 17F, FontStyle.Bold);
+            _profileName.ForeColor = Color.FromArgb(6, 78, 59);
+            _profileName.Location = new Point(18, 160);
+            _profileName.Name = "_profileName";
+            _profileName.Size = new Size(386, 34);
+            _profileName.TabIndex = 2;
+            _profileName.Text = "PATRON";
+            _profileName.TextAlign = ContentAlignment.MiddleCenter;
             // 
-            // profileQrCard
+            // profileRoleBadge
             // 
-            profileQrCard.Controls.Add(qrKeepPrivate);
-            profileQrCard.Controls.Add(qrStepThree);
-            profileQrCard.Controls.Add(qrStepTwo);
-            profileQrCard.Controls.Add(qrStepOne);
-            profileQrCard.Controls.Add(qrHowTo);
-            profileQrCard.Controls.Add(qrDivider);
-            profileQrCard.Controls.Add(_qrCaption);
-            profileQrCard.Controls.Add(_qrPicture);
-            profileQrCard.Controls.Add(qrHeading);
-            profileQrCard.Dock = DockStyle.Fill;
-            profileQrCard.Location = new Point(443, 3);
-            profileQrCard.Name = "profileQrCard";
-            profileQrCard.Size = new Size(756, 511);
-            profileQrCard.TabIndex = 1;
+            profileRoleBadge.BackColor = Color.Transparent;
+            profileRoleBadge.BorderColor = Color.FromArgb(167, 243, 208);
+            profileRoleBadge.CornerRadius = 14;
+            profileRoleBadge.FillColor = Color.White;
+            profileRoleBadge.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            profileRoleBadge.Location = new Point(160, 198);
+            profileRoleBadge.Name = "profileRoleBadge";
+            profileRoleBadge.Size = new Size(103, 33);
+            profileRoleBadge.TabIndex = 3;
+            profileRoleBadge.TabStop = false;
+            profileRoleBadge.Text = "STUDENT";
+            profileRoleBadge.TextColor = Color.FromArgb(4, 120, 87);
             // 
-            // qrKeepPrivate
+            // identityDivider
             // 
-            qrKeepPrivate.AutoEllipsis = true;
-            qrKeepPrivate.BackColor = Color.White;
-            qrKeepPrivate.Font = new Font("Segoe UI", 8.5F, FontStyle.Italic);
-            qrKeepPrivate.ForeColor = Color.FromArgb(100, 116, 139);
-            qrKeepPrivate.Location = new Point(26, 494);
-            qrKeepPrivate.Name = "qrKeepPrivate";
-            qrKeepPrivate.Size = new Size(607, 40);
-            qrKeepPrivate.TabIndex = 0;
-            qrKeepPrivate.Text = "KEEP THIS PASS PRIVATE. IT POINTS TO YOUR LIBRARY ATTENDANCE RECORD.";
+            identityDivider.BackColor = Color.FromArgb(187, 247, 208);
+            identityDivider.Location = new Point(40, 241);
+            identityDivider.Name = "identityDivider";
+            identityDivider.Size = new Size(342, 1);
+            identityDivider.TabIndex = 4;
             // 
-            // qrStepThree
+            // qrHeading
             // 
-            qrStepThree.AutoEllipsis = true;
-            qrStepThree.BackColor = Color.White;
-            qrStepThree.Font = new Font("Segoe UI", 8.5F);
-            qrStepThree.ForeColor = Color.FromArgb(71, 85, 105);
-            qrStepThree.Location = new Point(26, 456);
-            qrStepThree.Name = "qrStepThree";
-            qrStepThree.Size = new Size(120, 20);
-            qrStepThree.TabIndex = 1;
-            qrStepThree.Text = "3.  YOUR ATTENDANCE AUTOMATICALLY RECORDED IN THE LMS.";
-            // 
-            // qrStepTwo
-            // 
-            qrStepTwo.AutoEllipsis = true;
-            qrStepTwo.BackColor = Color.White;
-            qrStepTwo.Font = new Font("Segoe UI", 8.5F);
-            qrStepTwo.ForeColor = Color.FromArgb(71, 85, 105);
-            qrStepTwo.Location = new Point(26, 430);
-            qrStepTwo.Name = "qrStepTwo";
-            qrStepTwo.Size = new Size(120, 20);
-            qrStepTwo.TabIndex = 2;
-            qrStepTwo.Text = "2.  SCAN YOUR QR CODE IN LIBRARY.";
-            // 
-            // qrStepOne
-            // 
-            qrStepOne.AutoEllipsis = true;
-            qrStepOne.BackColor = Color.White;
-            qrStepOne.Font = new Font("Segoe UI", 8.5F);
-            qrStepOne.ForeColor = Color.FromArgb(71, 85, 105);
-            qrStepOne.Location = new Point(26, 404);
-            qrStepOne.Name = "qrStepOne";
-            qrStepOne.Size = new Size(120, 20);
-            qrStepOne.TabIndex = 3;
-            qrStepOne.Text = "1.  ACCESS YOUR QR CODE IN THE LMS.";
-            // 
-            // qrHowTo
-            // 
-            qrHowTo.AutoSize = true;
-            qrHowTo.BackColor = Color.White;
-            qrHowTo.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            qrHowTo.ForeColor = Color.FromArgb(15, 23, 42);
-            qrHowTo.Location = new Point(26, 60);
-            qrHowTo.Name = "qrHowTo";
-            qrHowTo.Size = new Size(287, 20);
-            qrHowTo.TabIndex = 4;
-            qrHowTo.Text = "HOW TO USE YOUR ATTENDANCE PASS";
-            // 
-            // qrDivider
-            // 
-            qrDivider.BackColor = Color.FromArgb(226, 232, 240);
-            qrDivider.Location = new Point(26, 384);
-            qrDivider.Name = "qrDivider";
-            qrDivider.Size = new Size(120, 1);
-            qrDivider.TabIndex = 5;
-            // 
-            // _qrCaption
-            // 
-            _qrCaption.BackColor = Color.White;
-            _qrCaption.Font = new Font("Segoe UI", 8.75F);
-            _qrCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            _qrCaption.Location = new Point(26, 330);
-            _qrCaption.Name = "_qrCaption";
-            _qrCaption.Size = new Size(120, 42);
-            _qrCaption.TabIndex = 6;
-            _qrCaption.Text = "SHOW THIS QR CODE AT THE LIBRARY OFFICE ENTRANCE. THE LIBRARIAN SCANS IT TO RECORD YOUR ATTENDANCE.";
-            _qrCaption.TextAlign = ContentAlignment.MiddleCenter;
+            qrHeading.AutoSize = false;
+            qrHeading.BackColor = Color.Transparent;
+            qrHeading.Font = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+            qrHeading.ForeColor = Color.FromArgb(4, 120, 87);
+            qrHeading.Location = new Point(24, 249);
+            qrHeading.Name = "qrHeading";
+            qrHeading.Size = new Size(374, 20);
+            qrHeading.TabIndex = 5;
+            qrHeading.Text = "MY LIBRARY ATTENDANCE QR";
+            qrHeading.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // _qrPicture
             // 
             _qrPicture.BackColor = Color.White;
-            _qrPicture.BorderStyle = BorderStyle.FixedSingle;
-            _qrPicture.Location = new Point(26, 60);
+            _qrPicture.Location = new Point(142, 277);
             _qrPicture.Name = "_qrPicture";
-            _qrPicture.Size = new Size(260, 260);
+            _qrPicture.Size = new Size(138, 138);
             _qrPicture.SizeMode = PictureBoxSizeMode.Zoom;
-            _qrPicture.TabIndex = 7;
+            _qrPicture.TabIndex = 6;
             _qrPicture.TabStop = false;
             // 
-            // qrHeading
+            // _qrCaption
             // 
-            qrHeading.AutoSize = true;
-            qrHeading.BackColor = Color.White;
-            qrHeading.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            qrHeading.ForeColor = Color.FromArgb(4, 120, 87);
-            qrHeading.Location = new Point(26, 20);
-            qrHeading.Name = "qrHeading";
-            qrHeading.Size = new Size(248, 20);
-            qrHeading.TabIndex = 8;
-            qrHeading.Text = "STUDENT ATTENDANCE QR CODE";
+            _qrCaption.AutoEllipsis = false;
+            _qrCaption.BackColor = Color.Transparent;
+            _qrCaption.Font = new Font("Segoe UI", 7.75F);
+            _qrCaption.ForeColor = Color.FromArgb(71, 105, 92);
+            _qrCaption.Location = new Point(12, 404);
+            _qrCaption.Name = "_qrCaption";
+            _qrCaption.Size = new Size(398, 24);
+            _qrCaption.TabIndex = 7;
+            _qrCaption.Text = "SHOW THIS QR CODE AT THE ENTRANCE TO RECORD THE LIBRARY VISIT.";
+            _qrCaption.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // downloadQrButton
+            // 
+            downloadQrButton.BackColor = Color.Transparent;
+            downloadQrButton.CornerRadius = 11;
+            downloadQrButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
+            downloadQrButton.FlatAppearance.BorderSize = 0;
+            downloadQrButton.FlatStyle = FlatStyle.Flat;
+            downloadQrButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            downloadQrButton.ForeColor = Color.White;
+            downloadQrButton.HoverColor = Color.FromArgb(21, 128, 61);
+            downloadQrButton.IconFallbackGlyph = "\uE896";
+            downloadQrButton.IconGlyph = "\uE896";
+            downloadQrButton.IconSize = 15F;
+            downloadQrButton.Location = new Point(111, 459);
+            downloadQrButton.Name = "downloadQrButton";
+            downloadQrButton.NormalColor = Color.FromArgb(22, 163, 74);
+            downloadQrButton.PressedColor = Color.FromArgb(20, 83, 45);
+            downloadQrButton.Size = new Size(200, 40);
+            downloadQrButton.TabIndex = 8;
+            downloadQrButton.Text = "DOWNLOAD QR";
+            downloadQrButton.UseVisualStyleBackColor = false;
+            // 
+            // profileDetailsCard
+            // 
+            profileDetailsCard.Controls.Add(profileFooter);
+            profileDetailsCard.Controls.Add(dividerRow6);
+            profileDetailsCard.Controls.Add(_addressValue);
+            profileDetailsCard.Controls.Add(addressCaption);
+            profileDetailsCard.Controls.Add(dividerRow5);
+            profileDetailsCard.Controls.Add(_contactValue);
+            profileDetailsCard.Controls.Add(contactCaption);
+            profileDetailsCard.Controls.Add(dividerRow4);
+            profileDetailsCard.Controls.Add(_instituteValue);
+            profileDetailsCard.Controls.Add(instituteCaption);
+            profileDetailsCard.Controls.Add(dividerRow3);
+            profileDetailsCard.Controls.Add(_yearValue);
+            profileDetailsCard.Controls.Add(yearCaption);
+            profileDetailsCard.Controls.Add(dividerRow2);
+            profileDetailsCard.Controls.Add(_programValue);
+            profileDetailsCard.Controls.Add(programCaption);
+            profileDetailsCard.Controls.Add(dividerRow1);
+            profileDetailsCard.Controls.Add(_schoolIdValue);
+            profileDetailsCard.Controls.Add(idNumberCaption);
+            profileDetailsCard.Controls.Add(detailsTopDivider);
+            profileDetailsCard.Controls.Add(detailsSubtitle);
+            profileDetailsCard.Controls.Add(detailsHeading);
+            profileDetailsCard.Dock = DockStyle.Fill;
+            profileDetailsCard.Location = new Point(440, 0);
+            profileDetailsCard.Margin = new Padding(0);
+            profileDetailsCard.Name = "profileDetailsCard";
+            profileDetailsCard.Size = new Size(762, 517);
+            profileDetailsCard.TabIndex = 1;
+            // 
+            // detailsHeading
+            // 
+            detailsHeading.AutoSize = true;
+            detailsHeading.BackColor = Color.White;
+            detailsHeading.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold);
+            detailsHeading.ForeColor = Color.FromArgb(15, 23, 42);
+            detailsHeading.Location = new Point(34, 28);
+            detailsHeading.Name = "detailsHeading";
+            detailsHeading.Size = new Size(174, 25);
+            detailsHeading.TabIndex = 0;
+            detailsHeading.Text = "ACCOUNT DETAILS";
+            // 
+            // detailsSubtitle
+            // 
+            detailsSubtitle.AutoSize = true;
+            detailsSubtitle.BackColor = Color.White;
+            detailsSubtitle.Font = new Font("Segoe UI", 9F);
+            detailsSubtitle.ForeColor = Color.FromArgb(148, 163, 184);
+            detailsSubtitle.Location = new Point(34, 56);
+            detailsSubtitle.Name = "detailsSubtitle";
+            detailsSubtitle.Size = new Size(381, 20);
+            detailsSubtitle.TabIndex = 1;
+            detailsSubtitle.Text = "The information below comes from your library account.";
+            // 
+            // detailsTopDivider
+            // 
+            detailsTopDivider.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            detailsTopDivider.BackColor = Color.FromArgb(226, 232, 240);
+            detailsTopDivider.Location = new Point(34, 92);
+            detailsTopDivider.Name = "detailsTopDivider";
+            detailsTopDivider.Size = new Size(694, 1);
+            detailsTopDivider.TabIndex = 2;
+            // 
+            // idNumberCaption
+            // 
+            idNumberCaption.BackColor = Color.White;
+            idNumberCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            idNumberCaption.ForeColor = Color.FromArgb(148, 163, 184);
+            idNumberCaption.Location = new Point(34, 130);
+            idNumberCaption.Name = "idNumberCaption";
+            idNumberCaption.Size = new Size(300, 34);
+            idNumberCaption.TabIndex = 3;
+            idNumberCaption.Text = "ID NUMBER";
+            idNumberCaption.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _schoolIdValue
+            // 
+            _schoolIdValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _schoolIdValue.AutoEllipsis = true;
+            _schoolIdValue.BackColor = Color.White;
+            _schoolIdValue.Font = new Font("Segoe UI", 10.75F);
+            _schoolIdValue.ForeColor = Color.FromArgb(15, 23, 42);
+            _schoolIdValue.Location = new Point(340, 122);
+            _schoolIdValue.Name = "_schoolIdValue";
+            _schoolIdValue.Size = new Size(388, 44);
+            _schoolIdValue.TabIndex = 4;
+            _schoolIdValue.Text = "—";
+            _schoolIdValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // dividerRow1
+            // 
+            dividerRow1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dividerRow1.BackColor = Color.FromArgb(241, 245, 249);
+            dividerRow1.Location = new Point(34, 174);
+            dividerRow1.Name = "dividerRow1";
+            dividerRow1.Size = new Size(694, 1);
+            dividerRow1.TabIndex = 5;
+            // 
+            // programCaption
+            // 
+            programCaption.BackColor = Color.White;
+            programCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            programCaption.ForeColor = Color.FromArgb(148, 163, 184);
+            programCaption.Location = new Point(34, 200);
+            programCaption.Name = "programCaption";
+            programCaption.Size = new Size(300, 34);
+            programCaption.TabIndex = 6;
+            programCaption.Text = "PROGRAM / OFFICE";
+            programCaption.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _programValue
+            // 
+            _programValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _programValue.AutoEllipsis = true;
+            _programValue.BackColor = Color.White;
+            _programValue.Font = new Font("Segoe UI", 10.75F);
+            _programValue.ForeColor = Color.FromArgb(15, 23, 42);
+            _programValue.Location = new Point(340, 192);
+            _programValue.Name = "_programValue";
+            _programValue.Size = new Size(388, 44);
+            _programValue.TabIndex = 7;
+            _programValue.Text = "—";
+            _programValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // dividerRow2
+            // 
+            dividerRow2.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dividerRow2.BackColor = Color.FromArgb(241, 245, 249);
+            dividerRow2.Location = new Point(34, 244);
+            dividerRow2.Name = "dividerRow2";
+            dividerRow2.Size = new Size(694, 1);
+            dividerRow2.TabIndex = 8;
+            // 
+            // yearCaption
+            // 
+            yearCaption.BackColor = Color.White;
+            yearCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            yearCaption.ForeColor = Color.FromArgb(148, 163, 184);
+            yearCaption.Location = new Point(34, 270);
+            yearCaption.Name = "yearCaption";
+            yearCaption.Size = new Size(300, 34);
+            yearCaption.TabIndex = 9;
+            yearCaption.Text = "YEAR";
+            yearCaption.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _yearValue
+            // 
+            _yearValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _yearValue.AutoEllipsis = true;
+            _yearValue.BackColor = Color.White;
+            _yearValue.Font = new Font("Segoe UI", 10.75F);
+            _yearValue.ForeColor = Color.FromArgb(15, 23, 42);
+            _yearValue.Location = new Point(340, 262);
+            _yearValue.Name = "_yearValue";
+            _yearValue.Size = new Size(388, 44);
+            _yearValue.TabIndex = 10;
+            _yearValue.Text = "—";
+            _yearValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // dividerRow3
+            // 
+            dividerRow3.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dividerRow3.BackColor = Color.FromArgb(241, 245, 249);
+            dividerRow3.Location = new Point(34, 314);
+            dividerRow3.Name = "dividerRow3";
+            dividerRow3.Size = new Size(694, 1);
+            dividerRow3.TabIndex = 11;
+            // 
+            // instituteCaption
+            // 
+            instituteCaption.BackColor = Color.White;
+            instituteCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            instituteCaption.ForeColor = Color.FromArgb(148, 163, 184);
+            instituteCaption.Location = new Point(34, 340);
+            instituteCaption.Name = "instituteCaption";
+            instituteCaption.Size = new Size(300, 34);
+            instituteCaption.TabIndex = 12;
+            instituteCaption.Text = "INSTITUTE";
+            instituteCaption.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _instituteValue
+            // 
+            _instituteValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _instituteValue.AutoEllipsis = true;
+            _instituteValue.BackColor = Color.White;
+            _instituteValue.Font = new Font("Segoe UI", 10.75F);
+            _instituteValue.ForeColor = Color.FromArgb(15, 23, 42);
+            _instituteValue.Location = new Point(340, 332);
+            _instituteValue.Name = "_instituteValue";
+            _instituteValue.Size = new Size(388, 44);
+            _instituteValue.TabIndex = 13;
+            _instituteValue.Text = "—";
+            _instituteValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // dividerRow4
+            // 
+            dividerRow4.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dividerRow4.BackColor = Color.FromArgb(241, 245, 249);
+            dividerRow4.Location = new Point(34, 384);
+            dividerRow4.Name = "dividerRow4";
+            dividerRow4.Size = new Size(694, 1);
+            dividerRow4.TabIndex = 14;
+            // 
+            // contactCaption
+            // 
+            contactCaption.BackColor = Color.White;
+            contactCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            contactCaption.ForeColor = Color.FromArgb(148, 163, 184);
+            contactCaption.Location = new Point(34, 410);
+            contactCaption.Name = "contactCaption";
+            contactCaption.Size = new Size(300, 34);
+            contactCaption.TabIndex = 15;
+            contactCaption.Text = "CONTACT";
+            contactCaption.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _contactValue
+            // 
+            _contactValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _contactValue.AutoEllipsis = true;
+            _contactValue.BackColor = Color.White;
+            _contactValue.Font = new Font("Segoe UI", 10.75F);
+            _contactValue.ForeColor = Color.FromArgb(15, 23, 42);
+            _contactValue.Location = new Point(340, 402);
+            _contactValue.Name = "_contactValue";
+            _contactValue.Size = new Size(388, 44);
+            _contactValue.TabIndex = 16;
+            _contactValue.Text = "—";
+            _contactValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // dividerRow5
+            // 
+            dividerRow5.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dividerRow5.BackColor = Color.FromArgb(241, 245, 249);
+            dividerRow5.Location = new Point(34, 454);
+            dividerRow5.Name = "dividerRow5";
+            dividerRow5.Size = new Size(694, 1);
+            dividerRow5.TabIndex = 17;
+            // 
+            // addressCaption
+            // 
+            addressCaption.BackColor = Color.White;
+            addressCaption.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            addressCaption.ForeColor = Color.FromArgb(148, 163, 184);
+            addressCaption.Location = new Point(34, 480);
+            addressCaption.Name = "addressCaption";
+            addressCaption.Size = new Size(300, 34);
+            addressCaption.TabIndex = 18;
+            addressCaption.Text = "ADDRESS";
+            addressCaption.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _addressValue
+            // 
+            _addressValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _addressValue.AutoEllipsis = true;
+            _addressValue.BackColor = Color.White;
+            _addressValue.Font = new Font("Segoe UI", 10.75F);
+            _addressValue.ForeColor = Color.FromArgb(15, 23, 42);
+            _addressValue.Location = new Point(340, 472);
+            _addressValue.Name = "_addressValue";
+            _addressValue.Size = new Size(388, 44);
+            _addressValue.TabIndex = 19;
+            _addressValue.Text = "—";
+            _addressValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // dividerRow6
+            // 
+            dividerRow6.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dividerRow6.BackColor = Color.FromArgb(241, 245, 249);
+            dividerRow6.Location = new Point(34, 524);
+            dividerRow6.Name = "dividerRow6";
+            dividerRow6.Size = new Size(694, 1);
+            dividerRow6.TabIndex = 20;
+            // 
+            // profileFooter
+            // 
+            profileFooter.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            profileFooter.AutoSize = true;
+            profileFooter.BackColor = Color.White;
+            profileFooter.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            profileFooter.ForeColor = Color.FromArgb(148, 163, 184);
+            profileFooter.Location = new Point(34, 485);
+            profileFooter.Name = "profileFooter";
+            profileFooter.Size = new Size(687, 19);
+            profileFooter.TabIndex = 21;
+            profileFooter.Text = "ACCOUNT DETAILS ARE READ-ONLY. USE EDIT MY INFO TO UPDATE YOUR PERSONAL RECORD.";
             // 
             // tabPageAttendance
             // 
@@ -1304,9 +1322,6 @@ namespace oop_project.forms
             // requestsStatRow
             // 
             requestsStatRow.Controls.Add(_requestStatTotal);
-            requestsStatRow.Controls.Add(_requestStatPending);
-            requestsStatRow.Controls.Add(_requestStatApproved);
-            requestsStatRow.Controls.Add(_requestStatClosed);
             requestsStatRow.Dock = DockStyle.Fill;
             requestsStatRow.Location = new Point(3, 95);
             requestsStatRow.Name = "requestsStatRow";
@@ -1328,48 +1343,6 @@ namespace oop_project.forms
             _requestStatTotal.TabStop = false;
             _requestStatTotal.Value = "0";
             _requestStatTotal.ValueColor = Color.FromArgb(15, 23, 42);
-            // 
-            // _requestStatPending
-            // 
-            _requestStatPending.AccentColor = Color.FromArgb(217, 119, 6);
-            _requestStatPending.BackColor = Color.FromArgb(241, 245, 249);
-            _requestStatPending.Caption = "STILL PENDING";
-            _requestStatPending.Location = new Point(124, 4);
-            _requestStatPending.Margin = new Padding(0, 0, 14, 0);
-            _requestStatPending.Name = "_requestStatPending";
-            _requestStatPending.Size = new Size(110, 78);
-            _requestStatPending.TabIndex = 1;
-            _requestStatPending.TabStop = false;
-            _requestStatPending.Value = "0";
-            _requestStatPending.ValueColor = Color.FromArgb(15, 23, 42);
-            // 
-            // _requestStatApproved
-            // 
-            _requestStatApproved.AccentColor = Color.FromArgb(4, 120, 87);
-            _requestStatApproved.BackColor = Color.FromArgb(241, 245, 249);
-            _requestStatApproved.Caption = "APPROVED";
-            _requestStatApproved.Location = new Point(248, 4);
-            _requestStatApproved.Margin = new Padding(0, 0, 14, 0);
-            _requestStatApproved.Name = "_requestStatApproved";
-            _requestStatApproved.Size = new Size(110, 78);
-            _requestStatApproved.TabIndex = 2;
-            _requestStatApproved.TabStop = false;
-            _requestStatApproved.Value = "0";
-            _requestStatApproved.ValueColor = Color.FromArgb(15, 23, 42);
-            // 
-            // _requestStatClosed
-            // 
-            _requestStatClosed.AccentColor = Color.FromArgb(220, 38, 38);
-            _requestStatClosed.BackColor = Color.FromArgb(241, 245, 249);
-            _requestStatClosed.Caption = "REJECTED / CLOSED";
-            _requestStatClosed.Location = new Point(372, 4);
-            _requestStatClosed.Margin = new Padding(0);
-            _requestStatClosed.Name = "_requestStatClosed";
-            _requestStatClosed.Size = new Size(110, 78);
-            _requestStatClosed.TabIndex = 3;
-            _requestStatClosed.TabStop = false;
-            _requestStatClosed.Value = "0";
-            _requestStatClosed.ValueColor = Color.FromArgb(15, 23, 42);
             // 
             // requestsListHost
             // 
@@ -1633,8 +1606,8 @@ namespace oop_project.forms
             profileColumns.ResumeLayout(false);
             profileIdentityCard.ResumeLayout(false);
             profileIdentityCard.PerformLayout();
-            profileQrCard.ResumeLayout(false);
-            profileQrCard.PerformLayout();
+            profileDetailsCard.ResumeLayout(false);
+            profileDetailsCard.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)_qrPicture).EndInit();
             tabPageAttendance.ResumeLayout(false);
             _attendancePage.ResumeLayout(false);
@@ -1671,7 +1644,7 @@ namespace oop_project.forms
 
         private TableLayoutPanel rootGrid;
         private PatronHeaderPanel headerPanel;
-        private RoundedButton _logout;
+        private SignOutButton _logout;
         private PillBadge _headerRole;
         private Label _headerName;
         private AvatarBadge _headerAvatar;
@@ -1699,9 +1672,6 @@ namespace oop_project.forms
         private RoundedButton requestsRefresh;
         private FlowLayoutPanel requestsStatRow;
         private StatCard _requestStatTotal;
-        private StatCard _requestStatPending;
-        private StatCard _requestStatApproved;
-        private StatCard _requestStatClosed;
         private Panel requestsListHost;
         private FlowLayoutPanel _requestFlow;
         private EmptyState _requestsEmpty;
@@ -1755,21 +1725,24 @@ namespace oop_project.forms
         private Label _addressValue;
         private Label addressCaption;
         private Panel identityDivider;
-        private PillBadge _profileRole;
-        private Label _profileMeta;
         private Label _profileName;
         private AvatarBadge _profileAvatar;
-        private Label identityHeading;
-        private Panel profileQrCard;
-        private Label qrKeepPrivate;
-        private Label qrStepThree;
-        private Label qrStepTwo;
-        private Label qrStepOne;
-        private Label qrHowTo;
-        private Panel qrDivider;
+        private PillBadge profileRoleBadge;
+        private Panel profileDetailsCard;
+        private Label detailsHeading;
+        private Label detailsSubtitle;
+        private Panel detailsTopDivider;
+        private Panel dividerRow1;
+        private Panel dividerRow2;
+        private Panel dividerRow3;
+        private Panel dividerRow4;
+        private Panel dividerRow5;
+        private Panel dividerRow6;
+        private Label profileFooter;
         private Label _qrCaption;
         private PictureBox _qrPicture;
         private Label qrHeading;
+        private RoundedButton downloadQrButton;
         private TabPage tabPageProfile;
         private TabPage tabPageAttendance;
         private TabPage tabPageCatalog;

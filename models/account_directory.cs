@@ -29,6 +29,16 @@ namespace oop_project.Models
         public string Address { get; private set; }
         public string Office { get; private set; }
 
+        // PROFILE PICTURE: a small JPEG stored on account_table. It stays null for
+        // accounts that never uploaded a portrait, so the avatars fall back to the
+        // initials of the person.
+        public byte[]? ProfilePicture { get; private set; }
+
+        internal void SetProfilePicture(byte[]? picture)
+        {
+            ProfilePicture = picture;
+        }
+
         // True when the account has a profile row behind it, so the PROFILE tab can
         // decide between showing the record block and showing the account only.
         public bool HasProfile { get; private set; }
@@ -74,22 +84,18 @@ namespace oop_project.Models
             get { return Role == "FACULTY"; }
         }
 
-        // The librarian runs the system, so the LIBRARIAN tab shows this role (the
-        // legacy ADMIN rows belong there too). STAFF / legacy OFFICER rows get their
-        // own tab.
+        // The librarian runs the system, so the LIBRARIAN tab shows this role.
+        // STAFF rows get their own tab.
         public bool IsLibrarian
         {
-            get { return Role == "LIBRARIAN" || Role == "ADMIN"; }
+            get { return Role == "LIBRARIAN"; }
         }
 
         public bool IsStaff
         {
-            get { return Role == "STAFF" || Role == "OFFICER"; }
+            get { return Role == "STAFF"; }
         }
 
-        // LIBRARIAN / STAFF (and the legacy ADMIN / OFFICER rows) run the library,
-        // so they get the two library account tabs: LIBRARIAN ACCOUNTS and STAFF
-        // ACCOUNTS.
         public bool IsLibraryStaff
         {
             get { return !IsStudent && !IsFaculty; }
@@ -105,7 +111,8 @@ namespace oop_project.Models
     {
         private const string AccountSelect =
             "SELECT a.`account_id`, a.`name`, a.`username`, " +
-            "IFNULL(r.`role`, 'STUDENT'), IFNULL(r.`status`, 'PENDING'), IFNULL(r.`date_created`, ''), " +
+            "IFNULL(rt.`role_code`, 'STUDENT'), IFNULL(ast.`status_code`, 'PENDING'), " +
+            "IFNULL(UPPER(DATE_FORMAT(ar.`date_created`, '%M %e, %Y')), ''), " +
             "IFNULL(s.`school_id`, ''), " +
             "IFNULL(p.`program_name`, ''), " +
             "IFNULL(s.`year_level`, ''), " +
@@ -114,10 +121,12 @@ namespace oop_project.Models
             "IFNULL(s.`address`, ''), " +
             "IFNULL(st.`office`, '') " +
             "FROM `account_table` a " +
-            "LEFT JOIN `account_role_table` r ON r.`account_id` = a.`account_id` " +
+            "LEFT JOIN `account_role_table` ar ON ar.`account_id` = a.`account_id` " +
+            "LEFT JOIN `role_table` rt ON rt.`role_id` = ar.`role_id` " +
+            "LEFT JOIN `account_status_table` ast ON ast.`status_id` = ar.`status_id` " +
             "LEFT JOIN `student_info_table` s ON s.`account_id` = a.`account_id` " +
             "LEFT JOIN `program_table` p ON p.`program_id` = s.`program_id` " +
-            "LEFT JOIN `institute_table` i ON i.`institute_id` = s.`institute_id` " +
+            "LEFT JOIN `institute_table` i ON i.`institute_id` = p.`institute_id` " +
             "LEFT JOIN `faculty_info_table` f ON f.`account_id` = a.`account_id` " +
             "LEFT JOIN `institute_table` fi ON fi.`institute_id` = f.`institute_id` " +
             "LEFT JOIN `staff_info_table` st ON st.`account_id` = a.`account_id` " +
@@ -125,7 +134,54 @@ namespace oop_project.Models
 
         private readonly IDatabaseConnection _database = new MySqlDatabaseConnection();
 
-      
+        // The profile picture column only exists in databases created (or upgraded)
+        // after the photo feature, so it is checked once per process.
+        private static readonly object PictureColumnGate = new object();
+        private static bool _pictureColumnChecked;
+        private static bool _pictureColumnAvailable;
+
+        private static bool EnsurePictureColumn(MySqlConnection connection)
+        {
+            if (_pictureColumnChecked)
+            {
+                return _pictureColumnAvailable;
+            }
+
+            lock (PictureColumnGate)
+            {
+                if (!_pictureColumnChecked)
+                {
+                    try
+                    {
+                        Authentication.EnsureAccountPictureColumn(connection);
+                        _pictureColumnAvailable = true;
+                    }
+                    catch (MySqlException)
+                    {
+                        // A database user without ALTER rights keeps text-only profiles.
+                        _pictureColumnAvailable = false;
+                    }
+
+                    _pictureColumnChecked = true;
+                }
+
+                return _pictureColumnAvailable;
+            }
+        }
+
+        private static byte[]? ReadPicture(MySqlConnection connection, int accountId)
+        {
+            using (MySqlCommand command = new MySqlCommand(
+                       "SELECT `profile_picture` FROM `account_table` WHERE `account_id` = @accountId;",
+                       connection))
+            {
+                command.Parameters.AddWithValue("@accountId", accountId);
+                object? value = command.ExecuteScalar();
+
+                return value == null || value == DBNull.Value ? null : value as byte[];
+            }
+        }
+
         public List<AccountRow> Load()
         {
             List<AccountRow> rows = new List<AccountRow>();
@@ -162,15 +218,28 @@ namespace oop_project.Models
             {
                 connection.Open();
 
+                bool pictureColumn = EnsurePictureColumn(connection);
+                AccountRow? row = null;
+
                 using (MySqlCommand command = new MySqlCommand(AccountSelect + "WHERE a.`account_id` = @accountId;", connection))
                 {
                     command.Parameters.AddWithValue("@accountId", accountId);
 
                     using (MySqlDataReader reader = command.ExecuteReader())
                     {
-                        return reader.Read() ? ReadRow(reader) : null;
+                        if (reader.Read())
+                        {
+                            row = ReadRow(reader);
+                        }
                     }
                 }
+
+                if (row != null && pictureColumn)
+                {
+                    row.SetProfilePicture(ReadPicture(connection, accountId));
+                }
+
+                return row;
             }
         }
 
@@ -204,8 +273,10 @@ namespace oop_project.Models
 
         /// <summary>
         /// Changes the sign-in password only when the current password matches.
-        /// The comparison uses BINARY so the check is exact, just like the login
-        /// query. Returns false when the current password is wrong.
+        /// SECURITY: account_table keeps a PBKDF2 hash (or the plain text of an
+        /// account made by an older build), and both forms are accepted here
+        /// before the new password is written as a hash. Returns false when the
+        /// current password is wrong.
         /// </summary>
         public bool ChangePassword(int accountId, string currentPassword, string newPassword)
         {
@@ -228,17 +299,36 @@ namespace oop_project.Models
             {
                 connection.Open();
 
-                const string sql =
-                    "UPDATE `account_table` SET `password` = @newPassword " +
-                    "WHERE `account_id` = @accountId AND BINARY `password` = BINARY @currentPassword;";
+                const string selectSql =
+                    "SELECT `password` FROM `account_table` WHERE `account_id` = @accountId;";
 
-                using (MySqlCommand command = new MySqlCommand(sql, connection))
+                string storedPassword;
+                using (MySqlCommand select = new MySqlCommand(selectSql, connection))
                 {
-                    command.Parameters.AddWithValue("@newPassword", newPassword);
-                    command.Parameters.AddWithValue("@accountId", accountId);
-                    command.Parameters.AddWithValue("@currentPassword", currentPassword);
+                    select.Parameters.AddWithValue("@accountId", accountId);
+                    object? value = select.ExecuteScalar();
 
-                    return command.ExecuteNonQuery() == 1;
+                    if (value == null || value == DBNull.Value)
+                    {
+                        return false;
+                    }
+
+                    storedPassword = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+                }
+
+                if (!PasswordHasher.Verify(currentPassword, storedPassword))
+                {
+                    return false;
+                }
+
+                const string updateSql =
+                    "UPDATE `account_table` SET `password` = @newPassword WHERE `account_id` = @accountId;";
+
+                using (MySqlCommand update = new MySqlCommand(updateSql, connection))
+                {
+                    update.Parameters.AddWithValue("@newPassword", PasswordHasher.Hash(newPassword));
+                    update.Parameters.AddWithValue("@accountId", accountId);
+                    return update.ExecuteNonQuery() == 1;
                 }
             }
         }
@@ -276,22 +366,27 @@ namespace oop_project.Models
 
                 if (rows == 0)
                 {
-                    const string insertSql = "INSERT INTO `account_role_table` (`account_id`, `role`, `status`, `date_created`) " +
-                                             "VALUES (@accountId, @role, @status, @dateCreated);";
+                    const string insertSql =
+                        "INSERT INTO `account_role_table` (`account_id`, `role_id`, `status_id`, `date_created`) " +
+                        "VALUES (@accountId, " +
+                        "        (SELECT `role_id` FROM `role_table` WHERE `role_code` = 'STUDENT'), " +
+                        "        (SELECT `status_id` FROM `account_status_table` WHERE `status_code` = @status), " +
+                        "        CURDATE());";
 
                     using (MySqlCommand insert = new MySqlCommand(insertSql, connection))
                     {
                         insert.Parameters.AddWithValue("@accountId", accountId);
-                        insert.Parameters.AddWithValue("@role", "STUDENT");
                         insert.Parameters.AddWithValue("@status", normalized);
-                        insert.Parameters.AddWithValue("@dateCreated", DateTime.Now.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture).ToUpperInvariant());
                         insert.ExecuteNonQuery();
                     }
 
                     return;
                 }
 
-                const string updateSql = "UPDATE `account_role_table` SET `status` = @status WHERE `account_id` = @accountId;";
+                const string updateSql =
+                    "UPDATE `account_role_table` SET `status_id` = " +
+                    "(SELECT `status_id` FROM `account_status_table` WHERE `status_code` = @status) " +
+                    "WHERE `account_id` = @accountId;";
 
                 using (MySqlCommand update = new MySqlCommand(updateSql, connection))
                 {
@@ -386,6 +481,16 @@ namespace oop_project.Models
                             accountCommand.ExecuteNonQuery();
                         }
 
+                        // NAME PROPAGATION: the account row owns the display name,
+                        // so the copies kept by the profile, the borrow records and
+                        // the survey answers are rewritten with the new one.
+                        PropagateName(
+                            connection,
+                            transaction,
+                            row,
+                            name,
+                            updateStudentProfile ? schoolId : string.Empty);
+
                         SaveRoleRow(connection, transaction, row.AccountId, role, status);
 
                         if (updateStudentProfile)
@@ -395,7 +500,7 @@ namespace oop_project.Models
 
                             const string studentSql =
                                 "UPDATE `student_info_table` SET `school_id` = @schoolId, `program_id` = @programId, " +
-                                "`year_level` = @yearLevel, `institute_id` = @instituteId, `contact_number` = @contact " +
+                                "`year_level` = @yearLevel, `contact_number` = @contact " +
                                 "WHERE `account_id` = @accountId;";
 
                             using (MySqlCommand studentCommand = new MySqlCommand(studentSql, connection, transaction))
@@ -403,7 +508,6 @@ namespace oop_project.Models
                                 studentCommand.Parameters.AddWithValue("@schoolId", schoolId.Trim());
                                 studentCommand.Parameters.AddWithValue("@programId", programId);
                                 studentCommand.Parameters.AddWithValue("@yearLevel", Limit(yearLevel, 20));
-                                studentCommand.Parameters.AddWithValue("@instituteId", instituteId);
                                 studentCommand.Parameters.AddWithValue("@contact", Limit(contactNumber, 20));
                                 studentCommand.Parameters.AddWithValue("@accountId", row.AccountId);
                                 studentCommand.ExecuteNonQuery();
@@ -415,12 +519,13 @@ namespace oop_project.Models
                             long instituteId = ResolveInstituteId(connection, transaction, institute);
 
                             const string facultySql =
-                                "UPDATE `faculty_info_table` SET `institute_id` = @instituteId " +
-                                "WHERE `account_id` = @accountId;";
+                                "UPDATE `faculty_info_table` SET `institute_id` = @instituteId, " +
+                                "`contact_number` = @contact WHERE `account_id` = @accountId;";
 
                             using (MySqlCommand facultyCommand = new MySqlCommand(facultySql, connection, transaction))
                             {
                                 facultyCommand.Parameters.AddWithValue("@instituteId", instituteId);
+                                facultyCommand.Parameters.AddWithValue("@contact", Limit(contactNumber, 20));
                                 facultyCommand.Parameters.AddWithValue("@accountId", row.AccountId);
                                 facultyCommand.ExecuteNonQuery();
                             }
@@ -435,6 +540,10 @@ namespace oop_project.Models
                         {
                             EnsureLibrarianProfile(connection, transaction, row.AccountId);
                         }
+
+                        // CONTACT PROPAGATION: the profile is the source of truth for
+                        // the phone number, so existing borrow records follow it.
+                        PropagateContact(connection, transaction, row, schoolId, contactNumber);
 
                         transaction.Commit();
                     }
@@ -465,7 +574,9 @@ namespace oop_project.Models
             string institute,
             string contactNumber,
             string address,
-            string office)
+            string office,
+            byte[]? profilePicture = null,
+            bool updateProfilePicture = false)
         {
             if (row == null)
             {
@@ -508,25 +619,56 @@ namespace oop_project.Models
                 }
             }
 
+            if (updateProfilePicture && profilePicture != null && profilePicture.Length > 8 * 1024 * 1024)
+            {
+                throw new ArgumentException("The profile picture is too large.", nameof(profilePicture));
+            }
+
             try
             {
                 using (MySqlConnection connection = _database.CreateConnection())
                 {
                     connection.Open();
 
+                    bool pictureColumn = EnsurePictureColumn(connection);
+
                     using (MySqlTransaction transaction = connection.BeginTransaction())
                     {
-                        const string accountSql =
-                            "UPDATE `account_table` SET `name` = @name, `username` = @username " +
-                            "WHERE `account_id` = @accountId;";
+                        string accountSql =
+                            "UPDATE `account_table` SET `name` = @name, `username` = @username";
+
+                        if (updateProfilePicture && pictureColumn)
+                        {
+                            accountSql += ", `profile_picture` = @picture";
+                        }
+
+                        accountSql += " WHERE `account_id` = @accountId;";
 
                         using (MySqlCommand accountCommand = new MySqlCommand(accountSql, connection, transaction))
                         {
                             accountCommand.Parameters.AddWithValue("@name", name.Trim());
                             accountCommand.Parameters.AddWithValue("@username", username.Trim());
                             accountCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+
+                            if (updateProfilePicture && pictureColumn)
+                            {
+                                accountCommand.Parameters.Add("@picture", MySqlDbType.MediumBlob).Value =
+                                    (object?)profilePicture ?? DBNull.Value;
+                            }
+
                             accountCommand.ExecuteNonQuery();
                         }
+
+                        // NAME PROPAGATION: the person may have changed the full
+                        // name from the PROFILE tab, so the copies kept by the
+                        // profile, the borrow records and the survey answers are
+                        // rewritten with the new one.
+                        PropagateName(
+                            connection,
+                            transaction,
+                            row,
+                            name,
+                            row.HasProfile && row.IsStudent ? schoolId : string.Empty);
 
                         if (row.HasProfile && row.IsStudent)
                         {
@@ -535,7 +677,7 @@ namespace oop_project.Models
 
                             const string studentSql =
                                 "UPDATE `student_info_table` SET `school_id` = @schoolId, `program_id` = @programId, " +
-                                "`year_level` = @yearLevel, `institute_id` = @instituteId, `contact_number` = @contact, " +
+                                "`year_level` = @yearLevel, `contact_number` = @contact, " +
                                 "`address` = @address WHERE `account_id` = @accountId;";
 
                             using (MySqlCommand studentCommand = new MySqlCommand(studentSql, connection, transaction))
@@ -543,7 +685,6 @@ namespace oop_project.Models
                                 studentCommand.Parameters.AddWithValue("@schoolId", schoolId.Trim());
                                 studentCommand.Parameters.AddWithValue("@programId", programId);
                                 studentCommand.Parameters.AddWithValue("@yearLevel", Limit(yearLevel, 20));
-                                studentCommand.Parameters.AddWithValue("@instituteId", instituteId);
                                 studentCommand.Parameters.AddWithValue("@contact", Limit(contactNumber, 20));
                                 studentCommand.Parameters.AddWithValue("@address", Limit(address, 255));
                                 studentCommand.Parameters.AddWithValue("@accountId", row.AccountId);
@@ -579,6 +720,10 @@ namespace oop_project.Models
                             EnsureLibrarianProfile(connection, transaction, row.AccountId);
                             SaveProfileContact(connection, transaction, "librarian_info_table", row.AccountId, contactNumber);
                         }
+
+                        // CONTACT PROPAGATION: a new phone number saved on the profile
+                        // is written to the borrower rows too.
+                        PropagateContact(connection, transaction, row, schoolId, contactNumber);
 
                         transaction.Commit();
                     }
@@ -638,25 +783,29 @@ namespace oop_project.Models
 
             if (rows == 0)
             {
-                const string insertSql = "INSERT INTO `account_role_table` (`account_id`, `role`, `status`, `date_created`) " +
-                                         "VALUES (@accountId, @role, @status, @dateCreated);";
+                const string insertSql =
+                    "INSERT INTO `account_role_table` (`account_id`, `role_id`, `status_id`, `date_created`) " +
+                    "VALUES (@accountId, " +
+                    "        (SELECT `role_id` FROM `role_table` WHERE `role_code` = @role), " +
+                    "        (SELECT `status_id` FROM `account_status_table` WHERE `status_code` = @status), " +
+                    "        CURDATE());";
 
                 using (MySqlCommand insert = new MySqlCommand(insertSql, connection, transaction))
                 {
                     insert.Parameters.AddWithValue("@accountId", accountId);
                     insert.Parameters.AddWithValue("@role", normalizedRole);
                     insert.Parameters.AddWithValue("@status", normalizedStatus);
-                    insert.Parameters.AddWithValue(
-                        "@dateCreated",
-                        DateTime.Now.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture).ToUpperInvariant());
                     insert.ExecuteNonQuery();
                 }
 
                 return;
             }
 
-            const string updateSql = "UPDATE `account_role_table` SET `role` = @role, `status` = @status " +
-                                     "WHERE `account_id` = @accountId;";
+            const string updateSql =
+                "UPDATE `account_role_table` SET " +
+                "`role_id` = (SELECT `role_id` FROM `role_table` WHERE `role_code` = @role), " +
+                "`status_id` = (SELECT `status_id` FROM `account_status_table` WHERE `status_code` = @status) " +
+                "WHERE `account_id` = @accountId;";
 
             using (MySqlCommand update = new MySqlCommand(updateSql, connection, transaction))
             {
@@ -667,32 +816,25 @@ namespace oop_project.Models
             }
         }
 
-        // NORMALISATION: the librarian profile only links the account to its role
-        // row. No office is stored for the librarian, so the upsert keeps the links
-        // and does not touch an office column.
+        // NORMALISATION: the librarian profile is a 1:1 extension of the account.
+        // The role is read through account_id, so no role_id is stored here.
         private static void EnsureLibrarianProfile(
             MySqlConnection connection,
             MySqlTransaction transaction,
             int accountId)
         {
-            long roleId = ResolveRoleId(connection, transaction, accountId);
-
-            const string sql = "INSERT INTO `librarian_info_table` (`account_id`, `role_id`) " +
-                               "VALUES (@accountId, @roleId) " +
-                               "ON DUPLICATE KEY UPDATE `role_id` = @roleId;";
+            const string sql = "INSERT IGNORE INTO `librarian_info_table` (`account_id`) " +
+                               "VALUES (@accountId);";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection, transaction))
             {
                 command.Parameters.AddWithValue("@accountId", accountId);
-                command.Parameters.AddWithValue("@roleId", roleId);
                 command.ExecuteNonQuery();
             }
         }
 
-        // NORMALISATION: the librarian / staff profile points at the account and at
-        // its role row. The role row is saved before this method runs, so its id is
-        // read here and stored as the second foreign key. The upsert also gives an
-        // older account a profile row the first time the admin saves it.
+        // NORMALISATION: the staff profile points at the account only. The role
+        // stays in account_role_table, so it is never copied into this row.
         private static void SaveOfficeProfile(
             MySqlConnection connection,
             MySqlTransaction transaction,
@@ -700,16 +842,13 @@ namespace oop_project.Models
             int accountId,
             string office)
         {
-            long roleId = ResolveRoleId(connection, transaction, accountId);
-
-            string sql = "INSERT INTO `" + table + "` (`account_id`, `role_id`, `office`) " +
-                         "VALUES (@accountId, @roleId, @office) " +
-                         "ON DUPLICATE KEY UPDATE `role_id` = @roleId, `office` = @office;";
+            string sql = "INSERT INTO `" + table + "` (`account_id`, `office`) " +
+                         "VALUES (@accountId, @office) " +
+                         "ON DUPLICATE KEY UPDATE `office` = @office;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection, transaction))
             {
                 command.Parameters.AddWithValue("@accountId", accountId);
-                command.Parameters.AddWithValue("@roleId", roleId);
                 command.Parameters.AddWithValue("@office", Limit(office, 120));
                 command.ExecuteNonQuery();
             }
@@ -732,26 +871,6 @@ namespace oop_project.Models
                 command.Parameters.AddWithValue("@contact", Limit(contactNumber, 20));
                 command.Parameters.AddWithValue("@accountId", accountId);
                 command.ExecuteNonQuery();
-            }
-        }
-
-        private static long ResolveRoleId(MySqlConnection connection, MySqlTransaction transaction, int accountId)
-        {
-            const string sql = "SELECT `role_id` FROM `account_role_table` WHERE `account_id` = @accountId " +
-                               "ORDER BY `role_id` LIMIT 1;";
-
-            using (MySqlCommand command = new MySqlCommand(sql, connection, transaction))
-            {
-                command.Parameters.AddWithValue("@accountId", accountId);
-                object? result = command.ExecuteScalar();
-
-                if (result == null || result == DBNull.Value)
-                {
-                    throw new InvalidOperationException(
-                        "The account has no role row, so a staff profile cannot be saved.");
-                }
-
-                return Convert.ToInt64(result, CultureInfo.InvariantCulture);
             }
         }
 
@@ -794,6 +913,214 @@ namespace oop_project.Models
                 command.Parameters.AddWithValue("@instituteId", instituteId);
                 command.ExecuteNonQuery();
                 return command.LastInsertedId;
+            }
+        }
+
+        // ------------------------------------------------------------
+        // NAME PROPAGATION: account_table owns the one display name of a
+        // person, but student_info_table (name parts), borrowers_table
+        // (name parts copied when a book is borrowed) and
+        // evaluation_respondent_table (name snapshot taken when a survey is
+        // submitted) keep their own copy. When the FULL NAME is edited,
+        // every copy is rewritten in the same transaction, so no tab of
+        // the librarian dashboard keeps showing the old spelling.
+        // ------------------------------------------------------------
+        private static void PropagateName(
+            MySqlConnection connection,
+            MySqlTransaction transaction,
+            AccountRow row,
+            string newName,
+            string schoolId)
+        {
+            string updated = (newName ?? string.Empty).Trim();
+            string previous = (row.Name ?? string.Empty).Trim();
+
+            if (updated.Length == 0 || string.Equals(updated, previous, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            Borrower.SplitName(updated, out string lastName, out string firstName, out string middleName);
+            Borrower.SplitName(previous, out string oldLastName, out string oldFirstName, out _);
+
+            // 1. STUDENT PROFILE: student_info_table keeps the name parts next to
+            //    the school details. Its middle column only holds the initial.
+            if (ColumnExists(connection, transaction, "student_info_table", "last_name"))
+            {
+                const string studentSql =
+                    "UPDATE `student_info_table` SET `last_name` = @lastName, " +
+                    "`first_name` = @firstName, `middle_initial` = @middleInitial " +
+                    "WHERE `account_id` = @accountId;";
+
+                using (MySqlCommand studentCommand = new MySqlCommand(studentSql, connection, transaction))
+                {
+                    studentCommand.Parameters.AddWithValue("@lastName", Limit(lastName, 80));
+                    studentCommand.Parameters.AddWithValue("@firstName", Limit(firstName, 80));
+                    studentCommand.Parameters.Add("@middleInitial", MySqlDbType.VarChar).Value =
+                        NullIfEmpty(MiddleInitial(middleName));
+                    studentCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+                    studentCommand.ExecuteNonQuery();
+                }
+            }
+
+            // 2. BORROW RECORDS: borrowers_table stores the name parts, so the
+            //    ATTENDANCE tab and the TOP BORROWERS chart follow the new name.
+            //    A row belongs to the person when it points at the account, when
+            //    it carries the student's school id (or the ACCOUNT-<id> key used
+            //    by borrow requests), or when it was saved without an id number
+            //    under the old name and the same role.
+            if (ColumnExists(connection, transaction, "borrowers_table", "middle_name"))
+            {
+                const string borrowerSql =
+                    "UPDATE `borrowers_table` SET `last_name` = @lastName, " +
+                    "`first_name` = @firstName, `middle_name` = @middleName " +
+                    "WHERE `account_id` = @accountId " +
+                    "   OR `id_number` IN (NULLIF(@schoolId, ''), NULLIF(@oldSchoolId, ''), @accountKey) " +
+                    "   OR (`account_id` IS NULL AND (`id_number` IS NULL OR `id_number` = '') " +
+                    "       AND `last_name` = @oldLastName AND `first_name` = @oldFirstName " +
+                    "       AND `role_id` = (SELECT `role_id` FROM `role_table` " +
+                    "                       WHERE `role_code` = @oldRole));";
+
+                using (MySqlCommand borrowerCommand = new MySqlCommand(borrowerSql, connection, transaction))
+                {
+                    borrowerCommand.Parameters.AddWithValue("@lastName", Limit(lastName, 80));
+                    borrowerCommand.Parameters.AddWithValue("@firstName", Limit(firstName, 80));
+                    borrowerCommand.Parameters.Add("@middleName", MySqlDbType.VarChar).Value =
+                        NullIfEmpty(Limit(middleName, 50));
+                    borrowerCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+                    borrowerCommand.Parameters.AddWithValue("@schoolId", CleanProfileValue(schoolId));
+                    borrowerCommand.Parameters.AddWithValue("@oldSchoolId", CleanProfileValue(row.SchoolId));
+                    borrowerCommand.Parameters.AddWithValue(
+                        "@accountKey",
+                        "ACCOUNT-" + row.AccountId.ToString(CultureInfo.InvariantCulture));
+                    borrowerCommand.Parameters.AddWithValue("@oldLastName", oldLastName);
+                    borrowerCommand.Parameters.AddWithValue("@oldFirstName", oldFirstName);
+                    borrowerCommand.Parameters.AddWithValue("@oldRole", Borrower.NormalizeRole(row.Role));
+                    borrowerCommand.ExecuteNonQuery();
+                }
+            }
+
+            // 3. SURVEY RESPONDENTS: the respondent row keeps the name shown by the
+            //    EVALUATION tab, so it follows the new spelling.
+            if (ColumnExists(connection, transaction, "evaluation_respondent_table", "respondent_name"))
+            {
+                const string evaluationSql =
+                    "UPDATE `evaluation_respondent_table` er " +
+                    "INNER JOIN `evaluation_table` e ON e.`evaluation_id` = er.`evaluation_id` " +
+                    "SET er.`respondent_name` = @name " +
+                    "WHERE e.`account_id` = @accountId " +
+                    "   OR (e.`account_id` IS NULL AND er.`respondent_name` = @previousName);";
+
+                using (MySqlCommand evaluationCommand = new MySqlCommand(evaluationSql, connection, transaction))
+                {
+                    evaluationCommand.Parameters.AddWithValue("@name", Limit(updated, 150));
+                    evaluationCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+                    evaluationCommand.Parameters.AddWithValue("@previousName", previous);
+                    evaluationCommand.ExecuteNonQuery();
+                }
+            }
+            else if (ColumnExists(connection, transaction, "evaluation_table", "respondent_name"))
+            {
+                const string evaluationSql =
+                    "UPDATE `evaluation_table` SET `respondent_name` = @name " +
+                    "WHERE `account_id` = @accountId " +
+                    "   OR (`account_id` IS NULL AND `respondent_name` = @previousName);";
+
+                using (MySqlCommand evaluationCommand = new MySqlCommand(evaluationSql, connection, transaction))
+                {
+                    evaluationCommand.Parameters.AddWithValue("@name", Limit(updated, 150));
+                    evaluationCommand.Parameters.AddWithValue("@accountId", row.AccountId);
+                    evaluationCommand.Parameters.AddWithValue("@previousName", previous);
+                    evaluationCommand.ExecuteNonQuery();
+                }
+            }
+        }
+
+        // CONTACT PROPAGATION: the account profile owns the phone number. When it
+        // is edited, every borrower row that belongs to the person is updated, so
+        // the BORROWED BOOKS tab and the reports never show an old number.
+        private static void PropagateContact(
+            MySqlConnection connection,
+            MySqlTransaction transaction,
+            AccountRow row,
+            string schoolId,
+            string contactNumber)
+        {
+            string contact = CleanProfileValue(contactNumber);
+
+            if (contact.Length == 0 ||
+                !ColumnExists(connection, transaction, "borrowers_table", "contact_number"))
+            {
+                return;
+            }
+
+            const string sql =
+                "UPDATE `borrowers_table` SET `contact_number` = @contact " +
+                "WHERE `account_id` = @accountId " +
+                "   OR `id_number` IN (NULLIF(@schoolId, ''), NULLIF(@oldSchoolId, ''), @accountKey);";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@contact", Limit(contact, 30));
+                command.Parameters.AddWithValue("@accountId", row.AccountId);
+                command.Parameters.AddWithValue("@schoolId", CleanProfileValue(schoolId));
+                command.Parameters.AddWithValue("@oldSchoolId", CleanProfileValue(row.SchoolId));
+                command.Parameters.AddWithValue(
+                    "@accountKey",
+                    "ACCOUNT-" + row.AccountId.ToString(CultureInfo.InvariantCulture));
+                command.ExecuteNonQuery();
+            }
+        }
+
+        // A profile value is stored as "—" by AccountRow when the role does not
+        // own it, so it never reaches a WHERE clause as a real id.
+        private static string CleanProfileValue(string value)
+        {
+            string trimmed = (value ?? string.Empty).Trim();
+            return trimmed == "—" ? string.Empty : trimmed;
+        }
+
+        // student_info_table stores the middle initial only, so "VIC D." and
+        // "V." both become "V" while "VIC" also becomes "V".
+        private static string MiddleInitial(string middleName)
+        {
+            string value = (middleName ?? string.Empty).Trim();
+
+            foreach (char letter in value)
+            {
+                if (char.IsLetter(letter))
+                {
+                    return letter.ToString().ToUpperInvariant();
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static object NullIfEmpty(string value)
+        {
+            return value.Length == 0 ? DBNull.Value : (object)value;
+        }
+
+        // Older databases may not have the profile, borrower or survey table
+        // yet. Asking information_schema keeps the name in step where the copy
+        // exists and never fails the edit because a table is missing.
+        private static bool ColumnExists(
+            MySqlConnection connection,
+            MySqlTransaction transaction,
+            string tableName,
+            string columnName)
+        {
+            const string sql =
+                "SELECT COUNT(*) FROM `information_schema`.`COLUMNS` " +
+                "WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = @table " +
+                "AND `COLUMN_NAME` = @column;";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@table", tableName);
+                command.Parameters.AddWithValue("@column", columnName);
+                return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
             }
         }
 

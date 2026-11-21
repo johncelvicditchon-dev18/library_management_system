@@ -41,6 +41,14 @@ namespace oop_project
             EnsureColumn(conn, "librarian_info_table", "contact_number", "VARCHAR(20) NOT NULL DEFAULT ''");
         }
 
+        // PROFILE PICTURE: the EDIT MY INFO pop up stores a small portrait on the
+        // account row, so the portal can show it without another table. Databases
+        // created before this feature get the column on the first profile read.
+        public static void EnsureAccountPictureColumn(MySqlConnection conn)
+        {
+            EnsureColumn(conn, "account_table", "profile_picture", "MEDIUMBLOB NULL");
+        }
+
         // PROFILE CLEANUP: signup no longer asks a FACULTY member for a program
         // (a faculty member only belongs to an institute) and no longer asks a
         // LIBRARIAN for an office. An older database may still keep those values,

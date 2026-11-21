@@ -1,5 +1,9 @@
 # Implementation Summary: Librarian Role + Student/Faculty/Staff Dashboard + QR Attendance
 
+> Database note: the schema and data layer are now in Third Normal Form (3NF).
+> See `database/NORMALIZATION.md` and `database/libsys_database.sql` for the
+> current tables, foreign keys, and migration steps.
+
 ## Requirements Met
 
 ### 1. LIBRARIAN ROLE manages the system
@@ -37,7 +41,7 @@
 | `forms/login.cs` | Staff/Officer now → `patron_dashboard` instead of `staff_dashboard` |
 | `models/attendance_directory.cs` | New - Attendance log SQL directory |
 | `controls/patron_visuals.cs` | New `AttendanceCard` control |
-| `forms/patron_dashboard.cs` | Added "My Attendance" tab, QR pass, attendance UI |
+| `forms/patron_dashboard.cs` | Added "My Attendance" tab, QR code, attendance UI |
 
 ## Dashboard Navigation
 
@@ -61,7 +65,7 @@ Students/Faculty/Staff:           Librarian:
 ## Usage Flow
 
 1. **Login**: All roles (Student/Faculty/Staff) → patron dashboard with borrowing + attendance
-2. **Profile**: Shows QR pass with `ACCOUNT: {id}` for attendance scanning
-3. **At library office**: Show QR pass → librarian scans → visit recorded
+2. **Profile**: Shows QR code with `ACCOUNT: {id}` for attendance scanning
+3. **At library office**: Show QR code → librarian scans → visit recorded
 4. **My Attendance**: View visit history, search, see stats
 5. **Librarian**: Opens admin dashboard for full system management

@@ -29,13 +29,9 @@ namespace oop_project.forms
         private void InitializeComponent()
         {
             _contentPanel = new Panel();
-            _accountCaption = new Label();
-            _profileCaption = new Label();
             _profileNote = new Label();
             _nameField = new DialogField();
             _usernameField = new DialogField();
-            _roleField = new DialogField();
-            _statusField = new DialogField();
             _schoolIdField = new DialogField();
             _programField = new DialogField();
             _yearLevelField = new DialogField();
@@ -54,13 +50,9 @@ namespace oop_project.forms
             // _contentPanel
             // 
             _contentPanel.BackColor = Color.White;
-            _contentPanel.Controls.Add(_accountCaption);
-            _contentPanel.Controls.Add(_profileCaption);
             _contentPanel.Controls.Add(_profileNote);
             _contentPanel.Controls.Add(_nameField);
             _contentPanel.Controls.Add(_usernameField);
-            _contentPanel.Controls.Add(_roleField);
-            _contentPanel.Controls.Add(_statusField);
             _contentPanel.Controls.Add(_schoolIdField);
             _contentPanel.Controls.Add(_programField);
             _contentPanel.Controls.Add(_yearLevelField);
@@ -69,41 +61,19 @@ namespace oop_project.forms
             _contentPanel.Controls.Add(_officeField);
             _contentPanel.Location = new Point(0, 104);
             _contentPanel.Name = "_contentPanel";
-            _contentPanel.Size = new Size(900, 518);
+            _contentPanel.Size = new Size(900, 448);
             _contentPanel.TabIndex = 3;
-            // 
-            // _accountCaption
-            // 
-            _accountCaption.BackColor = Color.Transparent;
-            _accountCaption.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
-            _accountCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            _accountCaption.Location = new Point(34, 9);
-            _accountCaption.Name = "_accountCaption";
-            _accountCaption.Size = new Size(410, 18);
-            _accountCaption.TabIndex = 0;
-            _accountCaption.Text = "ACCOUNT ";
-            // 
-            // _profileCaption
-            // 
-            _profileCaption.BackColor = Color.Transparent;
-            _profileCaption.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
-            _profileCaption.ForeColor = Color.FromArgb(100, 116, 139);
-            _profileCaption.Location = new Point(470, 9);
-            _profileCaption.Name = "_profileCaption";
-            _profileCaption.Size = new Size(410, 18);
-            _profileCaption.TabIndex = 1;
-            _profileCaption.Text = "PROFILE ";
             // 
             // _profileNote
             // 
             _profileNote.BackColor = Color.Transparent;
             _profileNote.Font = new Font("Segoe UI", 8.25F);
             _profileNote.ForeColor = Color.FromArgb(148, 163, 184);
-            _profileNote.Location = new Point(470, 55);
+            _profileNote.Location = new Point(36, 232);
             _profileNote.Name = "_profileNote";
-            _profileNote.Size = new Size(400, 60);
-            _profileNote.TabIndex = 12;
-            _profileNote.Text = "THIS ACCOUNT HAS NO STUDENT, FACULTY, STAFF OR LIBRARIAN\r\nPROFILE ROW, SO ONLY THE ACCOUNT DETAILS CAN BE EDITED.";
+            _profileNote.Size = new Size(448, 60);
+            _profileNote.TabIndex = 9;
+            _profileNote.Text = "THIS ACCOUNT HAS NO STUDENT, FACULTY OR STAFF PROFILE ROW,\r\nSO ONLY THE NAME AND USERNAME CAN BE EDITED.";
             _profileNote.Visible = false;
             // 
             // _nameField
@@ -111,10 +81,10 @@ namespace oop_project.forms
             _nameField.BackColor = Color.White;
             _nameField.Caption = "FULL NAME";
             _nameField.Kind = DialogFieldKind.Text;
-            _nameField.Location = new Point(34, 45);
+            _nameField.Location = new Point(32, 30);
             _nameField.Name = "_nameField";
-            _nameField.Size = new Size(400, 88);
-            _nameField.TabIndex = 2;
+            _nameField.Size = new Size(406, 88);
+            _nameField.TabIndex = 0;
             _nameField.Value = "";
             // 
             // _usernameField
@@ -122,54 +92,32 @@ namespace oop_project.forms
             _usernameField.BackColor = Color.White;
             _usernameField.Caption = "USERNAME";
             _usernameField.Kind = DialogFieldKind.Text;
-            _usernameField.Location = new Point(34, 135);
+            _usernameField.Location = new Point(32, 130);
             _usernameField.Name = "_usernameField";
-            _usernameField.Size = new Size(400, 88);
-            _usernameField.TabIndex = 3;
+            _usernameField.Size = new Size(406, 88);
+            _usernameField.TabIndex = 2;
             _usernameField.Value = "";
-            // 
-            // _roleField
-            // 
-            _roleField.BackColor = Color.White;
-            _roleField.Caption = "ROLE";
-            _roleField.Kind = DialogFieldKind.Choice;
-            _roleField.Location = new Point(34, 225);
-            _roleField.Name = "_roleField";
-            _roleField.Size = new Size(400, 88);
-            _roleField.TabIndex = 4;
-            _roleField.Value = "";
-            // 
-            // _statusField
-            // 
-            _statusField.BackColor = Color.White;
-            _statusField.Caption = "STATUS";
-            _statusField.Kind = DialogFieldKind.Choice;
-            _statusField.Location = new Point(34, 315);
-            _statusField.Name = "_statusField";
-            _statusField.Size = new Size(400, 88);
-            _statusField.TabIndex = 5;
-            _statusField.Value = "";
             // 
             // _schoolIdField
             // 
             _schoolIdField.BackColor = Color.White;
             _schoolIdField.Caption = "SCHOOL ID";
             _schoolIdField.Kind = DialogFieldKind.Text;
-            _schoolIdField.Location = new Point(468, 45);
+            _schoolIdField.Location = new Point(462, 30);
             _schoolIdField.Name = "_schoolIdField";
-            _schoolIdField.Size = new Size(400, 88);
-            _schoolIdField.TabIndex = 6;
+            _schoolIdField.Size = new Size(406, 88);
+            _schoolIdField.TabIndex = 1;
             _schoolIdField.Value = "";
             // 
             // _programField
             // 
             _programField.BackColor = Color.White;
             _programField.Caption = "PROGRAM";
-            _programField.Kind = DialogFieldKind.Text;
-            _programField.Location = new Point(468, 135);
+            _programField.Kind = DialogFieldKind.Choice;
+            _programField.Location = new Point(462, 230);
             _programField.Name = "_programField";
-            _programField.Size = new Size(400, 88);
-            _programField.TabIndex = 7;
+            _programField.Size = new Size(406, 88);
+            _programField.TabIndex = 5;
             _programField.Value = "";
             // 
             // _yearLevelField
@@ -177,21 +125,21 @@ namespace oop_project.forms
             _yearLevelField.BackColor = Color.White;
             _yearLevelField.Caption = "YEAR LEVEL";
             _yearLevelField.Kind = DialogFieldKind.Choice;
-            _yearLevelField.Location = new Point(468, 225);
+            _yearLevelField.Location = new Point(32, 230);
             _yearLevelField.Name = "_yearLevelField";
-            _yearLevelField.Size = new Size(400, 88);
-            _yearLevelField.TabIndex = 8;
+            _yearLevelField.Size = new Size(406, 88);
+            _yearLevelField.TabIndex = 4;
             _yearLevelField.Value = "";
             // 
             // _instituteField
             // 
             _instituteField.BackColor = Color.White;
-            _instituteField.Caption = "INSTITUTE CODE";
-            _instituteField.Kind = DialogFieldKind.Text;
-            _instituteField.Location = new Point(468, 315);
+            _instituteField.Caption = "INSTITUTE";
+            _instituteField.Kind = DialogFieldKind.Choice;
+            _instituteField.Location = new Point(462, 130);
             _instituteField.Name = "_instituteField";
-            _instituteField.Size = new Size(400, 88);
-            _instituteField.TabIndex = 9;
+            _instituteField.Size = new Size(406, 88);
+            _instituteField.TabIndex = 3;
             _instituteField.Value = "";
             // 
             // _contactField
@@ -199,10 +147,10 @@ namespace oop_project.forms
             _contactField.BackColor = Color.White;
             _contactField.Caption = "CONTACT NUMBER";
             _contactField.Kind = DialogFieldKind.Text;
-            _contactField.Location = new Point(468, 405);
+            _contactField.Location = new Point(32, 330);
             _contactField.Name = "_contactField";
-            _contactField.Size = new Size(400, 88);
-            _contactField.TabIndex = 10;
+            _contactField.Size = new Size(836, 88);
+            _contactField.TabIndex = 6;
             _contactField.Value = "";
             // 
             // _officeField
@@ -210,10 +158,10 @@ namespace oop_project.forms
             _officeField.BackColor = Color.White;
             _officeField.Caption = "OFFICE";
             _officeField.Kind = DialogFieldKind.Text;
-            _officeField.Location = new Point(468, 30);
+            _officeField.Location = new Point(36, 230);
             _officeField.Name = "_officeField";
-            _officeField.Size = new Size(400, 88);
-            _officeField.TabIndex = 11;
+            _officeField.Size = new Size(448, 88);
+            _officeField.TabIndex = 7;
             _officeField.Value = "";
             _officeField.Visible = false;
             // 
@@ -221,7 +169,7 @@ namespace oop_project.forms
             // 
             _footerDivider.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             _footerDivider.BackColor = Color.FromArgb(226, 232, 240);
-            _footerDivider.Location = new Point(0, 622);
+            _footerDivider.Location = new Point(0, 552);
             _footerDivider.Name = "_footerDivider";
             _footerDivider.Size = new Size(900, 1);
             _footerDivider.TabIndex = 4;
@@ -271,12 +219,16 @@ namespace oop_project.forms
             _primaryButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             _primaryButton.BackColor = Color.Transparent;
             _primaryButton.CornerRadius = 12;
+            _primaryButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             _primaryButton.FlatAppearance.BorderSize = 0;
             _primaryButton.FlatStyle = FlatStyle.Flat;
             _primaryButton.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             _primaryButton.ForeColor = Color.White;
             _primaryButton.HoverColor = Color.FromArgb(21, 128, 61);
-            _primaryButton.Location = new Point(700, 638);
+            _primaryButton.IconFallbackGlyph = "";
+            _primaryButton.IconGlyph = "";
+            _primaryButton.IconSize = 16F;
+            _primaryButton.Location = new Point(700, 568);
             _primaryButton.Name = "_primaryButton";
             _primaryButton.NormalColor = Color.FromArgb(22, 163, 74);
             _primaryButton.PressedColor = Color.FromArgb(20, 83, 45);
@@ -291,12 +243,16 @@ namespace oop_project.forms
             _secondaryButton.BackColor = Color.Transparent;
             _secondaryButton.CornerRadius = 12;
             _secondaryButton.DialogResult = DialogResult.Cancel;
+            _secondaryButton.DisabledTextColor = Color.FromArgb(248, 250, 252);
             _secondaryButton.FlatAppearance.BorderSize = 0;
             _secondaryButton.FlatStyle = FlatStyle.Flat;
             _secondaryButton.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             _secondaryButton.ForeColor = Color.FromArgb(51, 65, 85);
             _secondaryButton.HoverColor = Color.FromArgb(226, 232, 240);
-            _secondaryButton.Location = new Point(568, 638);
+            _secondaryButton.IconFallbackGlyph = "";
+            _secondaryButton.IconGlyph = "";
+            _secondaryButton.IconSize = 16F;
+            _secondaryButton.Location = new Point(568, 568);
             _secondaryButton.Name = "_secondaryButton";
             _secondaryButton.NormalColor = Color.FromArgb(241, 245, 249);
             _secondaryButton.PressedColor = Color.FromArgb(203, 213, 225);
@@ -312,7 +268,7 @@ namespace oop_project.forms
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
             CancelButton = _secondaryButton;
-            ClientSize = new Size(900, 700);
+            ClientSize = new Size(900, 630);
             Controls.Add(_contentPanel);
             Controls.Add(_footerDivider);
             Controls.Add(_titleLabel);
@@ -346,12 +302,8 @@ namespace oop_project.forms
         private DialogCloseButton _closeButton;
         private RoundedButton _primaryButton;
         private RoundedButton _secondaryButton;
-        private Label _accountCaption;
-        private Label _profileCaption;
         private DialogField _nameField;
         private DialogField _usernameField;
-        private DialogField _roleField;
-        private DialogField _statusField;
         private DialogField _schoolIdField;
         private DialogField _programField;
         private DialogField _yearLevelField;

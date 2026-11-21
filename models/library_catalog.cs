@@ -149,62 +149,13 @@ namespace oop_project.Models
         }
 
         /// <summary>
-        /// Copies each borrower's whole-day count into borrowers_table.day_before_borrow.
-        /// A day is added only after 24 full hours, so a book borrowed at 1:15 AM
-        /// shows 1 day at 1:15 AM the next morning.
+        /// 3NF: the number of days a loan has run is derived from
+        /// borrow_transactions_table.date_borrow / date_return inside
+        /// <see cref="BorrowRecord"/>; no derived counter is stored.
+        /// This method stays as a no-op so existing callers keep working.
         /// </summary>
         public void SyncDaysBorrowed()
         {
-            if (!IsConnected)
-            {
-                return;
-            }
-
-            Dictionary<int, int> days = new Dictionary<int, int>();
-
-            foreach (BorrowRecord record in _borrowRecords)
-            {
-                if (record.BorrowerId <= 0)
-                {
-                    continue;
-                }
-
-                int stored;
-                if (!days.TryGetValue(record.BorrowerId, out stored) || record.DaysBorrowed > stored)
-                {
-                    days[record.BorrowerId] = record.DaysBorrowed;
-                }
-            }
-
-            if (days.Count == 0)
-            {
-                return;
-            }
-
-            try
-            {
-                using (MySqlConnection connection = _database.CreateConnection())
-                {
-                    connection.Open();
-
-                    const string sql = "UPDATE `borrowers_table` SET `day_before_borrow` = @days " +
-                                       "WHERE `borrower_id` = @borrowerId AND `day_before_borrow` <> @days;";
-
-                    foreach (KeyValuePair<int, int> entry in days)
-                    {
-                        using (MySqlCommand command = new MySqlCommand(sql, connection))
-                        {
-                            command.Parameters.AddWithValue("@days", entry.Value);
-                            command.Parameters.AddWithValue("@borrowerId", entry.Key);
-                            command.ExecuteNonQuery();
-                        }
-                    }
-                }
-            }
-            catch (MySqlException ex)
-            {
-                GoOffline(ex);
-            }
         }
 
         public Book? FindBookById(int bookId)
@@ -222,7 +173,7 @@ namespace oop_project.Models
 
         /// <summary>
         /// Number of copies of one title that are still out. The AVAILABLE COPY
-        /// column is books_table.copy minus this number.
+        /// column is books_table.copies minus this number.
         /// </summary>
         public int OpenLoanCount(int bookId)
         {
@@ -278,7 +229,7 @@ namespace oop_project.Models
                     {
                         connection.Open();
 
-                        const string sql = "INSERT INTO `books_table` (`book_title`, `author`, `year_published`, `copy`, `date_added`, `book_image`) " +
+                        const string sql = "INSERT INTO `books_table` (`book_title`, `author`, `year_published`, `copies`, `date_added`, `book_image`) " +
                                            "VALUES (@title, @author, @year, @quantity, @dateAdded, @image);";
 
                         using (MySqlCommand command = new MySqlCommand(sql, connection))
@@ -286,8 +237,8 @@ namespace oop_project.Models
                             command.Parameters.AddWithValue("@title", book.Title);
                             command.Parameters.AddWithValue("@author", book.Author);
                             command.Parameters.AddWithValue("@year", book.Year);
-                            command.Parameters.AddWithValue("@quantity", book.QuantityText);
-                            command.Parameters.AddWithValue("@dateAdded", book.DateAdded);
+                            command.Parameters.AddWithValue("@quantity", book.Quantity);
+                            command.Parameters.AddWithValue("@dateAdded", DateTime.Today);
                             command.Parameters.AddWithValue("@image", (object?)book.CoverImage ?? DBNull.Value);
                             command.ExecuteNonQuery();
                             book.AssignBookId((int)command.LastInsertedId);
@@ -325,7 +276,7 @@ namespace oop_project.Models
                     connection.Open();
 
                     const string sql = "UPDATE `books_table` SET `book_title` = @title, `author` = @author, " +
-                                       "`year_published` = @year, `copy` = @quantity, `book_image` = @image " +
+                                       "`year_published` = @year, `copies` = @quantity, `book_image` = @image " +
                                        "WHERE `book_id` = @bookId;";
 
                     using (MySqlCommand command = new MySqlCommand(sql, connection))
@@ -333,7 +284,7 @@ namespace oop_project.Models
                         command.Parameters.AddWithValue("@title", validated.Title);
                         command.Parameters.AddWithValue("@author", validated.Author);
                         command.Parameters.AddWithValue("@year", validated.Year);
-                        command.Parameters.AddWithValue("@quantity", validated.QuantityText);
+                        command.Parameters.AddWithValue("@quantity", validated.Quantity);
                         command.Parameters.AddWithValue("@image", (object?)validated.CoverImage ?? DBNull.Value);
                         command.Parameters.AddWithValue("@bookId", book.BookId);
                         command.ExecuteNonQuery();
@@ -424,7 +375,10 @@ namespace oop_project.Models
                             borrower.YearLevel,
                             borrower.Institute,
                             dateBorrowed,
-                            null);
+                            null,
+                            borrower.Role,
+                            borrower.Office,
+                            borrower.ContactNumber);
 
                         const string sql = "INSERT INTO `borrow_transactions_table` (`borrower_id`, `book_id`, `date_borrow`, `date_return`) " +
                                            "VALUES (@borrowerId, @bookId, @dateBorrow, NULL);";
@@ -549,18 +503,41 @@ namespace oop_project.Models
 
                     if (record.BorrowerId > 0)
                     {
+                        // 3NF: the borrower's role, program and institute are foreign
+                        // keys, and the display name is composed from the name parts.
+                        long programId = ResolveBorrowerProgramId(connection, borrower.Program, borrower.Institute);
+                        long instituteId = ResolveInstituteId(connection, borrower.Institute);
+
+                        if (instituteId <= 0 && programId > 0)
+                        {
+                            instituteId = ResolveProgramInstituteId(connection, programId);
+                        }
+
                         const string borrowerSql =
-                            "UPDATE `borrowers_table` SET `borrower_name` = @name, `program` = @program, " +
-                            "`year_level` = @yearLevel, `institute` = @institute, `id_number` = @idNumber " +
+                            "UPDATE `borrowers_table` SET " +
+                            "`last_name` = @lastName, `first_name` = @firstName, `middle_name` = @middleName, " +
+                            "`program_id` = COALESCE(NULLIF(@programId, 0), `program_id`), " +
+                            "`year_level` = COALESCE(NULLIF(@yearLevel, ''), `year_level`), " +
+                            "`institute_id` = COALESCE(NULLIF(@instituteId, 0), `institute_id`), " +
+                            "`id_number` = COALESCE(NULLIF(@idNumber, ''), `id_number`), " +
+                            "`role_id` = COALESCE((SELECT `role_id` FROM `role_table` " +
+                            "                     WHERE `role_code` = NULLIF(@role, '')), `role_id`), " +
+                            "`office` = COALESCE(NULLIF(@office, ''), `office`), " +
+                            "`contact_number` = COALESCE(NULLIF(@contactNumber, ''), `contact_number`) " +
                             "WHERE `borrower_id` = @borrowerId;";
 
                         using (MySqlCommand borrowerCommand = new MySqlCommand(borrowerSql, connection))
                         {
-                            borrowerCommand.Parameters.AddWithValue("@name", borrower.Name);
-                            borrowerCommand.Parameters.AddWithValue("@program", NullIfEmpty(borrower.Program));
+                            borrowerCommand.Parameters.AddWithValue("@lastName", borrower.LastName);
+                            borrowerCommand.Parameters.AddWithValue("@firstName", borrower.FirstName);
+                            borrowerCommand.Parameters.AddWithValue("@middleName", NullIfEmpty(borrower.MiddleName));
+                            borrowerCommand.Parameters.AddWithValue("@programId", programId);
                             borrowerCommand.Parameters.AddWithValue("@yearLevel", NullIfEmpty(borrower.YearLevel));
-                            borrowerCommand.Parameters.AddWithValue("@institute", NullIfEmpty(borrower.Institute));
-                            borrowerCommand.Parameters.AddWithValue("@idNumber", borrower.IdNumber);
+                            borrowerCommand.Parameters.AddWithValue("@instituteId", instituteId);
+                            borrowerCommand.Parameters.AddWithValue("@idNumber", NullIfEmpty(borrower.IdNumber));
+                            borrowerCommand.Parameters.AddWithValue("@role", borrower.Role);
+                            borrowerCommand.Parameters.AddWithValue("@office", NullIfEmpty(borrower.Office));
+                            borrowerCommand.Parameters.AddWithValue("@contactNumber", borrower.ContactNumber);
                             borrowerCommand.Parameters.AddWithValue("@borrowerId", record.BorrowerId);
                             borrowerCommand.ExecuteNonQuery();
                         }
@@ -583,7 +560,7 @@ namespace oop_project.Models
                 }
             }
 
-            record.ApplyChanges(
+             record.ApplyChanges(
                 book.BookId,
                 book.Title,
                 book.Author,
@@ -594,7 +571,10 @@ namespace oop_project.Models
                 borrower.YearLevel,
                 borrower.Institute,
                 dateBorrowed,
-                dateReturned);
+                dateReturned,
+                borrower.Role,
+                borrower.Office,
+                borrower.ContactNumber);
 
             RefreshAvailability();
         }
@@ -747,7 +727,7 @@ namespace oop_project.Models
         /// </summary>
         private void LoadBooks(MySqlConnection connection)
         {
-            const string sql = "SELECT `book_id`, `book_title`, `author`, `year_published`, `copy`, `date_added`, `book_image` " +
+            const string sql = "SELECT `book_id`, `book_title`, `author`, `year_published`, `copies`, `date_added`, `book_image` " +
                                "FROM `books_table` ORDER BY `book_title`;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
@@ -762,8 +742,8 @@ namespace oop_project.Models
                             reader.GetString(1),
                             reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
                             reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
-                            reader.IsDBNull(4) ? 0 : ParseQuantity(Convert.ToString(reader.GetValue(4), CultureInfo.InvariantCulture)),
-                            reader.IsDBNull(5) ? string.Empty : Convert.ToString(reader.GetValue(5), CultureInfo.InvariantCulture) ?? string.Empty,
+                            reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4), CultureInfo.InvariantCulture),
+                            reader.IsDBNull(5) ? DateTime.MinValue : reader.GetDateTime(5),
                             true,
                             reader.IsDBNull(6) ? null : (byte[])reader.GetValue(6)));
                     }
@@ -775,24 +755,23 @@ namespace oop_project.Models
             }
         }
 
-        private static int ParseQuantity(string? text)
-        {
-            int quantity;
-
-            return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out quantity)
-                ? quantity
-                : 0;
-        }
-
         private void LoadBorrowRecords(MySqlConnection connection)
         {
             const string sql =
                 "SELECT t.`borrow_id`, t.`book_id`, bk.`book_title`, bk.`author`, bk.`year_published`, " +
-                "       b.`borrower_id`, b.`borrower_name`, b.`id_number`, b.`program`, b.`year_level`, b.`institute`, " +
-                "       t.`date_borrow`, t.`date_return` " +
+                "       b.`borrower_id`, " +
+                "       CONCAT(b.`last_name`, ', ', b.`first_name`, " +
+                "              CASE WHEN b.`middle_name` IS NULL OR b.`middle_name` = '' THEN '' " +
+                "                   ELSE CONCAT(' ', b.`middle_name`) END) AS `borrower_name`, " +
+                "       b.`id_number`, COALESCE(p.`program_name`, ''), COALESCE(b.`year_level`, ''), " +
+                "       COALESCE(i.`institute_code`, ''), COALESCE(rt.`role_code`, ''), COALESCE(b.`office`, ''), " +
+                "       t.`date_borrow`, t.`date_return`, COALESCE(b.`contact_number`, '') " +
                 "FROM `borrow_transactions_table` t " +
                 "JOIN `borrowers_table` b ON b.`borrower_id` = t.`borrower_id` " +
                 "LEFT JOIN `books_table` bk ON bk.`book_id` = t.`book_id` " +
+                "LEFT JOIN `program_table` p ON p.`program_id` = b.`program_id` " +
+                "LEFT JOIN `institute_table` i ON i.`institute_id` = COALESCE(p.`institute_id`, b.`institute_id`) " +
+                "LEFT JOIN `role_table` rt ON rt.`role_id` = b.`role_id` " +
                 "ORDER BY t.`date_borrow` ASC;";
 
             using (MySqlCommand command = new MySqlCommand(sql, connection))
@@ -821,8 +800,11 @@ namespace oop_project.Models
                             reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
                             reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
                             reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
-                            reader.GetDateTime(11),
-                            reader.IsDBNull(12) ? null : reader.GetDateTime(12)));
+                            reader.GetDateTime(13),
+                            reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                            reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
+                            reader.IsDBNull(12) ? string.Empty : reader.GetString(12),
+                            reader.IsDBNull(15) ? string.Empty : reader.GetString(15)));
                     }
                     catch (ArgumentException)
                     {
@@ -851,11 +833,57 @@ namespace oop_project.Models
 
         private static int FindOrCreateBorrower(MySqlConnection connection, Borrower borrower)
         {
-            const string findSql = "SELECT `borrower_id`, `borrower_name` FROM `borrowers_table` WHERE `id_number` = @idNumber LIMIT 1;";
+            // A borrower with an ID number is found by it. A STAFF or FACULTY row
+            // without one is found by the name and the contact number instead, so
+            // the same person keeps one borrower row across loans.
+            bool hasIdNumber = borrower.IdNumber.Length > 0;
+
+            // An account already linked to a borrower row wins, so an approved
+            // request never creates a second borrower row for the same account.
+            string findSql = borrower.AccountId > 0
+                ? "SELECT `borrower_id` FROM `borrowers_table` " +
+                  "WHERE `account_id` = @accountId " +
+                  (hasIdNumber ? "   OR `id_number` = @idNumber " : string.Empty) +
+                  "ORDER BY (`account_id` = @accountId) DESC, `borrower_id` ASC LIMIT 1;"
+                : hasIdNumber
+                    ? "SELECT `borrower_id` FROM `borrowers_table` WHERE `id_number` = @idNumber LIMIT 1;"
+                    : "SELECT `borrower_id` FROM `borrowers_table` " +
+                      "WHERE (`id_number` IS NULL OR `id_number` = '') AND `last_name` = @lastName " +
+                      "AND `first_name` = @firstName AND COALESCE(`contact_number`, '') = @contact LIMIT 1;";
+
+            long programId = ResolveBorrowerProgramId(connection, borrower.Program, borrower.Institute);
+
+            // A borrower row keeps the institute too, even when a program is stored,
+            // so no affiliation column is left empty. The institute comes from the
+            // code typed in the pop up, or from the program's own institute.
+            long instituteId = ResolveInstituteId(connection, borrower.Institute);
+
+            if (instituteId <= 0 && programId > 0)
+            {
+                instituteId = ResolveProgramInstituteId(connection, programId);
+            }
 
             using (MySqlCommand find = new MySqlCommand(findSql, connection))
             {
-                find.Parameters.AddWithValue("@idNumber", borrower.IdNumber);
+                if (borrower.AccountId > 0)
+                {
+                    find.Parameters.AddWithValue("@accountId", borrower.AccountId);
+
+                    if (hasIdNumber)
+                    {
+                        find.Parameters.AddWithValue("@idNumber", borrower.IdNumber);
+                    }
+                }
+                else if (hasIdNumber)
+                {
+                    find.Parameters.AddWithValue("@idNumber", borrower.IdNumber);
+                }
+                else
+                {
+                    find.Parameters.AddWithValue("@lastName", borrower.LastName);
+                    find.Parameters.AddWithValue("@firstName", borrower.FirstName);
+                    find.Parameters.AddWithValue("@contact", borrower.ContactNumber);
+                }
 
                 using (MySqlDataReader reader = find.ExecuteReader())
                 {
@@ -866,20 +894,35 @@ namespace oop_project.Models
 
                         // An existing ID number keeps its borrower row; the details that
                         // the pop up filled in are refreshed, empty boxes change nothing.
+                        // Foreign keys are resolved from the role / program / institute
+                        // values, and the display name is composed on read.
                         const string updateSql =
                             "UPDATE `borrowers_table` SET " +
-                            "  `borrower_name` = @name, " +
-                            "  `program` = COALESCE(NULLIF(@program, ''), `program`), " +
+                            "  `last_name` = COALESCE(NULLIF(@lastName, ''), `last_name`), " +
+                            "  `first_name` = COALESCE(NULLIF(@firstName, ''), `first_name`), " +
+                            "  `middle_name` = COALESCE(NULLIF(@middleName, ''), `middle_name`), " +
+                            "  `program_id` = COALESCE(NULLIF(@programId, 0), `program_id`), " +
                             "  `year_level` = COALESCE(NULLIF(@yearLevel, ''), `year_level`), " +
-                            "  `institute` = COALESCE(NULLIF(@institute, ''), `institute`) " +
+                            "  `institute_id` = COALESCE(NULLIF(@instituteId, 0), `institute_id`), " +
+                            "  `role_id` = COALESCE((SELECT `role_id` FROM `role_table` " +
+                            "                       WHERE `role_code` = NULLIF(@role, '')), `role_id`), " +
+                            "  `office` = COALESCE(NULLIF(@office, ''), `office`), " +
+                            "  `account_id` = COALESCE(`account_id`, NULLIF(@accountId, 0)), " +
+                            "  `contact_number` = COALESCE(NULLIF(@contactNumber, ''), `contact_number`) " +
                             "WHERE `borrower_id` = @id;";
 
                         using (MySqlCommand update = new MySqlCommand(updateSql, connection))
                         {
-                            update.Parameters.AddWithValue("@name", borrower.Name);
-                            update.Parameters.AddWithValue("@program", borrower.Program);
-                            update.Parameters.AddWithValue("@yearLevel", borrower.YearLevel);
-                            update.Parameters.AddWithValue("@institute", borrower.Institute);
+                            update.Parameters.AddWithValue("@lastName", borrower.LastName);
+                            update.Parameters.AddWithValue("@firstName", borrower.FirstName);
+                            update.Parameters.AddWithValue("@middleName", NullIfEmpty(borrower.MiddleName));
+                            update.Parameters.AddWithValue("@programId", programId);
+                            update.Parameters.AddWithValue("@yearLevel", NullIfEmpty(borrower.YearLevel));
+                            update.Parameters.AddWithValue("@instituteId", instituteId);
+                            update.Parameters.AddWithValue("@role", borrower.Role);
+                            update.Parameters.AddWithValue("@office", NullIfEmpty(borrower.Office));
+                            update.Parameters.AddWithValue("@accountId", borrower.AccountId);
+                            update.Parameters.AddWithValue("@contactNumber", borrower.ContactNumber);
                             update.Parameters.AddWithValue("@id", existingId);
                             update.ExecuteNonQuery();
                         }
@@ -889,20 +932,108 @@ namespace oop_project.Models
                 }
             }
 
-            const string insertSql = "INSERT INTO `borrowers_table` (`borrower_name`, `program`, `year_level`, `institute`, `id_number`, `day_before_borrow`) " +
-                                     "VALUES (@name, @program, @yearLevel, @institute, @idNumber, @dayBeforeBorrow);";
+            const string insertSql =
+                "INSERT INTO `borrowers_table` (`account_id`, `last_name`, `first_name`, `middle_name`, " +
+                "`id_number`, `contact_number`, `role_id`, `program_id`, `year_level`, `institute_id`, `office`) " +
+                "VALUES (@accountId, @lastName, @firstName, @middleName, @idNumber, @contactNumber, " +
+                "        COALESCE((SELECT `role_id` FROM `role_table` WHERE `role_code` = NULLIF(@role, '')), " +
+                "                 (SELECT `role_id` FROM `role_table` WHERE `role_code` = 'STUDENT')), " +
+                "        @programId, @yearLevel, @instituteId, @office);";
 
             using (MySqlCommand insert = new MySqlCommand(insertSql, connection))
             {
-                insert.Parameters.AddWithValue("@name", borrower.Name);
-                insert.Parameters.AddWithValue("@program", NullIfEmpty(borrower.Program));
+                insert.Parameters.AddWithValue("@accountId", borrower.AccountId > 0 ? (object)borrower.AccountId : DBNull.Value);
+                insert.Parameters.AddWithValue("@lastName", borrower.LastName);
+                insert.Parameters.AddWithValue("@firstName", borrower.FirstName);
+                insert.Parameters.AddWithValue("@middleName", NullIfEmpty(borrower.MiddleName));
+                insert.Parameters.AddWithValue("@idNumber", NullIfEmpty(borrower.IdNumber));
+                insert.Parameters.AddWithValue("@contactNumber", borrower.ContactNumber);
+                insert.Parameters.AddWithValue("@role", borrower.Role);
+                insert.Parameters.AddWithValue("@programId", programId > 0 ? (object)programId : DBNull.Value);
                 insert.Parameters.AddWithValue("@yearLevel", NullIfEmpty(borrower.YearLevel));
-                insert.Parameters.AddWithValue("@institute", NullIfEmpty(borrower.Institute));
-                insert.Parameters.AddWithValue("@idNumber", borrower.IdNumber);
-                insert.Parameters.AddWithValue("@dayBeforeBorrow", borrower.DaysBorrowed);
+                insert.Parameters.AddWithValue("@instituteId", instituteId > 0 ? (object)instituteId : DBNull.Value);
+                insert.Parameters.AddWithValue("@office", NullIfEmpty(borrower.Office));
                 insert.ExecuteNonQuery();
 
                 return (int)insert.LastInsertedId;
+            }
+        }
+
+        /// <summary>
+        /// 3NF: a borrower program is a foreign key. A program typed in the pop up
+        /// is registered in program_table under its institute (the same lookup the
+        /// signup form uses), so only the id is stored on the borrower row.
+        /// </summary>
+        private static long ResolveBorrowerProgramId(MySqlConnection connection, string program, string institute)
+        {
+            if (string.IsNullOrWhiteSpace(program))
+            {
+                return 0;
+            }
+
+            long instituteId = ResolveInstituteId(connection, institute);
+
+            if (instituteId <= 0)
+            {
+                return 0;
+            }
+
+            const string sql =
+                "INSERT INTO `program_table` (`program_name`, `institute_id`) VALUES (@name, @instituteId) " +
+                "ON DUPLICATE KEY UPDATE `program_id` = LAST_INSERT_ID(`program_id`);";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@name", program.Trim().ToUpperInvariant());
+                command.Parameters.AddWithValue("@instituteId", instituteId);
+                command.ExecuteNonQuery();
+                return command.LastInsertedId;
+            }
+        }
+
+        /// <summary>
+        /// Reads the institute a program belongs to. Used when the borrower row has a
+        /// program but no institute code of its own, so the institute column is still
+        /// filled on every saved borrower.
+        /// </summary>
+        private static long ResolveProgramInstituteId(MySqlConnection connection, long programId)
+        {
+            if (programId <= 0)
+            {
+                return 0;
+            }
+
+            const string sql = "SELECT `institute_id` FROM `program_table` WHERE `program_id` = @programId LIMIT 1;";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@programId", programId);
+                object? result = command.ExecuteScalar();
+
+                return result == null || result == DBNull.Value
+                    ? 0
+                    : Convert.ToInt64(result, CultureInfo.InvariantCulture);
+            }
+        }
+
+        /// <summary>Resolves an institute code to its id, or 0 when it is blank/unknown.</summary>
+        private static long ResolveInstituteId(MySqlConnection connection, string code)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return 0;
+            }
+
+            const string sql = "SELECT `institute_id` FROM `institute_table` WHERE `institute_code` = @code LIMIT 1;";
+
+            using (MySqlCommand command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@code", code.Trim().ToUpperInvariant());
+                object? result = command.ExecuteScalar();
+
+                return result == null || result == DBNull.Value
+                    ? 0
+                    : Convert.ToInt64(result, CultureInfo.InvariantCulture);
             }
         }
 

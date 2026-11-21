@@ -507,9 +507,9 @@ namespace oop_project
     }
 
     /// <summary>
-    /// One row of MY REQUESTS: the book cover, the requested title, the date, the
-    /// librarian's note and a status pill, with a cancel action while the request
-    /// is pending.
+    /// One row of MY REQUESTS: the book cover, the requested title, the date and
+    /// a status pill, with the claim reminder and a cancel action while the
+    /// request is still pending.
     /// </summary>
     public sealed class RequestCard : Panel
     {
@@ -520,7 +520,7 @@ namespace oop_project
         private readonly Label _meta = new Label();
         private readonly Label _requested = new Label();
         private readonly Label _processed = new Label();
-        private readonly Label _note = new Label();
+        private readonly PillBadge _claim = new PillBadge();
         private readonly PillBadge _status = new PillBadge();
         private readonly RoundedButton _cancel = new RoundedButton();
 
@@ -534,7 +534,7 @@ namespace oop_project
 
             DoubleBuffered = true;
             BackColor = Color.FromArgb(241, 245, 249);
-            Height = 138;
+            Height = 136;
             Margin = new Padding(0, 0, 0, 14);
             Padding = new Padding(24, 16, 20, 16);
 
@@ -566,19 +566,41 @@ namespace oop_project
             _processed.BackColor = Color.White;
             _processed.Font = new Font("Segoe UI", 8.5F);
             _processed.ForeColor = Color.FromArgb(71, 85, 105);
-            _processed.Text = "PROCESSED: " + request.ProcessedDateText;
+            _processed.Text = (request.IsApproved ? "APPROVED ON: " : "PROCESSED: ") + request.ProcessedDateText;
 
-            _note.AutoEllipsis = true;
-            _note.BackColor = Color.White;
-            _note.Font = new Font("Segoe UI", 8.5F);
-            _note.ForeColor = Color.FromArgb(100, 116, 139);
-            _note.Text = "NOTE: " + request.NoteText.ToUpperInvariant();
+            _claim.BackColor = Color.Transparent;
+            _claim.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            _claim.CornerRadius = 12;
+            _claim.Text = request.IsClaimed
+                ? "CLAIMED ON " + request.ClaimedDateText
+                : "YOU CAN NOW CLAIM YOUR BOOK IN THE LIBRARY";
+            _claim.Visible = request.IsApproved || request.IsClaimed;
+            _claim.TabStop = false;
+
+            if (request.IsClaimed)
+            {
+                _claim.FillColor = Color.FromArgb(209, 250, 229);
+                _claim.BorderColor = Color.FromArgb(110, 231, 183);
+                _claim.TextColor = Color.FromArgb(6, 95, 70);
+            }
+            else
+            {
+                _claim.FillColor = Color.FromArgb(220, 252, 231);
+                _claim.BorderColor = Color.FromArgb(134, 239, 172);
+                _claim.TextColor = Color.FromArgb(4, 120, 87);
+            }
 
             Color pillFill;
             Color pillBorder;
             Color pillText;
 
-            if (request.IsApproved)
+            if (request.IsClaimed)
+            {
+                pillFill = Color.FromArgb(209, 250, 229);
+                pillBorder = Color.FromArgb(110, 231, 183);
+                pillText = Color.FromArgb(6, 95, 70);
+            }
+            else if (request.IsApproved)
             {
                 pillFill = Color.FromArgb(220, 252, 231);
                 pillBorder = Color.FromArgb(134, 239, 172);
@@ -617,7 +639,7 @@ namespace oop_project
             _cancel.PressedColor = Color.FromArgb(239, 68, 68);
             _cancel.ForeColor = Color.FromArgb(185, 28, 28);
             _cancel.Text = "CANCEL REQUEST";
-            _cancel.Size = new Size(150, 34);
+            _cancel.Size = new Size(150, 30);
             _cancel.Visible = request.IsPending;
             _cancel.Click += delegate { CancelClicked?.Invoke(this, EventArgs.Empty); };
 
@@ -626,9 +648,12 @@ namespace oop_project
             Controls.Add(_meta);
             Controls.Add(_requested);
             Controls.Add(_processed);
-            Controls.Add(_note);
             Controls.Add(_status);
             Controls.Add(_cancel);
+
+            // The claim reminder goes last so it always paints above the other
+            // children; no white label can cover it.
+            Controls.Add(_claim);
         }
 
         protected override void OnResize(EventArgs e)
@@ -642,26 +667,63 @@ namespace oop_project
             const int left = 24;
             const int coverGap = 16;
             const int coverWidth = 64;
+            const int rightPadding = 22;
 
             int coverHeight = Math.Min(96, Math.Max(60, Height - 28));
-            _cover.SetBounds(left, 16, coverWidth, coverHeight);
+            _cover.SetBounds(left, 14, coverWidth, coverHeight);
 
             int textLeft = left + coverWidth + coverGap;
-            int width = Math.Max(160, Width - textLeft - 22);
-            int reserved = _cancel.Visible ? 190 : 160;
-            int textWidth = Math.Max(120, width - reserved);
+            int contentWidth = Math.Max(120, Width - textLeft - rightPadding);
 
-            _title.SetBounds(textLeft, 14, textWidth, 26);
-            _meta.SetBounds(textLeft, 40, textWidth, 20);
-            _requested.SetBounds(textLeft, 66, Math.Max(140, textWidth / 2), 20);
-            _processed.SetBounds(textLeft + Math.Max(150, textWidth / 2), 66, Math.Max(140, textWidth / 2), 20);
-            _note.SetBounds(textLeft, 88, textWidth, 20);
+            // The title keeps clear of the status pill; the metadata sits just
+            // below the pill and can use the full width of the card.
+            int pillReserve = _status.Width > 0 ? _status.Width + 18 : 150;
+            int titleWidth = Math.Max(120, contentWidth - pillReserve);
+
+            _title.SetBounds(textLeft, 14, titleWidth, 26);
+            _meta.SetBounds(textLeft, 44, contentWidth, 20);
+
+            // The two dates share one row, split evenly and ellipsized on narrow cards.
+            const int dateGap = 14;
+            int dateWidth = Math.Max(80, (contentWidth - dateGap) / 2);
+            _requested.SetBounds(textLeft, 68, dateWidth, 20);
+            _processed.SetBounds(
+                textLeft + dateWidth + dateGap,
+                68,
+                Math.Max(80, contentWidth - dateWidth - dateGap),
+                20);
+
+            // The claim reminder and the cancel action share one bottom row; only
+            // one of them is ever visible for a request, so they never overlap.
+            const int footerTop = 94;
+            int footerHeight = 0;
+
+            if (_claim.Visible)
+            {
+                footerHeight = Math.Max(footerHeight, _claim.Height);
+            }
+
+            if (_cancel.Visible)
+            {
+                footerHeight = Math.Max(footerHeight, _cancel.Height);
+            }
+
+            // A scaled font or a taller claim capsule must never be clipped by the
+            // bottom of the card, so the card grows to keep the footer breathing.
+            int requiredHeight = footerTop + footerHeight + 14;
+
+            if (Height < requiredHeight)
+            {
+                Height = requiredHeight;
+            }
+
+            _claim.Location = new Point(textLeft, footerTop);
 
             _status.Left = Math.Max(left, Width - 20 - _status.Width);
-            _status.Top = 16;
+            _status.Top = 13;
 
             _cancel.Left = Math.Max(left, Width - 20 - _cancel.Width);
-            _cancel.Top = Height - 16 - _cancel.Height;
+            _cancel.Top = footerTop;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -674,7 +736,7 @@ namespace oop_project
                 Color.FromArgb(226, 232, 240),
                 14);
 
-            Color accent = _request.IsApproved
+            Color accent = _request.IsClaimed || _request.IsApproved
                 ? Color.FromArgb(22, 163, 74)
                 : _request.IsRejected
                     ? Color.FromArgb(239, 68, 68)
@@ -689,27 +751,39 @@ namespace oop_project
 
     /// <summary>
     /// One row of MY BORROWED BOOKS: the cover, the title, when it was taken
-    /// out, how many days it has run and whether it is back on the shelf.
+    /// out, how many copies the borrower has and whether they are back on the
+    /// shelf. Copies of the same title are shown as one card, so a request for
+    /// three copies reads as one line instead of three identical lines.
     /// </summary>
     public sealed class BorrowedBookCard : Panel
     {
         private readonly CoverView _cover = new CoverView();
         private readonly Label _title = new Label();
         private readonly Label _meta = new Label();
+        private readonly Label _copies = new Label();
         private readonly Label _borrowed = new Label();
         private readonly Label _days = new Label();
         private readonly Label _returned = new Label();
         private readonly PillBadge _status = new PillBadge();
 
-        public BorrowRecord Record { get; }
+        private readonly BorrowedBookGroup _group;
+
+        public BorrowedBookGroup Group => _group;
+
+        public BorrowRecord Record => _group.FirstRecord;
 
         public BorrowedBookCard(BorrowRecord record, byte[]? coverBytes)
+            : this(new BorrowedBookGroup(new[] { record }), coverBytes)
         {
-            Record = record;
+        }
+
+        public BorrowedBookCard(BorrowedBookGroup group, byte[]? coverBytes)
+        {
+            _group = group ?? throw new ArgumentNullException(nameof(group));
 
             DoubleBuffered = true;
             BackColor = Color.FromArgb(241, 245, 249);
-            Height = 132;
+            Height = 158;
             Margin = new Padding(0, 0, 0, 14);
             Padding = new Padding(22, 14, 20, 14);
 
@@ -720,42 +794,91 @@ namespace oop_project
             _title.BackColor = Color.White;
             _title.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             _title.ForeColor = Color.FromArgb(15, 23, 42);
-            _title.Text = record.BookTitle.ToUpperInvariant();
+            _title.Text = group.BookTitle.ToUpperInvariant();
 
             _meta.AutoEllipsis = true;
             _meta.BackColor = Color.White;
             _meta.Font = new Font("Segoe UI", 8.5F);
             _meta.ForeColor = Color.FromArgb(100, 116, 139);
-            _meta.Text = "AUTHOR: " + record.Author.ToUpperInvariant() +
-                         "     •     YEAR: " + record.BookYearText +
-                         "     •     BORROW RECORD #" + record.BorrowId.ToString(CultureInfo.InvariantCulture);
+            _meta.Text = "AUTHOR: " + group.Author.ToUpperInvariant() +
+                         "     •     YEAR: " + group.BookYearText;
+
+            _copies.AutoEllipsis = true;
+            _copies.BackColor = Color.White;
+            _copies.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _copies.ForeColor = Color.FromArgb(4, 120, 87);
+
+            if (group.IsFullyReturned)
+            {
+                _copies.Text = "COPIES BORROWED: " + group.CopyCountText + "     •     ALL RETURNED";
+            }
+            else if (group.ReturnedCount > 0)
+            {
+                _copies.Text = "COPIES BORROWED: " + group.CopyCountText +
+                               "     •     STILL OUT: " + group.OpenCount.ToString(CultureInfo.InvariantCulture) +
+                               "     •     RETURNED: " + group.ReturnedCount.ToString(CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                _copies.Text = "COPIES BORROWED: " + group.CopyCountText;
+            }
 
             _borrowed.BackColor = Color.White;
             _borrowed.Font = new Font("Segoe UI", 8.5F);
             _borrowed.ForeColor = Color.FromArgb(71, 85, 105);
-            _borrowed.Text = "BORROWED: " + record.DateBorrowedText;
+
+            // When part of the title is back on the shelf, the dates belong to the
+            // oldest copy that is still out, not to a returned copy.
+            BorrowRecord anchor = group.FirstRecord;
+
+            if (!group.IsFullyReturned)
+            {
+                foreach (BorrowRecord open in group.OpenRecords)
+                {
+                    anchor = open;
+                    break;
+                }
+            }
+
+            _borrowed.Text = "BORROWED: " + anchor.DateBorrowedText;
 
             _days.BackColor = Color.White;
             _days.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             _days.ForeColor = Color.FromArgb(4, 120, 87);
-            _days.Text = record.DaysBorrowedText;
+            _days.Text = anchor.DaysBorrowedText;
 
             _returned.BackColor = Color.White;
             _returned.Font = new Font("Segoe UI", 8.5F);
             _returned.ForeColor = Color.FromArgb(71, 85, 105);
-            _returned.Text = "RETURNED: " + record.DateReturnedText;
+            _returned.Text = group.IsFullyReturned
+                ? "RETURNED: " + group.DateReturnedText
+                : group.ReturnedCount > 0
+                    ? "RETURNED: " + group.ReturnedCount.ToString(CultureInfo.InvariantCulture) + " OF " + group.CopyCountText
+                    : "RETURNED: —";
 
-            bool returned = record.DateReturned.HasValue;
             _status.BackColor = Color.White;
-            _status.FillColor = returned ? Color.FromArgb(241, 245, 249) : Color.FromArgb(220, 252, 231);
-            _status.BorderColor = returned ? Color.FromArgb(226, 232, 240) : Color.FromArgb(134, 239, 172);
-            _status.TextColor = returned ? Color.FromArgb(100, 116, 139) : Color.FromArgb(4, 120, 87);
-            _status.Text = returned ? "RETURNED" : "BORROWED";
+            _status.FillColor = group.IsFullyReturned
+                ? Color.FromArgb(241, 245, 249)
+                : group.ReturnedCount > 0
+                    ? Color.FromArgb(254, 243, 199)
+                    : Color.FromArgb(220, 252, 231);
+            _status.BorderColor = group.IsFullyReturned
+                ? Color.FromArgb(226, 232, 240)
+                : group.ReturnedCount > 0
+                    ? Color.FromArgb(253, 230, 138)
+                    : Color.FromArgb(134, 239, 172);
+            _status.TextColor = group.IsFullyReturned
+                ? Color.FromArgb(100, 116, 139)
+                : group.ReturnedCount > 0
+                    ? Color.FromArgb(180, 83, 9)
+                    : Color.FromArgb(4, 120, 87);
+            _status.Text = group.DisplayStatus;
             _status.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
 
             Controls.Add(_cover);
             Controls.Add(_title);
             Controls.Add(_meta);
+            Controls.Add(_copies);
             Controls.Add(_borrowed);
             Controls.Add(_days);
             Controls.Add(_returned);
@@ -774,7 +897,7 @@ namespace oop_project
             const int gap = 16;
 
             int coverWidth = 66;
-            int coverHeight = Math.Min(94, Height - 28);
+            int coverHeight = Math.Min(114, Height - 28);
             _cover.SetBounds(left, 14, coverWidth, coverHeight);
 
             int textLeft = left + coverWidth + gap;
@@ -782,9 +905,10 @@ namespace oop_project
 
             _title.SetBounds(textLeft, 12, Math.Max(120, width - 150), 26);
             _meta.SetBounds(textLeft, 38, Math.Max(120, width - 150), 20);
-            _borrowed.SetBounds(textLeft, 66, Math.Max(130, width / 3), 20);
-            _days.SetBounds(textLeft + Math.Max(140, width / 3), 66, 110, 20);
-            _returned.SetBounds(textLeft + Math.Max(140, width / 3) + 116, 66, Math.Max(130, width / 3), 20);
+            _copies.SetBounds(textLeft, 58, width, 20);
+            _borrowed.SetBounds(textLeft, 84, Math.Max(130, width / 3), 20);
+            _days.SetBounds(textLeft + Math.Max(140, width / 3), 84, 110, 20);
+            _returned.SetBounds(textLeft + Math.Max(140, width / 3) + 116, 84, Math.Max(130, width / 3), 20);
 
             _status.Left = Math.Max(textLeft, Width - 20 - _status.Width);
             _status.Top = 14;
@@ -803,9 +927,11 @@ namespace oop_project
             CardPaint.DrawStatusAccent(
                 e.Graphics,
                 Size,
-                Record.DateReturned.HasValue
+                _group.IsFullyReturned
                     ? Color.FromArgb(148, 163, 184)
-                    : Color.FromArgb(22, 163, 74));
+                    : _group.ReturnedCount > 0
+                        ? Color.FromArgb(245, 158, 11)
+                        : Color.FromArgb(22, 163, 74));
 
             base.OnPaint(e);
         }
@@ -813,7 +939,7 @@ namespace oop_project
 
     /// <summary>
     /// One row of MY ATTENDANCE: the day and the exact time the librarian scanned
-    /// the patron's QR pass at the library office entrance.
+    /// the patron's QR code at the library office entrance.
     /// </summary>
     public sealed class AttendanceCard : Panel
     {

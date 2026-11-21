@@ -18,11 +18,11 @@ namespace oop_project.Models
         public string Author { get; private set; }
         public int Year { get; private set; }
 
-        // books_table.quantity: how many copies of this title the library owns.
+        // books_table.copies: how many copies of this title the library owns.
         public int Quantity { get; private set; }
 
-        // books_table.date_added keeps the readable text the other tables use,
-        // e.g. OCTOBER 28, 2026.
+        // books_table.date_added is a real DATE. The model keeps the readable
+        // text the cards and reports show, e.g. OCTOBER 28, 2026.
         public string DateAdded { get; private set; }
 
         // books_table has no status column: the catalog works the availability out
@@ -73,8 +73,8 @@ namespace oop_project.Models
             CoverImage = ValidateCover(coverImage);
         }
 
-        // Used when a row is read back from MySQL.
-        public Book(int bookId, string title, string author, int year, int quantity, string dateAdded, bool isAvailable,
+        // Used when a row is read back from MySQL. date_added arrives as a DATE.
+        public Book(int bookId, string title, string author, int year, int quantity, DateTime dateAdded, bool isAvailable,
                     byte[]? coverImage = null)
         {
             BookId = bookId < 0 ? 0 : bookId;
@@ -82,7 +82,9 @@ namespace oop_project.Models
             Author = string.IsNullOrWhiteSpace(author) ? "UNKNOWN AUTHOR" : author.Trim();
             Year = SanitizeStoredYear(year);
             Quantity = quantity < 0 ? 0 : quantity;
-            DateAdded = string.IsNullOrWhiteSpace(dateAdded) ? "—" : dateAdded.Trim();
+            DateAdded = dateAdded == DateTime.MinValue
+                ? "—"
+                : dateAdded.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture).ToUpperInvariant();
             IsAvailable = isAvailable;
             CoverImage = ValidateCover(coverImage);
         }

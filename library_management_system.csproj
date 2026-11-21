@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -13,9 +13,7 @@
     <PackageReference Include="AForge.Video" Version="2.2.5" />
     <PackageReference Include="AForge.Video.DirectShow" Version="2.2.5" />
     <PackageReference Include="MySql.Data" Version="26.10.0" />
-    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
     <PackageReference Include="ZXing.Net" Version="0.16.11" />
     <PackageReference Include="ZXing.Net.Bindings.Windows.Compatibility" Version="0.16.16" />
     <EmbeddedResource Include="assets\logos\lrc_logo.png" LogicalName="oop_project.logos.lrc_logo.png" />
@@ -101,12 +99,6 @@
     <Compile Update="forms\edit_borrow_record_dialog.designer.cs">
       <DependentUpon>edit_borrow_record_dialog.cs</DependentUpon>
     </Compile>
-    <Compile Update="forms\library_report_dialog.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Update="forms\library_report_dialog.designer.cs">
-      <DependentUpon>library_report_dialog.cs</DependentUpon>
-    </Compile>
     <Compile Update="forms\book_description_dialog.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -130,6 +122,12 @@
     </Compile>
     <Compile Update="forms\my_profile_dialog.designer.cs">
       <DependentUpon>my_profile_dialog.cs</DependentUpon>
+    </Compile>
+    <Compile Update="forms\add_semester_dialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="forms\add_semester_dialog.designer.cs">
+      <DependentUpon>add_semester_dialog.cs</DependentUpon>
     </Compile>
     <Compile Update="forms\evaluation_form.cs">
       <SubType>Form</SubType>
@@ -175,6 +173,9 @@
     <EmbeddedResource Update="forms\add_book_dialog.resx">
       <DependentUpon>add_book_dialog.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Update="forms\add_semester_dialog.resx">
+      <DependentUpon>add_semester_dialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Update="forms\borrow_book_dialog.resx">
       <DependentUpon>borrow_book_dialog.cs</DependentUpon>
     </EmbeddedResource>
@@ -186,9 +187,6 @@
     </EmbeddedResource>
     <EmbeddedResource Update="forms\edit_borrow_record_dialog.resx">
       <DependentUpon>edit_borrow_record_dialog.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Update="forms\library_report_dialog.resx">
-      <DependentUpon>library_report_dialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Update="forms\request_copies_dialog.resx">
       <DependentUpon>request_copies_dialog.cs</DependentUpon>

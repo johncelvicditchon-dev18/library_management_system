@@ -23,11 +23,16 @@ namespace oop_project.Models
         public string Institute { get; private set; }
         public DateTime RequestDate { get; private set; }
         public string Status { get; private set; }
-        public string Note { get; private set; }
         public int ProcessedBy { get; private set; }
         public DateTime? ProcessedDate { get; private set; }
         public int BorrowId { get; private set; }
         public int Copies { get; private set; }
+
+        // CLAIM: after the librarian approves a request the student collects the
+        // books in person. claimed_by / claim_date record that hand over, which is
+        // what turns the request into the CLAIMED state on the student's page.
+        public int ClaimedBy { get; private set; }
+        public DateTime? ClaimedDate { get; private set; }
 
         public string CopiesText
         {
@@ -49,9 +54,14 @@ namespace oop_project.Models
             }
         }
 
-        public string NoteText
+        public string ClaimedDateText
         {
-            get { return string.IsNullOrWhiteSpace(Note) ? "—" : Note; }
+            get
+            {
+                return ClaimedDate.HasValue
+                    ? ClaimedDate.Value.ToString("MMM dd, yyyy  h:mm tt", CultureInfo.InvariantCulture).ToUpperInvariant()
+                    : "—";
+            }
         }
 
         public string ProgramText
@@ -84,6 +94,11 @@ namespace oop_project.Models
             get { return string.Equals(Status, "APPROVED", StringComparison.OrdinalIgnoreCase); }
         }
 
+        public bool IsClaimed
+        {
+            get { return string.Equals(Status, "CLAIMED", StringComparison.OrdinalIgnoreCase); }
+        }
+
         public bool IsRejected
         {
             get { return string.Equals(Status, "REJECTED", StringComparison.OrdinalIgnoreCase); }
@@ -103,11 +118,12 @@ namespace oop_project.Models
             string institute,
             DateTime requestDate,
             string status,
-            string note,
             int processedBy,
             DateTime? processedDate,
             int borrowId,
-            int copies = 1)
+            int copies = 1,
+            int claimedBy = 0,
+            DateTime? claimedDate = null)
         {
             RequestId = requestId < 0 ? 0 : requestId;
             AccountId = accountId < 0 ? 0 : accountId;
@@ -122,11 +138,12 @@ namespace oop_project.Models
             Institute = (institute ?? string.Empty).Trim();
             RequestDate = requestDate == DateTime.MinValue ? DateTime.Now : requestDate;
             Status = string.IsNullOrWhiteSpace(status) ? "PENDING" : status.Trim().ToUpperInvariant();
-            Note = (note ?? string.Empty).Trim();
             ProcessedBy = processedBy < 0 ? 0 : processedBy;
             ProcessedDate = processedDate;
             BorrowId = borrowId < 0 ? 0 : borrowId;
             Copies = copies < 1 ? 1 : copies;
+            ClaimedBy = claimedBy < 0 ? 0 : claimedBy;
+            ClaimedDate = claimedDate;
         }
     }
 }

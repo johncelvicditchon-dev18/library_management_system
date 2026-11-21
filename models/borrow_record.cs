@@ -7,6 +7,12 @@ namespace oop_project.Models
     // books_table, so the ATTENDANCE tab and the report show who took what.
     public class BorrowRecord
     {
+        // The three roles a borrower can have. The role decides which borrower
+        // details the EDIT BORROW RECORD pop up must collect.
+        public const string StudentRole = "STUDENT";
+        public const string StaffRole = "STAFF";
+        public const string FacultyRole = "FACULTY";
+
         public int BorrowId { get; private set; }
         public int BookId { get; private set; }
         public string BookTitle { get; private set; }
@@ -18,6 +24,50 @@ namespace oop_project.Models
         public string BorrowerProgram { get; private set; }
         public string BorrowerYearLevel { get; private set; }
         public string BorrowerInstitute { get; private set; }
+
+        // borrowers_table keeps the office for a STAFF borrower. The role is a
+        // foreign key (role_id) and is read through role_table.
+        public string BorrowerRole { get; private set; }
+        public string BorrowerOffice { get; private set; }
+
+        // The contact number from borrowers_table, so an old row that never stored
+        // one can be completed from the EDIT BORROW RECORD pop up.
+        public string BorrowerContactNumber { get; private set; }
+
+        /// <summary>
+        /// The role of this borrower. A row saved before the ROLE box existed has no
+        /// stored role, so the details the row kept are used to work it out: an
+        /// office means STAFF, a year level means STUDENT, and an institute or a
+        /// program means FACULTY. Anything else is treated as a STUDENT.
+        /// </summary>
+        public string Role
+        {
+            get
+            {
+                if (BorrowerRole.Length > 0)
+                {
+                    return BorrowerRole;
+                }
+
+                if (BorrowerOffice.Length > 0)
+                {
+                    return StaffRole;
+                }
+
+                if (BorrowerYearLevel.Length > 0)
+                {
+                    return StudentRole;
+                }
+
+                if (BorrowerInstitute.Length > 0 || BorrowerProgram.Length > 0)
+                {
+                    return FacultyRole;
+                }
+
+                return StudentRole;
+            }
+        }
+
 
         public string ProgramText
         {
@@ -37,9 +87,21 @@ namespace oop_project.Models
             get { return BorrowedCopy.ToString(CultureInfo.InvariantCulture); }
         }
 
+        /// <summary>
+        /// The value for the INSTITUTE/OFFICE column of BORROWED BOOKS. A STUDENT or
+        /// a FACULTY member shows the institute; a STAFF borrower has no institute,
+        /// so the office they belong to is shown instead.
+        /// </summary>
         public string InstituteText
         {
-            get { return string.IsNullOrWhiteSpace(BorrowerInstitute) ? "—" : BorrowerInstitute; }
+            get
+            {
+                string value = string.Equals(Role, StaffRole, StringComparison.OrdinalIgnoreCase)
+                    ? BorrowerOffice
+                    : BorrowerInstitute;
+
+                return string.IsNullOrWhiteSpace(value) ? "—" : value;
+            }
         }
 
         public string BookYearText
@@ -85,7 +147,7 @@ namespace oop_project.Models
         }
 
         // Date and time together, so the report shows the exact start of the
-        // 24 hour count that day_before_borrow follows.
+        // 24 hour counter used by DaysBorrowed.
         public string DateBorrowedStampText
         {
             get { return DateBorrowed.ToString("MMM dd, yyyy  h:mm tt", CultureInfo.InvariantCulture).ToUpperInvariant(); }
@@ -121,7 +183,10 @@ namespace oop_project.Models
                 borrower == null ? string.Empty : borrower.YearLevel,
                 borrower == null ? string.Empty : borrower.Institute,
                 dateBorrowed,
-                null)
+                null,
+                borrower == null ? string.Empty : borrower.Role,
+                borrower == null ? string.Empty : borrower.Office,
+                borrower == null ? string.Empty : borrower.ContactNumber)
         {
         }
 
@@ -138,7 +203,10 @@ namespace oop_project.Models
             string borrowerYearLevel,
             string borrowerInstitute,
             DateTime dateBorrowed,
-            DateTime? dateReturned)
+            DateTime? dateReturned,
+            string borrowerRole = "",
+            string borrowerOffice = "",
+            string borrowerContactNumber = "")
         {
             BorrowId = borrowId < 0 ? 0 : borrowId;
             BookId = bookId < 0 ? 0 : bookId;
@@ -151,6 +219,9 @@ namespace oop_project.Models
             BorrowerProgram = borrowerProgram == null ? string.Empty : borrowerProgram.Trim();
             BorrowerYearLevel = borrowerYearLevel == null ? string.Empty : borrowerYearLevel.Trim();
             BorrowerInstitute = borrowerInstitute == null ? string.Empty : borrowerInstitute.Trim();
+            BorrowerRole = Borrower.NormalizeRole(borrowerRole);
+            BorrowerOffice = (borrowerOffice ?? string.Empty).Trim().ToUpperInvariant();
+            BorrowerContactNumber = (borrowerContactNumber ?? string.Empty).Trim();
             BorrowedCopy = 1;
             DateBorrowed = dateBorrowed == DateTime.MinValue ? DateTime.Now : dateBorrowed;
             DateReturned = dateReturned;
@@ -197,7 +268,10 @@ namespace oop_project.Models
             string borrowerYearLevel,
             string borrowerInstitute,
             DateTime dateBorrowed,
-            DateTime? dateReturned)
+            DateTime? dateReturned,
+            string borrowerRole = "",
+            string borrowerOffice = "",
+            string borrowerContactNumber = "")
         {
             BookId = bookId < 0 ? 0 : bookId;
             BookTitle = Require(bookTitle, "Book title");
@@ -208,6 +282,9 @@ namespace oop_project.Models
             BorrowerProgram = borrowerProgram == null ? string.Empty : borrowerProgram.Trim();
             BorrowerYearLevel = borrowerYearLevel == null ? string.Empty : borrowerYearLevel.Trim();
             BorrowerInstitute = borrowerInstitute == null ? string.Empty : borrowerInstitute.Trim();
+            BorrowerRole = Borrower.NormalizeRole(borrowerRole);
+            BorrowerOffice = (borrowerOffice ?? string.Empty).Trim().ToUpperInvariant();
+            BorrowerContactNumber = (borrowerContactNumber ?? string.Empty).Trim();
             DateBorrowed = dateBorrowed == DateTime.MinValue ? DateTime.Now : dateBorrowed;
             DateReturned = dateReturned;
         }

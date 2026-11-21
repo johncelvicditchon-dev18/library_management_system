@@ -32,6 +32,12 @@ namespace oop_project.forms
 
             _yearField.Input.KeyPress += DigitsOnly_KeyPress;
             _quantityField.Input.KeyPress += DigitsOnly_KeyPress;
+
+            // Book titles and author names are stored in books_table in upper case,
+            // so the text is converted while the librarian types it.
+            _titleField.Input.TextChanged += UppercaseInput_TextChanged;
+            _authorField.Input.TextChanged += UppercaseInput_TextChanged;
+
             _primaryButton.Click += SaveBook_Click;
 
             Shown += AddBookDialog_Shown;
@@ -50,6 +56,32 @@ namespace oop_project.forms
             }
         }
 
+        /// <summary>
+        /// Keeps the TITLE and AUTHOR boxes in upper case while the user types or
+        /// pastes, without moving the caret to the end of the text.
+        /// </summary>
+        private static void UppercaseInput_TextChanged(object? sender, EventArgs e)
+        {
+            if (sender is not TextBox box)
+            {
+                return;
+            }
+
+            string upper = box.Text.ToUpperInvariant();
+            if (string.Equals(upper, box.Text, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            int caret = box.SelectionStart;
+            int selectionLength = box.SelectionLength;
+
+            box.Text = upper;
+
+            box.SelectionStart = Math.Min(caret, box.Text.Length);
+            box.SelectionLength = Math.Min(selectionLength, box.Text.Length - box.SelectionStart);
+        }
+
         private void SaveBook_Click(object? sender, EventArgs e)
         {
             _titleField.ClearError();
@@ -57,8 +89,10 @@ namespace oop_project.forms
             _yearField.ClearError();
             _quantityField.ClearError();
 
-            string title = _titleField.Value.Trim();
-            string author = _authorField.Value.Trim();
+            // Normalising here guarantees the row written to books_table is upper case
+            // even if the text arrived through a paste or a clear of the box.
+            string title = _titleField.Value.Trim().ToUpperInvariant();
+            string author = _authorField.Value.Trim().ToUpperInvariant();
             string yearText = _yearField.Value.Trim();
             string quantityText = _quantityField.Value.Trim();
 

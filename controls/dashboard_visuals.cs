@@ -122,10 +122,11 @@ namespace oop_project
     }
 
     [ToolboxItem(true)]
-    [Description("Circular avatar that shows the initials of the signed in person.")]
+    [Description("Circular avatar that shows a profile picture or the initials of the signed in person.")]
     public sealed class AvatarBadge : Control
     {
         private string _initials = "?";
+        private Image? _picture;
 
         public Color FillTopColor { get; set; } = Color.FromArgb(34, 197, 94);
         public Color FillBottomColor { get; set; } = Color.FromArgb(4, 90, 66);
@@ -147,6 +148,29 @@ namespace oop_project
                 }
 
                 _initials = text;
+                Invalidate();
+            }
+        }
+
+        /// <summary>
+        /// Optional portrait. When it is set the avatar shows the picture cropped
+        /// to the circle, otherwise it falls back to the initials. The image stays
+        /// owned by the caller.
+        /// </summary>
+        [Category("Appearance")]
+        [DefaultValue(null)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Image? Picture
+        {
+            get => _picture;
+            set
+            {
+                if (ReferenceEquals(_picture, value))
+                {
+                    return;
+                }
+
+                _picture = value;
                 Invalidate();
             }
         }
@@ -181,26 +205,54 @@ namespace oop_project
             using var path = new GraphicsPath();
             path.AddEllipse(circle);
 
-            using (var fill = new LinearGradientBrush(circle, FillTopColor, FillBottomColor, LinearGradientMode.Vertical))
+            if (_picture != null)
             {
-                g.FillPath(fill, path);
+                // Cover-crop the portrait inside the circle, so no letterbox bars
+                // show around a photo with a different aspect ratio.
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.CompositingQuality = CompositingQuality.HighQuality;
+
+                float scale = Math.Max(
+                    (float)circle.Width / _picture.Width,
+                    (float)circle.Height / _picture.Height);
+
+                int width = Math.Max(circle.Width, (int)Math.Ceiling(_picture.Width * scale));
+                int height = Math.Max(circle.Height, (int)Math.Ceiling(_picture.Height * scale));
+
+                Rectangle target = new Rectangle(
+                    circle.Left + (circle.Width - width) / 2,
+                    circle.Top + (circle.Height - height) / 2,
+                    width,
+                    height);
+
+                GraphicsState state = g.Save();
+                g.SetClip(path);
+                g.DrawImage(_picture, target);
+                g.Restore(state);
+            }
+            else
+            {
+                using (var fill = new LinearGradientBrush(circle, FillTopColor, FillBottomColor, LinearGradientMode.Vertical))
+                {
+                    g.FillPath(fill, path);
+                }
+
+                using var font = new Font("Segoe UI", Math.Max(9f, size * 0.30f), FontStyle.Bold, GraphicsUnit.Pixel);
+                TextRenderer.DrawText(
+                    g,
+                    _initials,
+                    font,
+                    circle,
+                    InitialsColor,
+                    TextFormatFlags.HorizontalCenter |
+                    TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.NoPadding);
             }
 
             using (var ring = new Pen(RingColor, 2f))
             {
                 g.DrawEllipse(ring, circle);
             }
-
-            using var font = new Font("Segoe UI", Math.Max(9f, size * 0.30f), FontStyle.Bold, GraphicsUnit.Pixel);
-            TextRenderer.DrawText(
-                g,
-                _initials,
-                font,
-                circle,
-                InitialsColor,
-                TextFormatFlags.HorizontalCenter |
-                TextFormatFlags.VerticalCenter |
-                TextFormatFlags.NoPadding);
         }
     }
 

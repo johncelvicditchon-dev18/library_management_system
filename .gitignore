@@ -17,3 +17,9 @@ obj/
 TestResults/
 *.trx
 *.coverage
+
+# Deployment output and local configuration
+publish/
+*.pubxml.user
+.env
+*.log

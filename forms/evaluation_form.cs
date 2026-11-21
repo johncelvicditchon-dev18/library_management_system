@@ -209,8 +209,7 @@ namespace oop_project.forms
 
             string normalized = role.Trim().ToUpperInvariant();
 
-            // An OFFICER account belongs to the staff group.
-            return normalized == "OFFICER" ? "STAFF" : normalized;
+            return normalized;
         }
 
         protected override void OnShown(EventArgs e)

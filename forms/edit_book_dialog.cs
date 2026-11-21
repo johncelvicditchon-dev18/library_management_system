@@ -39,14 +39,21 @@ namespace oop_project.forms
                 throw new ArgumentNullException(nameof(book));
             }
 
-            _titleField.Value = book.Title;
-            _authorField.Value = book.Author;
+            _titleField.Value = book.Title.ToUpperInvariant();
+            _authorField.Value = book.Author.ToUpperInvariant();
             _yearField.Value = book.Year > 0 ? book.Year.ToString() : string.Empty;
             _quantityField.Value = (book.Quantity > 0 ? book.Quantity : 1).ToString();
             _coverPicker.LoadImage(book.CoverImage);
 
             _hintLabel.Text = "BOOK ID #" + book.BookId + "     •     DATE ADDED: " + book.DateAdded +
                               "\r\nTHE ID AND THE DATE ADDED NEVER CHANGE.";
+
+            // BOOK TITLE and AUTHOR are stored in capitals, so both fields convert
+            // the text while it is typed (and pasted) into the catalog record.
+            _titleField.Input.CharacterCasing = CharacterCasing.Upper;
+            _authorField.Input.CharacterCasing = CharacterCasing.Upper;
+            _titleField.Input.TextChanged += UpperCase_TextChanged;
+            _authorField.Input.TextChanged += UpperCase_TextChanged;
 
             _yearField.Input.KeyPress += DigitsOnly_KeyPress;
             _quantityField.Input.KeyPress += DigitsOnly_KeyPress;
@@ -68,6 +75,29 @@ namespace oop_project.forms
             }
         }
 
+        /// <summary>
+        /// CharacterCasing already uppercases typing; this second pass also turns
+        /// pasted or programmed text into capitals and keeps the caret in place.
+        /// </summary>
+        private static void UpperCase_TextChanged(object? sender, EventArgs e)
+        {
+            if (sender is not TextBox box)
+            {
+                return;
+            }
+
+            string upper = box.Text.ToUpperInvariant();
+
+            if (string.Equals(upper, box.Text, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            int caret = box.SelectionStart;
+            box.Text = upper;
+            box.SelectionStart = Math.Min(caret, box.Text.Length);
+        }
+
         private void UpdateBook_Click(object? sender, EventArgs e)
         {
             _titleField.ClearError();
@@ -75,8 +105,8 @@ namespace oop_project.forms
             _yearField.ClearError();
             _quantityField.ClearError();
 
-            string title = _titleField.Value.Trim();
-            string author = _authorField.Value.Trim();
+            string title = _titleField.Value.Trim().ToUpperInvariant();
+            string author = _authorField.Value.Trim().ToUpperInvariant();
             string yearText = _yearField.Value.Trim();
             string quantityText = _quantityField.Value.Trim();
 

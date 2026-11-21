@@ -28,268 +28,221 @@
         /// </summary>
         private void InitializeComponent()
         {
-            rootLayout = new TableLayoutPanel();
-            headerLayout = new TableLayoutPanel();
-            logoRow = new TableLayoutPanel();
+            backdrop = new oop_project.ScannerBackdrop();
             tcgcLogoBadge = new oop_project.TcgcLogoBadge();
             lrcLogoBadge = new oop_project.LrcLogoBadge();
+            brandLabel = new Label();
+            brandSubLabel = new Label();
+            clockLabel = new Label();
             titleLabel = new Label();
+            subtitleLabel = new Label();
             cameraArea = new Panel();
             cameraCard = new oop_project.RoundedCard();
-            cameraPreview = new PictureBox();
-            cameraPlaceholder = new Label();
-            nameArea = new Panel();
-            nameCard = new oop_project.RoundedCard();
-            nameLabel = new Label();
-            statusLabel = new Label();
-            rootLayout.SuspendLayout();
-            headerLayout.SuspendLayout();
-            logoRow.SuspendLayout();
+            cameraView = new oop_project.ScannerCameraView();
+            resultArea = new Panel();
+            resultCard = new oop_project.ScannerResultCard();
+            statusPill = new oop_project.ScannerStatusPill();
+            backdrop.SuspendLayout();
             cameraArea.SuspendLayout();
             cameraCard.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)cameraPreview).BeginInit();
-            nameArea.SuspendLayout();
-            nameCard.SuspendLayout();
+            resultArea.SuspendLayout();
             SuspendLayout();
             // 
-            // rootLayout
+            // backdrop
             // 
-            rootLayout.BackColor = Color.White;
-            rootLayout.ColumnCount = 3;
-            rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 600F));
-            rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            rootLayout.Controls.Add(headerLayout, 1, 1);
-            rootLayout.Controls.Add(cameraArea, 1, 2);
-            rootLayout.Controls.Add(nameArea, 1, 3);
-            rootLayout.Dock = DockStyle.Fill;
-            rootLayout.Location = new Point(0, 0);
-            rootLayout.Name = "rootLayout";
-            rootLayout.Padding = new Padding(24, 24, 24, 26);
-            rootLayout.RowCount = 5;
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 170F));
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 600F));
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 150F));
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            rootLayout.Size = new Size(1180, 780);
-            rootLayout.TabIndex = 0;
-            // 
-          
-            // headerLayout
-            // 
-            headerLayout.BackColor = Color.White;
-            headerLayout.ColumnCount = 1;
-            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            headerLayout.Controls.Add(logoRow, 0, 0);
-            headerLayout.Controls.Add(titleLabel, 0, 1);
-            headerLayout.Dock = DockStyle.Fill;
-            headerLayout.Location = new Point(369, 27);
-            headerLayout.Margin = new Padding(0);
-            headerLayout.Name = "headerLayout";
-            headerLayout.RowCount = 2;
-            headerLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 86F));
-            headerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            headerLayout.Size = new Size(490, 170);
-            headerLayout.TabIndex = 0;
-            // 
-            // logoRow
-            // 
-            logoRow.BackColor = Color.White;
-            logoRow.ColumnCount = 5;
-            logoRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            logoRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64F));
-            logoRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 32F));
-            logoRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64F));
-            logoRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            logoRow.Controls.Add(tcgcLogoBadge, 1, 0);
-            logoRow.Controls.Add(lrcLogoBadge, 3, 0);
-            logoRow.Dock = DockStyle.Fill;
-            logoRow.Location = new Point(0, 0);
-            logoRow.Margin = new Padding(0, 10, 0, 0);
-            logoRow.Name = "logoRow";
-            logoRow.RowCount = 1;
-            logoRow.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
-            logoRow.Size = new Size(490, 76);
-            logoRow.TabIndex = 0;
+            backdrop.Dock = DockStyle.Fill;
+            backdrop.Location = new Point(0, 0);
+            backdrop.Name = "backdrop";
+            backdrop.Size = new Size(1280, 820);
+            backdrop.TabIndex = 0;
+            backdrop.Controls.Add(cameraArea);
+            backdrop.Controls.Add(resultArea);
+            backdrop.Controls.Add(statusPill);
+            backdrop.Controls.Add(tcgcLogoBadge);
+            backdrop.Controls.Add(lrcLogoBadge);
+            backdrop.Controls.Add(brandLabel);
+            backdrop.Controls.Add(brandSubLabel);
+            backdrop.Controls.Add(clockLabel);
+            backdrop.Controls.Add(titleLabel);
+            backdrop.Controls.Add(subtitleLabel);
             // 
             // tcgcLogoBadge
             // 
             tcgcLogoBadge.BackColor = Color.Transparent;
-            tcgcLogoBadge.Dock = DockStyle.Fill;
-            tcgcLogoBadge.Location = new Point(181, 0);
+            tcgcLogoBadge.Location = new Point(24, 30);
             tcgcLogoBadge.Margin = new Padding(0);
             tcgcLogoBadge.Name = "tcgcLogoBadge";
-            tcgcLogoBadge.Size = new Size(64, 64);
-            tcgcLogoBadge.TabIndex = 0;
+            tcgcLogoBadge.Size = new Size(44, 44);
+            tcgcLogoBadge.TabIndex = 1;
             tcgcLogoBadge.Text = "tcgcLogoBadge";
             // 
             // lrcLogoBadge
             // 
             lrcLogoBadge.BackColor = Color.Transparent;
-            lrcLogoBadge.Dock = DockStyle.Fill;
-            lrcLogoBadge.Location = new Point(277, 0);
-            lrcLogoBadge.LogoKind = oop_project.LogoKind.Lrc;
+            lrcLogoBadge.Location = new Point(76, 30);
             lrcLogoBadge.Margin = new Padding(0);
             lrcLogoBadge.Name = "lrcLogoBadge";
-            lrcLogoBadge.Size = new Size(64, 64);
-            lrcLogoBadge.TabIndex = 1;
+            lrcLogoBadge.Size = new Size(44, 44);
+            lrcLogoBadge.TabIndex = 2;
             lrcLogoBadge.Text = "lrcLogoBadge";
+            // 
+            // brandLabel
+            // 
+            brandLabel.AutoEllipsis = true;
+            brandLabel.BackColor = Color.Transparent;
+            brandLabel.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            brandLabel.ForeColor = Color.FromArgb(15, 23, 42);
+            brandLabel.Location = new Point(144, 38);
+            brandLabel.Name = "brandLabel";
+            brandLabel.Size = new Size(190, 20);
+            brandLabel.TabIndex = 3;
+            brandLabel.Text = "TCGC LIBRARY";
+            brandLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // brandSubLabel
+            // 
+            brandSubLabel.AutoEllipsis = true;
+            brandSubLabel.BackColor = Color.Transparent;
+            brandSubLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            brandSubLabel.ForeColor = Color.FromArgb(4, 120, 87);
+            brandSubLabel.Location = new Point(144, 59);
+            brandSubLabel.Name = "brandSubLabel";
+            brandSubLabel.Size = new Size(190, 17);
+            brandSubLabel.TabIndex = 4;
+            brandSubLabel.Text = "LEARNING RESOURCE CENTER";
+            brandSubLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // clockLabel
+            // 
+            clockLabel.AutoEllipsis = true;
+            clockLabel.BackColor = Color.Transparent;
+            clockLabel.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            clockLabel.ForeColor = Color.FromArgb(71, 85, 105);
+            clockLabel.Location = new Point(1180, 40);
+            clockLabel.Name = "clockLabel";
+            clockLabel.Size = new Size(200, 24);
+            clockLabel.TabIndex = 5;
+            clockLabel.Text = "FRI, NOV 13  •  8:41 AM";
+            clockLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
             // titleLabel
             // 
-            titleLabel.BackColor = Color.White;
-            titleLabel.Dock = DockStyle.Fill;
-            titleLabel.Font = new Font("Segoe UI", 26F, FontStyle.Bold);
-            titleLabel.ForeColor = Color.FromArgb(17, 24, 39);
-            titleLabel.Location = new Point(0, 86);
-            titleLabel.Margin = new Padding(0);
+            titleLabel.BackColor = Color.Transparent;
+            titleLabel.Font = new Font("Segoe UI", 25F, FontStyle.Bold);
+            titleLabel.ForeColor = Color.FromArgb(15, 23, 42);
+            titleLabel.Location = new Point(340, 20);
             titleLabel.Name = "titleLabel";
-            titleLabel.Size = new Size(490, 84);
-            titleLabel.TabIndex = 1;
+            titleLabel.Size = new Size(600, 42);
+            titleLabel.TabIndex = 7;
             titleLabel.Text = "QR CODE SCANNER";
             titleLabel.TextAlign = ContentAlignment.MiddleCenter;
             // 
+            // subtitleLabel
+            // 
+            subtitleLabel.AutoEllipsis = true;
+            subtitleLabel.BackColor = Color.Transparent;
+            subtitleLabel.Font = new Font("Segoe UI", 10.5F, FontStyle.Regular);
+            subtitleLabel.ForeColor = Color.FromArgb(100, 116, 139);
+            subtitleLabel.Location = new Point(340, 62);
+            subtitleLabel.Name = "subtitleLabel";
+            subtitleLabel.Size = new Size(600, 20);
+            subtitleLabel.TabIndex = 9;
+            subtitleLabel.Text = "SCAN YOUR LIBRARY QR CODE TO RECORD YOUR VISIT.";
+            subtitleLabel.TextAlign = ContentAlignment.MiddleCenter;
+            // 
             // cameraArea
             // 
-            cameraArea.BackColor = Color.White;
+            cameraArea.BackColor = Color.Transparent;
             cameraArea.Controls.Add(cameraCard);
-            cameraArea.Dock = DockStyle.Fill;
-            cameraArea.Location = new Point(369, 197);
-            cameraArea.Margin = new Padding(0, 8, 0, 18);
+            cameraArea.Location = new Point(326, 168);
+            cameraArea.Margin = new Padding(0);
             cameraArea.Name = "cameraArea";
-            cameraArea.Padding = new Padding(12, 12, 20, 20);
-            cameraArea.Size = new Size(600, 600);
-            cameraArea.TabIndex = 1;    
+            cameraArea.Size = new Size(628, 628);
+            cameraArea.TabIndex = 10;
             // 
             // cameraCard
             // 
-            cameraCard.BackColor = Color.White;
-            cameraCard.BorderColor = Color.FromArgb(241, 245, 249);
-            cameraCard.Controls.Add(cameraPreview);
-            cameraCard.Controls.Add(cameraPlaceholder);
-            cameraCard.CornerRadius = 18;
-            cameraCard.Dock = DockStyle.Fill;
-            cameraCard.Location = new Point(12, 12);
+            cameraCard.BackColor = Color.FromArgb(9, 15, 28);
+            cameraCard.BorderColor = Color.FromArgb(30, 41, 59);
+            cameraCard.Controls.Add(cameraView);
+            cameraCard.CornerRadius = 24;
+            cameraCard.Location = new Point(14, 14);
+            cameraCard.Margin = new Padding(0);
             cameraCard.Name = "cameraCard";
-            cameraCard.Size = new Size(458, 262);
+            cameraCard.Size = new Size(600, 600);
             cameraCard.TabIndex = 0;
             // 
-            // cameraPreview
+            // cameraView
             // 
-            cameraPreview.BackColor = Color.White;
-            cameraPreview.Dock = DockStyle.Fill;
-            cameraPreview.Location = new Point(0, 0);
-            cameraPreview.Name = "cameraPreview";
-            cameraPreview.Size = new Size(600, 600);
-            cameraPreview.SizeMode = PictureBoxSizeMode.Zoom;
-            cameraPreview.TabIndex = 0;
-            cameraPreview.TabStop = false;
-        
+            cameraView.BackColor = Color.FromArgb(9, 15, 28);
+            cameraView.Dock = DockStyle.Fill;
+            cameraView.Location = new Point(0, 0);
+            cameraView.Name = "cameraView";
+            cameraView.Size = new Size(600, 600);
+            cameraView.TabIndex = 0;
             // 
-            // cameraPlaceholder
+            // resultArea
             // 
-            cameraPlaceholder.BackColor = Color.Transparent;
-            cameraPlaceholder.Dock = DockStyle.Fill;
-            cameraPlaceholder.Font = new Font("Segoe UI", 26F, FontStyle.Bold);
-            cameraPlaceholder.ForeColor = Color.FromArgb(209, 213, 219);
-            cameraPlaceholder.Location = new Point(0, 0);
-            cameraPlaceholder.Name = "cameraPlaceholder";
-            cameraPlaceholder.Size = new Size(458, 262);
-            cameraPlaceholder.TabIndex = 1;
-            cameraPlaceholder.Text = "CAMERA HERE!";
-            cameraPlaceholder.TextAlign = ContentAlignment.MiddleCenter;
+            resultArea.BackColor = Color.Transparent;
+            resultArea.Controls.Add(resultCard);
+            resultArea.Location = new Point(326, 814);
+            resultArea.Margin = new Padding(0);
+            resultArea.Name = "resultArea";
+            resultArea.Size = new Size(628, 140);
+            resultArea.TabIndex = 11;
             // 
-            // nameArea
+            // resultCard
             // 
-            nameArea.BackColor = Color.White;
-            nameArea.Controls.Add(nameCard);
-            nameArea.Dock = DockStyle.Fill;
-            nameArea.Location = new Point(369, 509);
-            nameArea.Margin = new Padding(0);
-            nameArea.Name = "nameArea";
-            nameArea.Padding = new Padding(12, 10, 20, 18);
-            nameArea.Size = new Size(490, 150);
-            nameArea.TabIndex = 2;
+            resultCard.BackColor = Color.Transparent;
+            resultCard.Location = new Point(14, 14);
+            resultCard.Margin = new Padding(0);
+            resultCard.Name = "resultCard";
+            resultCard.Size = new Size(600, 112);
+            resultCard.TabIndex = 0;
             // 
-            // nameCard
+            // statusPill
             // 
-            nameCard.BackColor = Color.White;
-            nameCard.BorderColor = Color.FromArgb(241, 245, 249);
-            nameCard.Controls.Add(nameLabel);
-            nameCard.Controls.Add(statusLabel);
-            nameCard.CornerRadius = 16;
-            nameCard.Dock = DockStyle.Fill;
-            nameCard.Location = new Point(12, 10);
-            nameCard.Name = "nameCard";
-            nameCard.Size = new Size(458, 122);
-            nameCard.TabIndex = 0;
-            // 
-            // nameLabel
-            // 
-            nameLabel.AutoEllipsis = true;
-            nameLabel.BackColor = Color.White;
-            nameLabel.Dock = DockStyle.Fill;
-            nameLabel.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
-            nameLabel.ForeColor = Color.FromArgb(5, 150, 105);
-            nameLabel.Location = new Point(0, 0);
-            nameLabel.Name = "nameLabel";
-            nameLabel.Size = new Size(458, 96);
-            nameLabel.TabIndex = 0;
-            nameLabel.Text = "WAITING FOR QR CODE...";
-            nameLabel.TextAlign = ContentAlignment.MiddleCenter;
-            // 
-            // statusLabel
-            // 
-            statusLabel.AutoEllipsis = true;
-            statusLabel.BackColor = Color.White;
-            statusLabel.Dock = DockStyle.Bottom;
-            statusLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            statusLabel.ForeColor = Color.FromArgb(148, 163, 184);
-            statusLabel.Location = new Point(0, 96);
-            statusLabel.Name = "statusLabel";
-            statusLabel.Size = new Size(458, 26);
-            statusLabel.TabIndex = 1;
-            statusLabel.Text = "CAMERA STARTING...";
-            statusLabel.TextAlign = ContentAlignment.MiddleCenter;
+            statusPill.BackColor = Color.Transparent;
+            statusPill.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            statusPill.Location = new Point(340, 966);
+            statusPill.Name = "statusPill";
+            statusPill.Size = new Size(600, 44);
+            statusPill.TabIndex = 12;
+            statusPill.Text = "statusPill";
             // 
             // qr_code_scanner
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.White;
-            ClientSize = new Size(1180, 780);
-            Controls.Add(rootLayout);
-            MinimumSize = new Size(900, 760);
+            BackColor = Color.FromArgb(247, 250, 248);
+            ClientSize = new Size(1280, 820);
+            Controls.Add(backdrop);
+            MinimumSize = new Size(1000, 700);
             Name = "qr_code_scanner";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "TCGC - QR CODE SCANNER";
-            rootLayout.ResumeLayout(false);
-            headerLayout.ResumeLayout(false);
-            logoRow.ResumeLayout(false);
+            backdrop.ResumeLayout(false);
             cameraArea.ResumeLayout(false);
             cameraCard.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)cameraPreview).EndInit();
-            nameArea.ResumeLayout(false);
-            nameCard.ResumeLayout(false);
+            resultArea.ResumeLayout(false);
             ResumeLayout(false);
         }
 
         #endregion
 
-        private TableLayoutPanel rootLayout;
-        private TableLayoutPanel headerLayout;
-        private TableLayoutPanel logoRow;
+        private oop_project.ScannerBackdrop backdrop;
         private oop_project.TcgcLogoBadge tcgcLogoBadge;
         private oop_project.LrcLogoBadge lrcLogoBadge;
+        private Label brandLabel;
+        private Label brandSubLabel;
+        private Label clockLabel;
         private Label titleLabel;
+        private Label subtitleLabel;
         private Panel cameraArea;
         private oop_project.RoundedCard cameraCard;
-        private PictureBox cameraPreview;
-        private Label cameraPlaceholder;
-        private Panel nameArea;
-        private oop_project.RoundedCard nameCard;
-        private Label nameLabel;
-        private Label statusLabel;
+        private oop_project.ScannerCameraView cameraView;
+        private Panel resultArea;
+        private oop_project.ScannerResultCard resultCard;
+        private oop_project.ScannerStatusPill statusPill;
     }
 }

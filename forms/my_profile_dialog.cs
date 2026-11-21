@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 using oop_project.Models;
@@ -24,6 +26,7 @@ namespace oop_project.forms
         private const int FieldHeight = 88;
         private const int FirstFieldTop = 22;
         private const int FieldStep = 90;
+        private const int PhotoSectionHeight = 128;
 
         // The dropdowns are filled from `institute_table` and `program_table`. The
         // built-in lists are only used when MySQL is unreachable, so the form can
@@ -61,6 +64,15 @@ namespace oop_project.forms
         private readonly DialogChrome.DragMover _drag = new DialogChrome.DragMover();
         private readonly AccountRow _row;
 
+        private AvatarBadge _photoPreview = null!;
+        private Label _photoHeading = null!;
+        private Label _photoHint = null!;
+        private RoundedButton _uploadPhotoButton = null!;
+        private RoundedButton _removePhotoButton = null!;
+        private Image? _photoImage;
+        private byte[]? _photoBytes;
+        private bool _photoChanged;
+
         public string FullName { get; private set; } = string.Empty;
         public string Username { get; private set; } = string.Empty;
         public string SchoolId { get; private set; } = string.Empty;
@@ -70,6 +82,12 @@ namespace oop_project.forms
         public string ContactNumber { get; private set; } = string.Empty;
         public string Address { get; private set; } = string.Empty;
         public string Office { get; private set; } = string.Empty;
+
+        /// <summary>The new portrait as a small JPEG, or null when it was removed.</summary>
+        public byte[]? ProfilePicture { get; private set; }
+
+        /// <summary>True only when the photo was uploaded or removed in this dialog.</summary>
+        public bool ProfilePictureChanged { get; private set; }
 
         /// <summary>Design time constructor with a sample student account.</summary>
         public MyProfileDialog()
@@ -96,12 +114,20 @@ namespace oop_project.forms
 
             _row = row ?? throw new ArgumentNullException(nameof(row));
 
-            _nameField.Value = Clean(row.Name);
+            // FULL NAME, ADDRESS and the STAFF OFFICE are kept in uppercase, so
+            // the text boxes convert each typed letter while the rest of the app
+            // keeps using the same uppercase style. CharacterCasing only affects
+            // keys the user types, so the stored values are upper cased as well.
+            _nameField.Input.CharacterCasing = CharacterCasing.Upper;
+            _addressField.Input.CharacterCasing = CharacterCasing.Upper;
+            _officeField.Input.CharacterCasing = CharacterCasing.Upper;
+
+            _nameField.Value = Clean(row.Name).ToUpperInvariant();
             _usernameField.Value = Clean(row.Username);
             _contactField.Value = Clean(row.ContactNumber);
-            _addressField.Value = Clean(row.Address);
+            _addressField.Value = Clean(row.Address).ToUpperInvariant();
             _schoolIdField.Value = Clean(row.SchoolId);
-            _officeField.Value = Clean(row.Office);
+            _officeField.Value = Clean(row.Office).ToUpperInvariant();
 
             // INSTITUTE before PROGRAM: the program list follows the institute,
             // exactly like the signup form.
@@ -112,6 +138,8 @@ namespace oop_project.forms
             EnsureYearLevels(row.YearLevel);
 
             ConfigureFields();
+            BuildPhotoSection();
+            LoadPhoto(row.ProfilePicture);
 
             int contentHeight = LayoutFields();
             int formHeight = DialogChrome.HeaderHeight + contentHeight + DialogChrome.FooterHeight;
@@ -151,20 +179,12 @@ namespace oop_project.forms
 
         private bool IsStaff
         {
-            get
-            {
-                return string.Equals(_row.Role, "STAFF", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(_row.Role, "OFFICER", StringComparison.OrdinalIgnoreCase);
-            }
+            get { return string.Equals(_row.Role, "STAFF", StringComparison.OrdinalIgnoreCase); }
         }
 
         private bool IsLibrarian
         {
-            get
-            {
-                return string.Equals(_row.Role, "LIBRARIAN", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(_row.Role, "ADMIN", StringComparison.OrdinalIgnoreCase);
-            }
+            get { return string.Equals(_row.Role, "LIBRARIAN", StringComparison.OrdinalIgnoreCase); }
         }
 
         // A profile row is only updated when the account actually owns one, so a
@@ -210,6 +230,13 @@ namespace oop_project.forms
         private bool CanEditAddress
         {
             get { return HasStudentProfile; }
+        }
+
+        // Every role may add a portrait, including the librarian. The picture is
+        // stored on the account, so it follows the sign in on every dashboard.
+        private bool CanEditPhoto
+        {
+            get { return true; }
         }
 
         private void EnsureYearLevels(string current)
@@ -462,12 +489,210 @@ namespace oop_project.forms
             _officeField.Visible = CanEditOffice;
         }
 
+        // ------------------------------------------------------- PROFILE PICTURE
+
+        /// <summary>
+        /// Builds the picture block that sits above the text fields: a round
+        /// preview, the hint and the UPLOAD / REMOVE actions.
+        /// </summary>
+        private void BuildPhotoSection()
+        {
+            _photoHeading = new Label
+            {
+                AutoSize = false,
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Text = "PROFILE PICTURE",
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = CanEditPhoto
+            };
+
+            _photoPreview = new AvatarBadge
+            {
+                BackColor = Color.Transparent,
+                FillTopColor = Color.FromArgb(34, 197, 94),
+                FillBottomColor = Color.FromArgb(4, 90, 66),
+                Initials = InitialsOf(_row.Name),
+                InitialsColor = Color.White,
+                RingColor = Color.FromArgb(45, 4, 120, 87),
+                Size = new Size(92, 92),
+                TabStop = false,
+                Visible = CanEditPhoto
+            };
+
+            _photoHint = new Label
+            {
+                AutoSize = false,
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Text = "ADD A CLEAR PORTRAIT SO THE LIBRARY STAFF CAN RECOGNISE YOU. A SQUARE PHOTO WORKS BEST.",
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = CanEditPhoto
+            };
+
+            _uploadPhotoButton = new RoundedButton
+            {
+                BackColor = Color.Transparent,
+                CornerRadius = 10,
+                Enabled = CanEditPhoto,
+                FlatAppearance = { BorderSize = 0 },
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                ForeColor = Color.White,
+                HoverColor = Color.FromArgb(21, 128, 61),
+                NormalColor = Color.FromArgb(22, 163, 74),
+                PressedColor = Color.FromArgb(20, 83, 45),
+                Size = new Size(150, 38),
+                Text = "UPLOAD PHOTO",
+                UseVisualStyleBackColor = false,
+                Visible = CanEditPhoto
+            };
+            _uploadPhotoButton.Click += UploadPhotoButton_Click;
+
+            _removePhotoButton = new RoundedButton
+            {
+                BackColor = Color.Transparent,
+                CornerRadius = 10,
+                Enabled = false,
+                FlatAppearance = { BorderSize = 0 },
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(51, 65, 85),
+                HoverColor = Color.FromArgb(226, 232, 240),
+                NormalColor = Color.FromArgb(241, 245, 249),
+                PressedColor = Color.FromArgb(203, 213, 225),
+                Size = new Size(104, 38),
+                Text = "REMOVE",
+                UseVisualStyleBackColor = false,
+                Visible = CanEditPhoto
+            };
+            _removePhotoButton.Click += RemovePhotoButton_Click;
+
+            _contentPanel.Controls.Add(_photoPreview);
+            _contentPanel.Controls.Add(_photoHeading);
+            _contentPanel.Controls.Add(_photoHint);
+            _contentPanel.Controls.Add(_uploadPhotoButton);
+            _contentPanel.Controls.Add(_removePhotoButton);
+        }
+
+        private static string InitialsOf(string name)
+        {
+            string[] parts = (name ?? string.Empty).Split(
+                new[] { ' ', ',', '.', '-' },
+                StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length == 0)
+            {
+                return "?";
+            }
+
+            if (parts.Length == 1)
+            {
+                return parts[0].Substring(0, 1).ToUpperInvariant();
+            }
+
+            return (parts[0].Substring(0, 1) + parts[parts.Length - 1].Substring(0, 1)).ToUpperInvariant();
+        }
+
+        private void LoadPhoto(byte[]? bytes)
+        {
+            _photoBytes = bytes != null && bytes.Length > 0 ? bytes : null;
+
+            Image? next = oop_project.ProfilePicture.Load(_photoBytes);
+            Image? previous = _photoImage;
+            _photoImage = next;
+
+            _photoPreview.Picture = next;
+            previous?.Dispose();
+
+            _removePhotoButton.Enabled = CanEditPhoto && _photoBytes != null;
+        }
+
+        private void UploadPhotoButton_Click(object? sender, EventArgs e)
+        {
+            using var chooser = new OpenFileDialog
+            {
+                CheckFileExists = true,
+                Filter = "PICTURE FILES|*.png;*.jpg;*.jpeg;*.bmp|ALL FILES|*.*",
+                Multiselect = false,
+                Title = "CHOOSE A PROFILE PICTURE"
+            };
+
+            if (chooser.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            try
+            {
+                using Image source = oop_project.ProfilePicture.LoadFile(chooser.FileName);
+                byte[] portrait = oop_project.ProfilePicture.CreatePortrait(source);
+
+                LoadPhoto(portrait);
+                _photoChanged = true;
+            }
+            catch (Exception ex) when (
+                ex is ArgumentException ||
+                ex is ExternalException ||
+                ex is IOException ||
+                ex is InvalidOperationException ||
+                ex is OutOfMemoryException ||
+                ex is UnauthorizedAccessException)
+            {
+                Authentication.ShowError(
+                    "PROFILE PICTURE",
+                    "THAT PICTURE COULD NOT BE USED.\nCHOOSE A JPG OR PNG PHOTO AND TRY AGAIN.");
+            }
+        }
+
+        private void RemovePhotoButton_Click(object? sender, EventArgs e)
+        {
+            if (_photoBytes == null)
+            {
+                return;
+            }
+
+            LoadPhoto(null);
+            _photoChanged = true;
+        }
+
+        private void LayoutPhotoSection(int top)
+        {
+            if (!CanEditPhoto)
+            {
+                return;
+            }
+
+            _photoHeading.SetBounds(LeftColumn, top, 600, 18);
+            _photoPreview.SetBounds(LeftColumn, top + 24, 92, 92);
+            _photoHint.SetBounds(LeftColumn + 112, top + 30, 600, 34);
+            _uploadPhotoButton.SetBounds(LeftColumn + 112, top + 74, 150, 38);
+            _removePhotoButton.SetBounds(LeftColumn + 274, top + 74, 104, 38);
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+
+            _photoImage?.Dispose();
+            _photoImage = null;
+        }
+
         // Places the visible fields in two columns (like the EDIT ACCOUNT pop up)
         // and returns the content height the chrome needs. The list is built from
         // the role instead of the Visible flag because a control inside a form
         // that is not shown yet reports Visible = false.
         private int LayoutFields()
         {
+            int firstTop = CanEditPhoto ? FirstFieldTop + PhotoSectionHeight : FirstFieldTop;
+
+            if (CanEditPhoto)
+            {
+                LayoutPhotoSection(FirstFieldTop);
+            }
+
             List<DialogField> fields = new List<DialogField>
             {
                 _nameField,
@@ -511,26 +736,50 @@ namespace oop_project.forms
                 fields.Add(_officeField);
             }
 
-            for (int index = 0; index < fields.Count; index++)
-            {
-                int column = index % 2;
-                int row = index / 2;
+            // EVERY field is one cell of the same two column grid, including FULL
+            // NAME. The fields use the same width so both columns line up exactly.
+            // The librarian's own EDIT MY INFO keeps FULL NAME on a full width row
+            // above the grid; the patron and staff forms stay equal.
+            int row = 0;
+            int column = 0;
+            int firstCell = 0;
 
-                fields[index].Location = new Point(
-                    column == 0 ? LeftColumn : RightColumn,
-                    FirstFieldTop + (row * FieldStep));
-                fields[index].Size = new Size(ColumnWidth, FieldHeight);
+            if (IsLibrarian)
+            {
+                _nameField.Location = new Point(LeftColumn, firstTop);
+                _nameField.Size = new Size(RightColumn + ColumnWidth - LeftColumn, FieldHeight);
+
+                firstCell = 1;
+                row = 1;
             }
 
-            int rows = (fields.Count + 1) / 2;
-            return FirstFieldTop + (rows * FieldStep) + 18;
+            for (int index = firstCell; index < fields.Count; index++)
+            {
+                DialogField field = fields[index];
+                field.Location = new Point(
+                    column == 0 ? LeftColumn : RightColumn,
+                    firstTop + (row * FieldStep));
+                field.Size = new Size(ColumnWidth, FieldHeight);
+
+                column++;
+                if (column == 2)
+                {
+                    column = 0;
+                    row++;
+                }
+            }
+
+            int usedRows = row + (column > 0 ? 1 : 0);
+            return firstTop + (usedRows * FieldStep) + 18;
         }
 
         private void SaveButton_Click(object? sender, EventArgs e)
         {
             ClearErrors();
 
-            string name = _nameField.Value.Trim();
+            // A pasted value skips CharacterCasing, so the uppercase fields are
+            // normalised once more before they are written to MySQL.
+            string name = _nameField.Value.Trim().ToUpperInvariant();
             string username = _usernameField.Value.Trim();
             string program = _programField.Value.Trim();
             string institute = SelectedInstituteCode;
@@ -585,8 +834,11 @@ namespace oop_project.forms
             YearLevel = CanEditYearLevel ? _yearLevelField.Value.Trim() : string.Empty;
             Institute = CanEditInstitute ? institute : string.Empty;
             ContactNumber = CanEditContact ? _contactField.Value.Trim() : string.Empty;
-            Address = CanEditAddress ? _addressField.Value.Trim() : string.Empty;
-            Office = CanEditOffice ? _officeField.Value.Trim() : string.Empty;
+            Address = CanEditAddress ? _addressField.Value.Trim().ToUpperInvariant() : string.Empty;
+            Office = CanEditOffice ? _officeField.Value.Trim().ToUpperInvariant() : string.Empty;
+
+            ProfilePicture = _photoChanged && CanEditPhoto ? _photoBytes : null;
+            ProfilePictureChanged = _photoChanged && CanEditPhoto;
 
             DialogResult = DialogResult.OK;
             Close();
